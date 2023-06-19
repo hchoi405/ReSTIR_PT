@@ -20,25 +20,27 @@ def render_graph_ReSTIRPT():
     g.addPass(AccumulatePass, "AccumulatePass")
     ToneMapper = createPass("ToneMapper", {'autoExposure': False, 'exposureCompensation': 0.0, 'operator': ToneMapOp.Linear})
     g.addPass(ToneMapper, "ToneMapper")
-    ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")    
+    ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")
     g.addPass(ScreenSpaceReSTIRPass, "ScreenSpaceReSTIRPass")
-    
-    g.addEdge("VBufferRT.vbuffer", "ReSTIRPTPass.vbuffer")   
-    g.addEdge("VBufferRT.mvec", "ReSTIRPTPass.motionVectors")    
-    
-    g.addEdge("VBufferRT.vbuffer", "ScreenSpaceReSTIRPass.vbuffer")   
-    g.addEdge("VBufferRT.mvec", "ScreenSpaceReSTIRPass.motionVectors")    
-    g.addEdge("ScreenSpaceReSTIRPass.color", "ReSTIRPTPass.directLighting")    
-    
+
+    g.addEdge("VBufferRT.vbuffer", "ReSTIRPTPass.vbuffer")
+    g.addEdge("VBufferRT.mvec", "ReSTIRPTPass.motionVectors")
+
+    g.addEdge("VBufferRT.vbuffer", "ScreenSpaceReSTIRPass.vbuffer")
+    g.addEdge("VBufferRT.mvec", "ScreenSpaceReSTIRPass.motionVectors")
+    g.addEdge("ScreenSpaceReSTIRPass.color", "ReSTIRPTPass.directLighting")
+
     g.addEdge("ReSTIRPTPass.color", "AccumulatePass.input")
     g.addEdge("AccumulatePass.output", "ToneMapper.src")
-    
+
     g.markOutput("ToneMapper.dst")
-    g.markOutput("AccumulatePass.output")  
+    g.markOutput("AccumulatePass.output")
 
     return g
 
 graph_ReSTIRPT = render_graph_ReSTIRPT()
 
 m.addGraph(graph_ReSTIRPT)
-m.loadScene('VeachAjar/VeachAjarAnimated.pyscene')
+m.loadScene('C:/Users/hchoi/repositories//ORCA/Bistro/BistroExterior2.pyscene')
+
+m.scene.camera.nearPlane = 0.15 # Increase near plane to prevent Z-fighting in the rasterizer

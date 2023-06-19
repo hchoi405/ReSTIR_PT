@@ -1,0 +1,91 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        // "build solution"
+        {
+            "label": "build solution",
+            "type": "shell",
+            "command": "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe",
+            "args": [
+                "Falcor.sln",
+                "/p:Configuration=ReleaseD3D12",
+                "/m:24", // Parallel
+                "/v:m", // Verbosity
+            ],
+            "group": "build",
+            "presentation": {
+                // Reveal the output only if unrecognized errors occur.
+                "reveal": "silent"
+            },
+            // Use the standard MS compiler pattern to detect errors, warnings and infos
+            "problemMatcher": "$msCompile"
+        },
+        // "build some passes"
+        {
+            "label": "build some passes",
+            "type": "shell",
+            "command": "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe",
+            "args": [
+                "Falcor.sln",
+                "/t:RenderPasses\\ReSTIRPTPass",
+                "/t:RenderPasses\\ScreenSpaceReSTIRPass",
+                "/p:Configuration=ReleaseD3D12",
+                "/m:24", // Parallel
+                "/v:m", // Verbosity
+            ],
+            "group": "build",
+            "presentation": {
+                // Reveal the output only if unrecognized errors occur.
+                "reveal": "silent"
+            },
+            // Use the standard MS compiler pattern to detect errors, warnings and infos
+            "problemMatcher": "$msCompile"
+        },
+        // "run Mogwai"
+        {
+            "label": "run Mogwai",
+            "type": "shell",
+            "command": "./Bin/x64/Release/Mogwai.exe",
+            "args": [
+                "--verbosity=3",
+                "--script=Source/Mogwai/Data/ReSTIRPTDemo.py"
+            ],
+            "problemMatcher": [],
+            "group": "build"
+        },
+        // "run Mogwai (empty)"
+        {
+            "label": "run Mogwai (empty)",
+            "type": "shell",
+            "command": "./Bin/x64/Release/Mogwai.exe",
+            "args": [
+                "--verbosity=3",
+                // "--script=Source/Mogwai/Data/test.py"
+            ],
+            "problemMatcher": [],
+            "group": "build"
+        },
+        // "Build Solution and Run"
+        {
+            "label": "Build Solution and Run",
+            "group": "build",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "build solution",
+                "run Mogwai"
+            ],
+        },
+        // "Build some passes and Run"
+        {
+            "label": "Build some passes and Run",
+            "group": "build",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "build some passes",
+                "run Mogwai"
+            ],
+        },
+    ]
+}
