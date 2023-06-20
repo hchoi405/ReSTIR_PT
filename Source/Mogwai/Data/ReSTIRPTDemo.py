@@ -1,6 +1,40 @@
 from falcor import *
 import os
 
+out_dir = 'results'
+
+def add_capture(g, pairs, start=0, end=100000, opts=None):
+    loadRenderPassLibrary("CapturePass.dll")
+
+    channels = list(pairs.keys())
+    inputs = list(pairs.values())
+
+    options = {
+            'directory': out_dir,
+            'channels': channels,
+            'exitAtEnd': True,
+            'accumulate': False,
+            'writeStart': start,    # Control frame number in below
+            'writeEnd': end,  # Control frame number in below
+            'captureCameraMat': False,
+            'includeAlpha': ["specRough", "diffuseOpacity", "specRough2", "diffuseOpacity2"],
+    }
+    if opts is not None:
+        options.update(opts)
+    CapturePass = createPass("CapturePass", options)
+
+    capture = "CapturePass"
+    g.addPass(CapturePass, capture)
+
+    def addEdgeOutput(input, channel):
+        g.addEdge(input, f"{capture}.{channel}")
+        g.markOutput(f"{capture}.{channel}")
+
+    for input, channel in zip(inputs, channels):
+        addEdgeOutput(input, channel)
+
+    return capture
+
 
 def render_graph_ReSTIRPT(gvbuffer):
     g = RenderGraph("ReSTIRPTPass")
@@ -52,15 +86,36 @@ def add_SVGF(g, gvbuffer):
     g.addEdge(f"{gvbuffer}.mvec", "SVGFPass.MotionVec")
     g.markOutput("SVGFPass.Filtered image")
 
-    return g
+    return "SVGFPass"
 
 gvbuffer = "GBufferRaster" # Enable SVGF
 # gvbuffer = "VBufferRT"
 graph_ReSTIRPT = render_graph_ReSTIRPT(gvbuffer)
 if gvbuffer == "GBufferRaster":
-    graph_ReSTIRPT = add_SVGF(graph_ReSTIRPT, gvbuffer)
+    add_SVGF(graph_ReSTIRPT, gvbuffer)
+capture_pairs = {
+    'color': 'ReSTIRPTPass.color',
+    'albedo': 'ReSTIRPTPass.albedo',
+    'denoised': 'SVGFPass.Filtered image'
+}
+add_capture(graph_ReSTIRPT, capture_pairs)
 
 m.addGraph(graph_ReSTIRPT)
 m.loadScene('C:/Users/hchoi/repositories//ORCA/Bistro/BistroExterior2.pyscene')
-
+# Call this after scene loading to change the default camera
 m.scene.camera.nearPlane = 0.15 # Increase near plane to prevent Z-fighting in the rasterizer
+
+################################################################################
+# Rendering
+m.clock.framerate = 30
+m.clock.time = 0
+m.clock.pause()
+
+for frame in range(0, 100):
+    m.clock.frame = frame
+    m.renderFrame()
+
+exit()
+
+
+

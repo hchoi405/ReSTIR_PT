@@ -31,6 +31,7 @@
                 "Falcor.sln",
                 "/t:RenderPasses\\ReSTIRPTPass",
                 "/t:RenderPasses\\ScreenSpaceReSTIRPass",
+                "/t:RenderPasses\\CapturePass",
                 "/p:Configuration=ReleaseD3D12",
                 "/m:24", // Parallel
                 "/v:m", // Verbosity
