@@ -51,7 +51,7 @@ namespace
     const Falcor::ChannelList kOutputChannels =
     {
         { kOutputColor,                 "gOutputColor",                 "Output color (linear)", true /* optional */ },
-        { kOutputAlbedo,                "gOutputAlbedo",                "Output albedo (linear)", true /* optional */, ResourceFormat::RGBA8Unorm },
+        { kOutputAlbedo,                "gOutputAlbedo",                "Output albedo (linear)", true /* optional */, ResourceFormat::RGBA16Float },
         { kOutputNormal,                "gOutputNormal",                "Output normal (linear)", true /* optional */, ResourceFormat::RGBA16Float },
         { kOutputRayCount,              "",                             "Per-pixel ray count", true /* optional */, ResourceFormat::R32Uint },
         { kOutputPathLength,            "",                             "Per-pixel path length", true /* optional */, ResourceFormat::R32Uint },
@@ -1425,6 +1425,7 @@ void ReSTIRPTPass::setShaderData(const ShaderVar& var, const RenderData& renderD
     var["params"].setBlob(mParams);
     var["vbuffer"] = renderData[kInputVBuffer]->asTexture();
     var["outputColor"] = renderData[kOutputColor]->asTexture();
+    var["outputAlbedo"] = renderData[kOutputAlbedo]->asTexture();
 
 
     if (mOutputNRDData && isPathTracer)
@@ -1516,7 +1517,8 @@ bool ReSTIRPTPass::beginFrame(RenderContext* pRenderContext, const RenderData& r
         || renderData[kOutputNRDResidualRadianceHitDist] != nullptr
         || renderData[kOutputNRDEmission] != nullptr
         || renderData[kOutputNRDDiffuseReflectance] != nullptr
-        || renderData[kOutputNRDSpecularReflectance] != nullptr;
+        || renderData[kOutputNRDSpecularReflectance] != nullptr
+        || renderData[kOutputAlbedo] != nullptr;
 
     // Check if time data should be generated.
     mOutputTime = renderData[kOutputTime] != nullptr;
@@ -1803,7 +1805,7 @@ Program::DefineList ReSTIRPTPass::StaticParams::getDefines(const ReSTIRPTPass& o
 
     // Path tracer configuration.
     defines.add("SAMPLES_PER_PIXEL", std::to_string(samplesPerPixel)); // 0 indicates a variable sample count
-    defines.add("CANDIDATE_SAMPLES", std::to_string(candidateSamples)); // 0 indicates a variable sample count    
+    defines.add("CANDIDATE_SAMPLES", std::to_string(candidateSamples)); // 0 indicates a variable sample count
     defines.add("MAX_SURFACE_BOUNCES", std::to_string(maxSurfaceBounces));
     defines.add("MAX_DIFFUSE_BOUNCES", std::to_string(maxDiffuseBounces));
     defines.add("MAX_SPECULAR_BOUNCES", std::to_string(maxSpecularBounces));

@@ -46,7 +46,7 @@ void setNRDPrimaryHitEmission(NRDBuffers outputNRD, const bool useNRDDemodulatio
     }
 }
 
-void setNRDPrimaryHitReflectance(NRDBuffers outputNRD, const bool useNRDDemodulation, const PathState path, const uint2 pixel, const bool isPrimaryHit, const ShadingData sd)
+void setNRDPrimaryHitReflectance(NRDBuffers outputNRD, RWTexture2D<float4> outAlbedo, const bool useNRDDemodulation, const PathState path, const uint2 pixel, const bool isPrimaryHit, const ShadingData sd)
 {
     if (isPrimaryHit && path.getSampleIdx() == 0)
     {
@@ -54,18 +54,19 @@ void setNRDPrimaryHitReflectance(NRDBuffers outputNRD, const bool useNRDDemodula
         {
             float3 diffuseReflectionAlbedo = (1.f - sd.diffuseTransmission) * (1.f - sd.specularTransmission) * sd.diffuse;
             outputNRD.primaryHitDiffuseReflectance[pixel] = float4(diffuseReflectionAlbedo, 1.f);
-
             const float NdotV = saturate(dot(sd.N, sd.V));
             const float ggxAlpha = sd.linearRoughness * sd.linearRoughness;
             float3 specularReflectionAlbedo = (1.f - sd.specularTransmission) * sd.specular;
             const float3 specularReflectance = approxSpecularIntegralGGX(specularReflectionAlbedo, ggxAlpha, NdotV);
             outputNRD.primaryHitSpecularReflectance[pixel] = float4(specularReflectance, 1.f);
+            outAlbedo[pixel] = float4(diffuseReflectionAlbedo + specularReflectance, 1.f);
         }
         else
         {
             // Clear buffers on primary hit only if demodulation is disabled.
             outputNRD.primaryHitDiffuseReflectance[pixel] = 1.f;
             outputNRD.primaryHitSpecularReflectance[pixel] = 1.f;
+            outAlbedo[pixel] = float4(1.f);
         }
     }
 }
