@@ -7,8 +7,8 @@ out_dir = "C:/Users/hchoi/repositories/ReSTIR_PT/data"
 
 SCENE_NAME = "BistroExterior2"
 SCENE_FILE = "C:/Users/hchoi/repositories/ORCA/Bistro/BistroExterior.pyscene"
-SCENE_ANIM = [0, 100]
-METHOD = "ref"
+SCENE_ANIM = [700, 1000]
+METHOD = "input"
 NUM_REF_SAMPLES = 8192
 FILELOAD_STARTFRAME = 0
 SINGLE_REPROJ_FRAME = 101
@@ -49,23 +49,34 @@ def addEdgeToReproject(g, path, gbuf, reproj):
 
 
 def add_path_reproj(g, gbuf):
-    loadRenderPassLibrary("PathTracer.dll")
     loadRenderPassLibrary("ReprojectPass.dll")
+    loadRenderPassLibrary("ReSTIRPTPass.dll")
+    loadRenderPassLibrary("ScreenSpaceReSTIRPass.dll")
 
-    PathTracer = createPass("PathTracer", {'samplesPerPixel': 1})
+    ReSTIRPTPass = createPass("ReSTIRPTPass", {'samplesPerPixel': 1})
+    ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")
     Reproject = createPass(
         "ReprojectPass", {"singleReprojFrame": SINGLE_REPROJ_FRAME})
     Reproject2 = createPass("ReprojectPass", {'separateBuffer': False})
 
-    path = "PathTracer"
+    path = "ReSTIRPT"
+    screenReSTIR = "ScreenSpaceReSTIR"
     reproj = "Reproject"
     reproj2 = "Reproject2"
 
-    g.addPass(PathTracer, path)
+    g.addPass(ScreenSpaceReSTIRPass, screenReSTIR)
+    g.addPass(ReSTIRPTPass, path)
     g.addPass(Reproject, reproj)
     g.addPass(Reproject2, reproj2)
 
     g.addEdge(f"{gbuf}.vbuffer", f"{path}.vbuffer")
+    if path == "ReSTIRPT":
+        g.addEdge(f"{gbuf}.mvec", f"{path}.motionVectors")
+
+        g.addEdge(f"{gbuf}.vbuffer", f"{screenReSTIR}.vbuffer")
+        g.addEdge(f"{gbuf}.mvec", f"{screenReSTIR}.motionVectors")
+        g.addEdge(f"{screenReSTIR}.color", "ReSTIRPT.directLighting")
+
     addEdgeToReproject(g, f"{path}", f"{gbuf}", reproj)
     addEdgeToReproject(g, f"{path}", f"{gbuf}", reproj2)
 
@@ -76,7 +87,7 @@ def add_gbuffer(g, center=True):
     loadRenderPassLibrary("GBuffer.dll")
 
     GBufferRaster = createPass("GBufferRaster", {
-                               'samplePattern': SamplePattern.Center, 'sampleCount': 1, 'useAlphaTest': True})  # for input and svgf
+                               'samplePattern': SamplePattern.Center, 'sampleCount': 1, 'texLOD': TexLODMode.Mip0, 'useAlphaTest': True})  # for input and svgf
     gbuf = "GBufferRaster"
     g.addPass(GBufferRaster, gbuf)
     return gbuf
@@ -290,7 +301,7 @@ def render_input(start, end):
     add_capture(g, pairs, start, end, opts)
 
     # Add output
-    g.markOutput("PathTracer.color")
+    g.markOutput(f"{path}.color")
     # g.markOutput("Reproject.History")
     # g.markOutput("Reproject.Accumulated")
 
