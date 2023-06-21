@@ -32,6 +32,7 @@ namespace
 
     const std::string kOutputColor = "color";
     const std::string kOutputAlbedo = "albedo";
+    const std::string kOutputEnvLight = "envLight";
     const std::string kOutputSpecularAlbedo = "specularAlbedo";
     const std::string kOutputIndirectAlbedo = "indirectAlbedo";
     const std::string kOutputNormal = "normal";
@@ -52,6 +53,7 @@ namespace
     {
         { kOutputColor,                 "gOutputColor",                 "Output color (linear)", true /* optional */ },
         { kOutputAlbedo,                "gOutputAlbedo",                "Output albedo (linear)", true /* optional */, ResourceFormat::RGBA16Float },
+        { kOutputEnvLight,              "gOutputEnvLight",              "Output envLight (linear)", true /* optional */},
         { kOutputNormal,                "gOutputNormal",                "Output normal (linear)", true /* optional */, ResourceFormat::RGBA16Float },
         { kOutputRayCount,              "",                             "Per-pixel ray count", true /* optional */, ResourceFormat::R32Uint },
         { kOutputPathLength,            "",                             "Per-pixel path length", true /* optional */, ResourceFormat::R32Uint },
@@ -1425,7 +1427,7 @@ void ReSTIRPTPass::setShaderData(const ShaderVar& var, const RenderData& renderD
     var["params"].setBlob(mParams);
     var["vbuffer"] = renderData[kInputVBuffer]->asTexture();
     var["outputColor"] = renderData[kOutputColor]->asTexture();
-    var["outputAlbedo"] = renderData[kOutputAlbedo]->asTexture();
+
 
 
     if (mOutputNRDData && isPathTracer)
@@ -1443,10 +1445,12 @@ void ReSTIRPTPass::setShaderData(const ShaderVar& var, const RenderData& renderD
         var["kUseEnvLight"] = mpScene->useEnvLight();
         var["kUseEmissiveLights"] = mpScene->useEmissiveLights();
         var["kUseAnalyticLights"] = mpScene->useAnalyticLights();
+        var["outputAlbedo"] = renderData[kOutputAlbedo]->asTexture();
     }
     else if (isPathGenerator)
     {
         var["kUseEnvBackground"] = mpScene->useEnvBackground();
+        var["outputEnvLight"] = renderData[kOutputEnvLight]->asTexture();
     }
 
     if (auto outputDebug = var.findMember("outputDebug"); outputDebug.isValid())

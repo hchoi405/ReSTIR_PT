@@ -96,7 +96,9 @@ if gvbuffer == "GBufferRaster":
 capture_pairs = {
     'color': 'ReSTIRPTPass.color',
     'albedo': 'ReSTIRPTPass.albedo',
-    'denoised': 'SVGFPass.Filtered image'
+    'envLight': 'ReSTIRPTPass.envLight',
+    'emissive': f'{gvbuffer}.emissive',
+    'denoised': 'SVGFPass.Filtered image',
 }
 add_capture(graph_ReSTIRPT, capture_pairs)
 
@@ -111,7 +113,7 @@ m.clock.framerate = 30
 m.clock.time = 0
 m.clock.pause()
 
-for frame in range(0, 100):
+for frame in range(0, 10):
     m.clock.frame = frame
     m.renderFrame()
 

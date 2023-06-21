@@ -83,7 +83,8 @@ struct PathGenerator
 
     Texture2D<PackedHitInfo> vbuffer;               ///< Fullscreen V-buffer for the primary hits.
 
-    RWTexture2D<float4> outputColor;                ///< Output color buffer if kSamplesPerPixel == 1.
+    RWTexture2D<float4> outputColor; ///< Output color buffer if kSamplesPerPixel == 1.
+    RWTexture2D<float4> outputEnvLight;
 
 
     int gSampleId;
@@ -152,16 +153,19 @@ struct PathGenerator
     void writeBackground(const uint2 pixel, const float3 dir)
     {
         // Evaluate background color for the current pixel.
-        float3 color = float3(0.f);
+        float3 color = float3(0.f), envLight = float3(0.f);
         if (kUseEnvBackground)
         {
-            color = gScene.envMap.eval(dir);
+            // HJ: Skip adding envmap to the color buffer. Instead, add it to separate buffer.
+            // color = gScene.envMap.eval(dir);
+            envLight = gScene.envMap.eval(dir);
         }
 
         // Write color and denoising guide data for all samples in pixel.
         // For the special case of fixed 1 spp we write the color directly to the output texture.
         {
-            outputColor[pixel] = float4(color, 1.f);
+            // outputColor[pixel] = float4(color, 1.f);
+            outputEnvLight[pixel] = float4(envLight, 1.f);
         }
     }
 };
