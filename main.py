@@ -8,7 +8,7 @@ out_dir = "C:/Users/hchoi/repositories/ReSTIR_PT/data"
 SCENE_NAME = "BistroExterior2"
 SCENE_FILE = "C:/Users/hchoi/repositories/ORCA/Bistro/BistroExterior.pyscene"
 SCENE_ANIM = [700, 1000]
-METHOD = "input"
+METHOD = "svgf_optix"
 NUM_REF_SAMPLES = 8192
 FILELOAD_STARTFRAME = 0
 SINGLE_REPROJ_FRAME = 101
@@ -107,7 +107,7 @@ def add_fileload(g):
         'position': 'posW',
         'pnFwidth': 'pnFwidth',
     }
-    input_dir = f"//CGLAB-NAS/NFSStorage/dataset_new/data_{SCENE_NAME}"
+    input_dir = f"{WORKSPACE_DIR}/data"
     FileloadPassGbuf = createPass("FileloadPass", {
         'directory': input_dir,
         'filenames': list(channels.keys()),

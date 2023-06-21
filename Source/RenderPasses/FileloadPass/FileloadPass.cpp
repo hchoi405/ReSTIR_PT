@@ -111,7 +111,6 @@ std::string getFilename(const std::string &channel, int frameNumber)
 
 RenderPassReflection FileloadPass::reflect(const CompileData &compileData)
 {
-    logWarning("FileloadPass::reflect()");
     // Define the required resources here
     RenderPassReflection reflector;
     for (size_t i = 0; i < mFilenames.size(); ++i)
