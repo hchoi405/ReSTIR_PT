@@ -51,7 +51,7 @@
             "command": "./Bin/x64/Release/Mogwai.exe",
             "args": [
                 "--verbosity=3",
-                "--script=Source/Mogwai/Data/ReSTIRPTDemo.py"
+                "--script=main.py"
             ],
             "problemMatcher": [],
             "group": "build"

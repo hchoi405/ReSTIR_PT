@@ -2,15 +2,17 @@ from falcor import *
 
 import os
 
-out_dir = "C:/Users/hchoi/repositories/rt-denoiser/data"
+WORKSPACE_DIR = "C:/Users/hchoi/repositories/ReSTIR_PT"
+out_dir = "C:/Users/hchoi/repositories/ReSTIR_PT/data"
 
-NAME = "BistroExterior2"
-FILE = "C:/Users/hchoi/repositories/ORCA/Bistro/BistroExterior.pyscene"
-ANIM = [700, 800]
-METHOD = "input"
-REF_COUNT = 8192
+SCENE_NAME = "BistroExterior2"
+SCENE_FILE = "C:/Users/hchoi/repositories/ORCA/Bistro/BistroExterior.pyscene"
+SCENE_ANIM = [0, 100]
+METHOD = "ref"
+NUM_REF_SAMPLES = 8192
 FILELOAD_STARTFRAME = 0
 SINGLE_REPROJ_FRAME = 101
+
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -36,7 +38,6 @@ def frange(start, stop=None, step=None):
 
 def addEdgeToReproject(g, path, gbuf, reproj):
     g.addEdge(f"{path}.color", f"{reproj}.Color")
-    # g.addEdge(f"{path}.visibility", f"{reproj}.Viz")
     g.addEdge(f"{gbuf}.emissive", f"{reproj}.Emission")
     g.addEdge(f"{gbuf}.posW", f"{reproj}.WorldPosition")
     g.addEdge(f"{gbuf}.normW", f"{reproj}.WorldNormal")
@@ -52,7 +53,8 @@ def add_path_reproj(g, gbuf):
     loadRenderPassLibrary("ReprojectPass.dll")
 
     PathTracer = createPass("PathTracer", {'samplesPerPixel': 1})
-    Reproject = createPass("ReprojectPass", {"singleReprojFrame": SINGLE_REPROJ_FRAME})
+    Reproject = createPass(
+        "ReprojectPass", {"singleReprojFrame": SINGLE_REPROJ_FRAME})
     Reproject2 = createPass("ReprojectPass", {'separateBuffer': False})
 
     path = "PathTracer"
@@ -73,10 +75,8 @@ def add_path_reproj(g, gbuf):
 def add_gbuffer(g, center=True):
     loadRenderPassLibrary("GBuffer.dll")
 
-    if center:
-        GBufferRaster = createPass("GBufferRaster", {'samplePattern': SamplePattern.Center, 'sampleCount': 1, 'useAlphaTest': True}) # for input and svgf
-    else:
-        GBufferRaster = createPass("GBufferRaster", {'samplePattern': SamplePattern.Uniform, 'sampleCount': 1, 'useAlphaTest': True}) # for input and svgf
+    GBufferRaster = createPass("GBufferRaster", {
+                               'samplePattern': SamplePattern.Center, 'sampleCount': 1, 'useAlphaTest': True})  # for input and svgf
     gbuf = "GBufferRaster"
     g.addPass(GBufferRaster, gbuf)
     return gbuf
@@ -96,7 +96,7 @@ def add_fileload(g):
         'position': 'posW',
         'pnFwidth': 'pnFwidth',
     }
-    input_dir = f"//CGLAB-NAS/NFSStorage/dataset_new/data_{NAME}"
+    input_dir = f"//CGLAB-NAS/NFSStorage/dataset_new/data_{SCENE_NAME}"
     FileloadPassGbuf = createPass("FileloadPass", {
         'directory': input_dir,
         'filenames': list(channels.keys()),
@@ -158,14 +158,14 @@ def add_capture(g, pairs, start, end, opts=None):
     inputs = list(pairs.values())
 
     options = {
-            'directory': out_dir,
-            'channels': channels,
-            'exitAtEnd': True,
-            'accumulate': False,
-            'writeStart': 0,    # Control frame number in below
-            'writeEnd': 10000,  # Control frame number in below
-            'captureCameraMat': False,
-            'includeAlpha': ["specRough", "diffuseOpacity", "specRough2", "diffuseOpacity2"],
+        'directory': out_dir,
+        'channels': channels,
+        'exitAtEnd': True,
+        'accumulate': False,
+        'writeStart': 0,    # Control frame number in below
+        'writeEnd': 10000,  # Control frame number in below
+        'captureCameraMat': False,
+        'includeAlpha': ["specRough", "diffuseOpacity", "specRough2", "diffuseOpacity2"],
     }
     if opts is not None:
         options.update(opts)
@@ -189,38 +189,47 @@ def render_ref(start, end):
     # Load libraries
     loadRenderPassLibrary("ReprojectPass.dll")
     loadRenderPassLibrary("GBuffer.dll")
-    loadRenderPassLibrary("PathTracer.dll")
     loadRenderPassLibrary("CapturePass.dll")
     loadRenderPassLibrary("AccumulatePass.dll")
+    loadRenderPassLibrary("ReSTIRPTPass.dll")
+    loadRenderPassLibrary("ScreenSpaceReSTIRPass.dll")
 
     # Create pass
     ReprojectPass = createPass("ReprojectPass")
-    GBufferRaster = createPass("GBufferRaster", {'samplePattern': SamplePattern.Uniform, 'useAlphaTest': True})
-    PathTracer = createPass("PathTracer", {'samplesPerPixel': 1})
+    GBufferRaster = createPass(
+        "GBufferRaster", {'samplePattern': SamplePattern.Center, 'useAlphaTest': True})
+    ReSTIRPTPass = createPass("ReSTIRPTPass", {'samplesPerPixel': 1})
     AccumulatePass = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass2 = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass3 = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass4 = createPass("AccumulatePass", {'enabled': True})
+    ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")
 
     # Add pass
-    reproj = "Reproject"
-    g.addPass(ReprojectPass, reproj)
+    g.addPass(ReprojectPass, "ReprojectPass")
     g.addPass(GBufferRaster, "GBufferRaster")
-    g.addPass(PathTracer, "PathTracer")
+    g.addPass(ReSTIRPTPass, "ReSTIRPTPass")
     g.addPass(AccumulatePass, "AccumulatePass")
     g.addPass(AccumulatePass2, "AccumulatePass2")
     g.addPass(AccumulatePass3, "AccumulatePass3")
     g.addPass(AccumulatePass4, "AccumulatePass4")
+    g.addPass(ScreenSpaceReSTIRPass, "ScreenSpaceReSTIRPass")
 
     # Connect input/output
-    addEdgeToReproject(g, "PathTracer", "GBufferRaster", reproj)
+    addEdgeToReproject(g, "ReSTIRPTPass", "GBufferRaster", "ReprojectPass")
 
     # Pass G-buffer to path tracer
-    g.addEdge("GBufferRaster.vbuffer", "PathTracer.vbuffer")
+    g.addEdge("GBufferRaster.vbuffer", "ReSTIRPTPass.vbuffer")
+    g.addEdge("GBufferRaster.mvec", "ReSTIRPTPass.motionVectors")
+
+    g.addEdge("GBufferRaster.vbuffer", "ScreenSpaceReSTIRPass.vbuffer")
+    g.addEdge("GBufferRaster.mvec", "ScreenSpaceReSTIRPass.motionVectors")
+    g.addEdge("ScreenSpaceReSTIRPass.color", "ReSTIRPTPass.directLighting")
+
     g.addEdge("GBufferRaster.emissive", "AccumulatePass4.input")
-    g.addEdge("PathTracer.color", "AccumulatePass.input")
-    g.addEdge("Reproject.Current", "AccumulatePass2.input")
-    g.addEdge("PathTracer.envLight", "AccumulatePass3.input")
+    g.addEdge("ReprojectPass.Current", "AccumulatePass2.input")
+    g.addEdge("ReSTIRPTPass.color", "AccumulatePass.input")
+    g.addEdge("ReSTIRPTPass.envLight", "AccumulatePass3.input")
 
     pairs = {
         'ref': f'AccumulatePass.output',
@@ -230,11 +239,11 @@ def render_ref(start, end):
     }
     opts = {
         'accumulate': True,
-        'accumulateCount': REF_COUNT,
+        'accumulateCount': NUM_REF_SAMPLES,
     }
 
     add_capture(g, pairs, start, end, opts)
-    g.markOutput("PathTracer.color")
+    g.markOutput("ReSTIRPTPass.color")
 
     return g
 
@@ -263,7 +272,6 @@ def render_input(start, end):
         # PathTracer
         'path': f"{path}.color",
         'envLight': f"{path}.envLight",
-        'visibility': f"{path}.visibility",
         # GBufferRaster
         'emissive': f"{gbuf}.emissive",
         'normal': f"{gbuf}.normW",
@@ -341,58 +349,59 @@ def render_gbufrand(start, end):
     return g
 
 
-if NAME == 'Dining-room-dynamic':
+if SCENE_NAME == 'Dining-room-dynamic':
     # Dynamic directional light for dining-room
     # [-0.6, -0.0]
     start = -0.1
     end = -0.8
     step = -0.005
     num_frames = int((end - start) / step)
-    ANIM = [0, num_frames]
+    SCENE_ANIM = [0, num_frames]
 
-ANIM[1] += 3 # Add more frames
+SCENE_ANIM[1] += 3  # Add more frames
 
 if METHOD == 'input':
-    graph = render_input(*ANIM)
+    graph = render_input(*SCENE_ANIM)
 elif METHOD == 'ref':
-    graph = render_ref(*ANIM)
+    graph = render_ref(*SCENE_ANIM)
 elif METHOD == 'gbufrand':
-    graph = render_gbufrand(*ANIM)
+    graph = render_gbufrand(*SCENE_ANIM)
 elif METHOD == 'svgf_optix':
-    graph = render_svgf_optix(*ANIM)
+    graph = render_svgf_optix(*SCENE_ANIM)
 
 m.addGraph(graph)
-m.loadScene(FILE)
+m.loadScene(SCENE_FILE)
 # Call this after scene loading
-m.scene.camera.nearPlane = 0.15 # Increase near plane to prevent Z-fighting
+m.scene.camera.nearPlane = 0.15  # Increase near plane to prevent Z-fighting
 
 m.clock.framerate = 30
 m.clock.time = 0
 m.clock.pause()
 
 # m.profiler.enabled = True
-if NAME == 'Dining-room-dynamic':
+if SCENE_NAME == 'Dining-room-dynamic':
     frame = 0
     for y in frange(start, end, step):
         m.clock.frame = frame
         m.scene.lights[0].direction.y = y
         if METHOD == 'ref':
-            for _ in range(REF_COUNT):
+            for _ in range(NUM_REF_SAMPLES):
                 m.renderFrame()
         else:
             m.renderFrame()
         frame += 1
-        if frame == ANIM[1] + 1: break
+        if frame == SCENE_ANIM[1] + 1:
+            break
 
 else:
     # Start frame
-    for frame in range(*ANIM):
-        # if frame == ANIM[0] + 10:
+    for frame in range(*SCENE_ANIM):
+        # if frame == SCENE_ANIM[0] + 10:
         #     m.profiler.startCapture()
 
         m.clock.frame = frame
         if METHOD == 'ref':
-            for i in range(REF_COUNT):
+            for i in range(NUM_REF_SAMPLES):
                 m.renderFrame()
         else:
             m.renderFrame()
