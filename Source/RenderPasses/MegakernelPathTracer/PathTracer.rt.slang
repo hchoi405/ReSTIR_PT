@@ -45,6 +45,7 @@ ParameterBlock<PathTracerData> gData;
 // Outputs (optional)
 RWTexture2D<float4> gOutputColor;
 RWTexture2D<float4> gOutputAlbedo;
+RWTexture2D<float4> gOutputEnvLight;
 RWTexture2D<uint> gOutputTime;
 
 // Static configuration based on which buffers are bound.
@@ -130,6 +131,7 @@ void rayGen()
 
     float3 outColor = float3(0, 0, 0);
     float3 outAlbedo = float3(0, 0, 0);
+    float3 outEnvLight = float3(0, 0, 0);
     float outAlpha = 0.f;
 
     HitInfo hit;
@@ -185,9 +187,11 @@ void rayGen()
     }
     else
     {
-        // Background pixel.
-        outColor = evalBackground(-sd.V);
-        outAlbedo = outColor.rgb;
+        // HJ: Separate env light from color
+        // // Background pixel.
+        // outColor = evalBackground(-sd.V);
+        // outAlbedo = outColor.rgb;
+        outEnvLight = evalBackground(-sd.V);
         outAlpha = kForceAlphaOne ? 1.f : 0.f;
     }
 
@@ -198,6 +202,7 @@ void rayGen()
     // These are all optional so using compile-time checks to decide which ones to write.
     if (is_valid(gOutputColor)) gOutputColor[launchIndex] = float4(outColor, outAlpha);
     if (is_valid(gOutputAlbedo)) gOutputAlbedo[launchIndex] = float4(outAlbedo, 1);
+    if (is_valid(gOutputEnvLight)) gOutputEnvLight[launchIndex] = float4(outEnvLight, 1);
 
     // Write time.
     if (is_valid(gOutputTime)) gOutputTime[launchIndex] = timer.getElapsed();

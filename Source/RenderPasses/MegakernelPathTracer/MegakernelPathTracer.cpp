@@ -46,12 +46,14 @@ namespace
     // Render pass output channels.
     const std::string kColorOutput = "color";
     const std::string kAlbedoOutput = "albedo";
+    const std::string kEnvLightOutput = "envLight";
     const std::string kTimeOutput = "time";
 
     const Falcor::ChannelList kOutputChannels =
     {
         { kColorOutput,     "gOutputColor",               "Output color (linear)", true /* optional */                              },
         { kAlbedoOutput,    "gOutputAlbedo",              "Surface albedo (base color) or background color", true /* optional */    },
+        { kEnvLightOutput,  "gOutputEnvLight",            "", true /* optional */    },
         { kTimeOutput,      "gOutputTime",                "Per-pixel execution time", true /* optional */, ResourceFormat::R32Uint  },
     };
 };
