@@ -164,7 +164,8 @@ struct PathGenerator
         // Write color and denoising guide data for all samples in pixel.
         // For the special case of fixed 1 spp we write the color directly to the output texture.
         {
-            // outputColor[pixel] = float4(color, 1.f);
+            // Set zero to prevent garbage data from previous frame in the output buffer.
+            outputColor[pixel] = float4(0, 0, 0, 1.f);
             outputEnvLight[pixel] = float4(envLight, 1.f);
         }
     }
