@@ -12,6 +12,7 @@ METHOD = "svgf_optix"
 NUM_REF_SAMPLES = 8192
 FILELOAD_STARTFRAME = 0
 SINGLE_REPROJ_FRAME = 101
+ENABLE_RESTIR = False
 
 
 def frange(start, stop=None, step=None):
@@ -53,19 +54,25 @@ def add_path_reproj(g, gbuf):
     loadRenderPassLibrary("ReSTIRPTPass.dll")
     loadRenderPassLibrary("ScreenSpaceReSTIRPass.dll")
 
-    ReSTIRPTPass = createPass("ReSTIRPTPass", {'samplesPerPixel': 1})
-    ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")
+    # Toggle between ReSTIRPT and MegakernelPathTracer
+    if ENABLE_RESTIR:
+        PathTracer = createPass("ReSTIRPTPass", {'samplesPerPixel': 1})
+        path = "ReSTIRPT"
+        ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")
+        screenReSTIR = "ScreenSpaceReSTIR"
+        g.addPass(ScreenSpaceReSTIRPass, screenReSTIR)
+    else:
+        PathTracer = createPass("MegakernelPathTracer", {'samplesPerPixel': 1})
+        path = "PathTracer"
+
     Reproject = createPass(
         "ReprojectPass", {"singleReprojFrame": SINGLE_REPROJ_FRAME})
     Reproject2 = createPass("ReprojectPass", {'separateBuffer': False})
 
-    path = "ReSTIRPT"
-    screenReSTIR = "ScreenSpaceReSTIR"
     reproj = "Reproject"
     reproj2 = "Reproject2"
 
-    g.addPass(ScreenSpaceReSTIRPass, screenReSTIR)
-    g.addPass(ReSTIRPTPass, path)
+    g.addPass(PathTracer, path)
     g.addPass(Reproject, reproj)
     g.addPass(Reproject2, reproj2)
 
@@ -202,45 +209,37 @@ def render_ref(start, end):
     loadRenderPassLibrary("GBuffer.dll")
     loadRenderPassLibrary("CapturePass.dll")
     loadRenderPassLibrary("AccumulatePass.dll")
-    loadRenderPassLibrary("ReSTIRPTPass.dll")
-    loadRenderPassLibrary("ScreenSpaceReSTIRPass.dll")
+    loadRenderPassLibrary("MegakernelPathTracer.dll")
 
     # Create pass
     ReprojectPass = createPass("ReprojectPass")
     GBufferRaster = createPass(
-        "GBufferRaster", {'samplePattern': SamplePattern.Center, 'useAlphaTest': True})
-    ReSTIRPTPass = createPass("ReSTIRPTPass", {'samplesPerPixel': 1})
+        "GBufferRaster", {'samplePattern': SamplePattern.Stratified, 'useAlphaTest': True})
+    MegakernelPathTracer = createPass("MegakernelPathTracer", {'samplesPerPixel': 1})
     AccumulatePass = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass2 = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass3 = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass4 = createPass("AccumulatePass", {'enabled': True})
-    ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")
 
     # Add pass
     g.addPass(ReprojectPass, "ReprojectPass")
     g.addPass(GBufferRaster, "GBufferRaster")
-    g.addPass(ReSTIRPTPass, "ReSTIRPTPass")
+    g.addPass(MegakernelPathTracer, "MegakernelPathTracer")
     g.addPass(AccumulatePass, "AccumulatePass")
     g.addPass(AccumulatePass2, "AccumulatePass2")
     g.addPass(AccumulatePass3, "AccumulatePass3")
     g.addPass(AccumulatePass4, "AccumulatePass4")
-    g.addPass(ScreenSpaceReSTIRPass, "ScreenSpaceReSTIRPass")
 
     # Connect input/output
-    addEdgeToReproject(g, "ReSTIRPTPass", "GBufferRaster", "ReprojectPass")
+    addEdgeToReproject(g, "MegakernelPathTracer", "GBufferRaster", "ReprojectPass")
 
     # Pass G-buffer to path tracer
-    g.addEdge("GBufferRaster.vbuffer", "ReSTIRPTPass.vbuffer")
-    g.addEdge("GBufferRaster.mvec", "ReSTIRPTPass.motionVectors")
-
-    g.addEdge("GBufferRaster.vbuffer", "ScreenSpaceReSTIRPass.vbuffer")
-    g.addEdge("GBufferRaster.mvec", "ScreenSpaceReSTIRPass.motionVectors")
-    g.addEdge("ScreenSpaceReSTIRPass.color", "ReSTIRPTPass.directLighting")
+    g.addEdge("GBufferRaster.vbuffer", "MegakernelPathTracer.vbuffer")
 
     g.addEdge("GBufferRaster.emissive", "AccumulatePass4.input")
     g.addEdge("ReprojectPass.Current", "AccumulatePass2.input")
-    g.addEdge("ReSTIRPTPass.color", "AccumulatePass.input")
-    g.addEdge("ReSTIRPTPass.envLight", "AccumulatePass3.input")
+    g.addEdge("MegakernelPathTracer.color", "AccumulatePass.input")
+    g.addEdge("MegakernelPathTracer.envLight", "AccumulatePass3.input")
 
     pairs = {
         'ref': f'AccumulatePass.output',
@@ -254,7 +253,7 @@ def render_ref(start, end):
     }
 
     add_capture(g, pairs, start, end, opts)
-    g.markOutput("ReSTIRPTPass.color")
+    g.markOutput("MegakernelPathTracer.color")
 
     return g
 
