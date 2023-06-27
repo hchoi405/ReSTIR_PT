@@ -315,7 +315,7 @@ void tracePath(const PathTracerData pt, ShadingData sd, inout PathData path)
 
     // Always output directly emitted light from the primary hit.
     // This is independent of whether emissive materials are treated as light sources or not.
-    path.L += sd.emissive;
+    // path.L += sd.emissive;
 
     // Compute iteration count.
     // We always add one bounce for handling surfaces that cannot be handled using light sampling.

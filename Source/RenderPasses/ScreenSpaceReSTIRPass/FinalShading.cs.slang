@@ -77,7 +77,9 @@ struct FinalShading
 
             emission = sd.emissive;
 
-            color += diffuse + specular + emission;
+            // HJ: Exclude emission from color.
+            // color += diffuse + specular + emission;
+            color += diffuse + specular;
 
             // Demodulate diffuse reflectance (albedo) from diffuse color.
             diffuseReflectance += sd.diffuse;
