@@ -56,7 +56,19 @@ cbuffer PerImageCB
 
 float3 demodulate(float3 c, float3 albedo)
 {
-    return c / max(albedo, float3(0.001, 0.001, 0.001));
+    // Divide c by albedo with min bound 0.001 when albedo is not zero
+    // Otherwise, return c
+    float3 ret;
+    bool3 zeroAlbedo = albedo == 0.0f;
+
+    if (zeroAlbedo.x) ret.x = c.x;
+    else ret.x = c.x / max(albedo.x, 0.001f);
+    if (zeroAlbedo.y) ret.y = c.y;
+    else ret.y = c.y / max(albedo.y, 0.001f);
+    if (zeroAlbedo.z) ret.z = c.z;
+    else ret.z = c.z / max(albedo.z, 0.001f);
+
+    return ret;
 }
 
 bool isReprjValid(int2 coord, float Z, float Zprev, float fwidthZ, float3 normal, float3 normalPrev, float fwidthNormal)
@@ -70,7 +82,7 @@ bool isReprjValid(int2 coord, float Z, float Zprev, float fwidthZ, float3 normal
     if (abs(Zprev - Z) / (fwidthZ + 1e-2f) > 10.f) return false;
 
     // check normals for compatibility
-    if (distance(normal, normalPrev) / (fwidthNormal + 1e-2) > 16.0) return false;
+    if (distance(normal, normalPrev) / (fwidthNormal + 1e-2) > 4.0) return false;
 
     return true;
 }
@@ -203,7 +215,7 @@ PS_OUT main(FullScreenPassVsOut vsOut)
     const float4 posH = vsOut.posH;
     const int2 ipos = posH.xy;
 
-    float3 illumination = demodulate(gColor[ipos].rgb - gEmission[ipos].rgb, gAlbedo[ipos].rgb);
+    float3 illumination = demodulate(gColor[ipos].rgb, gAlbedo[ipos].rgb);
     // Workaround path tracer bugs. TODO: remove this when we can.
     if (isNaN(illumination.x) || isNaN(illumination.y) || isNaN(illumination.z))
     {
