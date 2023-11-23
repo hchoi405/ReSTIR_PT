@@ -7,13 +7,13 @@ out_dir = "C:/Users/hchoi/repositories/ReSTIR_PT/data"
 
 SCENE_NAME = "BistroExterior2"
 SCENE_FILE = "C:/Users/hchoi/repositories/ORCA/Bistro/BistroExterior.pyscene"
-SCENE_ANIM = [700, 1000]
-METHOD = "svgf_optix"
+SCENE_ANIM = [700, 701]
+METHOD = "input"
 NUM_REF_SAMPLES = 8192
 FILELOAD_STARTFRAME = 0
-SINGLE_REPROJ_FRAME = 101
-ENABLE_RESTIR = False
-
+INTERACTIVE = False
+ENABLE_RESTIR = True
+NO_CAPTURE_INPUT = False
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -64,17 +64,18 @@ def add_path_reproj(g, gbuf):
     else:
         PathTracer = createPass("MegakernelPathTracer", {'samplesPerPixel': 1})
         path = "PathTracer"
+        screenReSTIR = None
 
-    Reproject = createPass(
-        "ReprojectPass", {"singleReprojFrame": SINGLE_REPROJ_FRAME})
-    Reproject2 = createPass("ReprojectPass", {'separateBuffer': False})
+    # Reproject = createPass(
+    #     "ReprojectPass", {"singleReprojFrame": 0})
+    # Reproject2 = createPass("ReprojectPass", {'separateBuffer': False})
 
     reproj = "Reproject"
     reproj2 = "Reproject2"
 
     g.addPass(PathTracer, path)
-    g.addPass(Reproject, reproj)
-    g.addPass(Reproject2, reproj2)
+    # g.addPass(Reproject, reproj)
+    # g.addPass(Reproject2, reproj2)
 
     g.addEdge(f"{gbuf}.vbuffer", f"{path}.vbuffer")
     if path == "ReSTIRPT":
@@ -82,12 +83,12 @@ def add_path_reproj(g, gbuf):
 
         g.addEdge(f"{gbuf}.vbuffer", f"{screenReSTIR}.vbuffer")
         g.addEdge(f"{gbuf}.mvec", f"{screenReSTIR}.motionVectors")
-        g.addEdge(f"{screenReSTIR}.color", "ReSTIRPT.directLighting")
+        g.addEdge(f"{screenReSTIR}.color", f"{path}.directLighting")
 
-    addEdgeToReproject(g, f"{path}", f"{gbuf}", reproj)
-    addEdgeToReproject(g, f"{path}", f"{gbuf}", reproj2)
+    # addEdgeToReproject(g, f"{path}", f"{gbuf}", reproj)
+    # addEdgeToReproject(g, f"{path}", f"{gbuf}", reproj2)
 
-    return path, reproj, reproj2
+    return path, reproj, reproj2, screenReSTIR
 
 
 def add_gbuffer(g, center=True):
@@ -214,7 +215,7 @@ def render_ref(start, end):
     # Create pass
     ReprojectPass = createPass("ReprojectPass")
     GBufferRaster = createPass(
-        "GBufferRaster", {'samplePattern': SamplePattern.Stratified, 'useAlphaTest': True})
+        "GBufferRaster", {'samplePattern': SamplePattern.Stratified, 'sampleCount': 1, 'useAlphaTest': True})
     MegakernelPathTracer = createPass("MegakernelPathTracer", {'samplesPerPixel': 1})
     AccumulatePass = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass2 = createPass("AccumulatePass", {'enabled': True})
@@ -262,42 +263,44 @@ def render_input(start, end):
     g = RenderGraph("MutlipleGraph")
 
     gbuf = add_gbuffer(g, center=True)
-    path, reproj, reproj2 = add_path_reproj(g, gbuf)
+    path, reproj, reproj2, ss_restir = add_path_reproj(g, gbuf)
 
     # Connect input/output
     pairs = {
-        # Reproject for ours
-        'current_demodul': f"{reproj}.Current",
-        'accum1_demodul': f"{reproj}.Accumulated",
-        'history1_demodul': f"{reproj}.History",
-        'accumhistorylen1': f"{reproj}.Length",
-        'accum2_demodul': f"{reproj}.Accumulated2",
-        'history2_demodul': f"{reproj}.History2",
-        'accumhistorylen2': f"{reproj}.Length2",
-        'albedo': f"{reproj}.Albedo",
-        # Reproject for others (BMFR, NBG)
-        'accum_demodul': f"{reproj2}.Accumulated",
-        'history_demodul': f"{reproj2}.History",
-        'accumhistorylen': f"{reproj2}.Length",
-        # PathTracer
+        # # Reproject for ours
+        # 'current_demodul': f"{reproj}.Current",
+        # 'accum1_demodul': f"{reproj}.Accumulated",
+        # 'history1_demodul': f"{reproj}.History",
+        # 'accumhistorylen1': f"{reproj}.Length",
+        # 'accum2_demodul': f"{reproj}.Accumulated2",
+        # 'history2_demodul': f"{reproj}.History2",
+        # 'accumhistorylen2': f"{reproj}.Length2",
+        # 'albedo': f"{reproj}.Albedo",
+        # # Reproject for others (BMFR, NBG)
+        # 'accum_demodul': f"{reproj2}.Accumulated",
+        # 'history_demodul': f"{reproj2}.History",
+        # 'accumhistorylen': f"{reproj2}.Length",
+        ## PathTracer
         'path': f"{path}.color",
         'envLight': f"{path}.envLight",
-        # GBufferRaster
+        'albedo': f"{path}.albedo",
+        ## GBufferRaster
         'emissive': f"{gbuf}.emissive",
         'normal': f"{gbuf}.normW",
         'depth': f"{gbuf}.linearZ",
         'position': f"{gbuf}.posW",
         'mvec': f"{gbuf}.mvec",
         'pnFwidth': f"{gbuf}.pnFwidth",
-        # 'specRough': f"{gbuf}.specRough",
-        # 'diffuseOpacity': f"{gbuf}.diffuseOpacity",
-        # # Path
-        # 'albedo': f"{path}.albedo"
+        'specRough': f"{gbuf}.specRough",
+        'diffuseOpacity': f"{gbuf}.diffuseOpacity",
     }
+    if ENABLE_RESTIR:
+        pairs['directLighting'] = f"{ss_restir}.color"
     opts = {
-        'captureCameraMat': True
+        'captureCameraMat': False
     }
-    add_capture(g, pairs, start, end, opts)
+    if not NO_CAPTURE_INPUT:
+        add_capture(g, pairs, start, end, opts)
 
     # Add output
     g.markOutput(f"{path}.color")
@@ -336,29 +339,6 @@ def render_svgf_optix(start, end):
     return g
 
 
-def render_gbufrand(start, end):
-    g = RenderGraph("FinalGraph")
-    # Load libraries
-    loadRenderPassLibrary("CapturePass.dll")
-
-    gbuf = add_gbuffer(g, False)
-
-    # Create and add capture
-    pairs = {
-        'emissive2': f'{gbuf}.emissive',
-        'normal2': f'{gbuf}.normW',
-        'depth2': f'{gbuf}.linearZ',
-        'position2': f'{gbuf}.posW',
-        'mvec2': f'{gbuf}.mvec',
-        'pnFwidth2': f'{gbuf}.pnFwidth',
-        'specRough2': f'{gbuf}.specRough',
-        'diffuseOpacity2': f'{gbuf}.diffuseOpacity'
-    }
-    add_capture(g, pairs, start, end)
-
-    return g
-
-
 if SCENE_NAME == 'Dining-room-dynamic':
     # Dynamic directional light for dining-room
     # [-0.6, -0.0]
@@ -374,8 +354,6 @@ if METHOD == 'input':
     graph = render_input(*SCENE_ANIM)
 elif METHOD == 'ref':
     graph = render_ref(*SCENE_ANIM)
-elif METHOD == 'gbufrand':
-    graph = render_gbufrand(*SCENE_ANIM)
 elif METHOD == 'svgf_optix':
     graph = render_svgf_optix(*SCENE_ANIM)
 
@@ -384,41 +362,42 @@ m.loadScene(SCENE_FILE)
 # Call this after scene loading
 m.scene.camera.nearPlane = 0.15  # Increase near plane to prevent Z-fighting
 
+# m.profiler.enabled = True
 m.clock.framerate = 30
 m.clock.time = 0
-m.clock.pause()
+if not INTERACTIVE:
+    m.clock.pause()
 
-# m.profiler.enabled = True
-if SCENE_NAME == 'Dining-room-dynamic':
-    frame = 0
-    for y in frange(start, end, step):
-        m.clock.frame = frame
-        m.scene.lights[0].direction.y = y
-        if METHOD == 'ref':
-            for _ in range(NUM_REF_SAMPLES):
+    if SCENE_NAME == 'Dining-room-dynamic':
+        frame = 0
+        for y in frange(start, end, step):
+            m.clock.frame = frame
+            m.scene.lights[0].direction.y = y
+            if METHOD == 'ref':
+                for _ in range(NUM_REF_SAMPLES):
+                    m.renderFrame()
+            else:
                 m.renderFrame()
-        else:
-            m.renderFrame()
-        frame += 1
-        if frame == SCENE_ANIM[1] + 1:
-            break
+            frame += 1
+            if frame == SCENE_ANIM[1] + 1: break
 
-else:
-    # Start frame
-    for frame in range(*SCENE_ANIM):
-        # if frame == SCENE_ANIM[0] + 10:
-        #     m.profiler.startCapture()
+    else:
+        # Start frame
+        for frame in range(*SCENE_ANIM):
+            # if frame == SCENE_ANIM[0] + 10:
+            #     m.profiler.startCapture()
 
-        m.clock.frame = frame
-        if METHOD == 'ref':
-            for i in range(NUM_REF_SAMPLES):
+            m.clock.frame = frame
+            if METHOD == 'ref':
+                for i in range(NUM_REF_SAMPLES):
+                    m.renderFrame()
+            else:
                 m.renderFrame()
-        else:
-            m.renderFrame()
-        # print('frame:', m.clock.frame)
+            # print('frame:', m.clock.frame)
+
+    exit()
 
 # capture = m.profiler.endCapture()
 # m.profiler.enabled = False
 # print(capture)
 # with open('C:/Users/hchoi/repositories/rt-denoiser/event.txt', 'w') as f: f.write(f'{capture}\n')
-exit()
