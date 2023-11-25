@@ -688,8 +688,8 @@ namespace Falcor
             defines.add("USE_PAIRWISE_MIS", "0");
             // TODO: We currently skip shadow rays in the temporal resampling pass.
             // This is not always correct, need to figure out when it needs to be enabled.
-            // defines.add("UNBIASED", mOptions->unbiased ? "1" : "0");
-            defines.add("UNBIASED", "0");
+            defines.add("UNBIASED", mOptions->unbiased ? "1" : "0"); // HJ: Enable this for unbiased temporal resampling.
+            // defines.add("UNBIASED", "0");
 
             if (!mpTemporalResampling)
             {
