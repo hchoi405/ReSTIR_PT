@@ -116,7 +116,7 @@ struct GIResampling
     {
         if (kTargetFunction == 1)
         {
-            float3 L = normalize(samplePosition - position);            
+            float3 L = normalize(samplePosition - position);
             float3 fCos = max(0.1f, evalContext.evalBRDF(L) * saturate(dot(normal, L)));
             float pdf = luminance(radiance * fCos);
             return pdf;
