@@ -1489,6 +1489,14 @@ bool ReSTIRPTPass::beginFrame(RenderContext* pRenderContext, const RenderData& r
         return false;
     }
 
+    // Clear envLight
+    if (renderData[kOutputEnvLight] != nullptr)
+    {
+        const auto& pOutputEnvLight = renderData[kOutputEnvLight]->asTexture();
+        assert(pOutputEnvLight);
+        pRenderContext->clearUAV(pOutputEnvLight->getUAV().get(), float4(0.f));
+    }
+
     // Update the env map and emissive sampler to the current frame.
     bool lightingChanged = prepareLighting(pRenderContext);
 
