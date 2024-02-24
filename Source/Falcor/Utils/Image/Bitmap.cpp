@@ -569,7 +569,7 @@ namespace Falcor
                 }
                 else if (is_set(exportFlags, ExportFlags::Lossless))
                 {
-                    flags |= EXR_FLOAT | EXR_PIZ;
+                    flags |= EXR_FLOAT | EXR_ZIP;
                 }
             }
         }
