@@ -89,11 +89,11 @@ struct PathTracerParams
     int     useRussianRoulette = false;     ///< Use Russian roulette. Use compile-time constant kUseRussianRoulette in shader.
     float   probabilityAbsorption = 0.2f;   ///< Probability of absorption for Russian roulette.
     int     useFixedSeed = false;           ///< Use fixed random seed for the sample generator. This is useful for print() debugging.
+    uint    frameSeed = 0;           ///<
 
     int     useNestedDielectrics = true;    ///< Use algorithm to handle nested dielectric materials. Use compile-time constant kUseNestedDielectrics in shader.
     int     useLightsInDielectricVolumes = false; ///< Use lights inside of volumes (transmissive materials). We typically don't want this because lights are occluded by the interface. Use compile-time constant kUseLightsInDielectricVolumes in shader.
     int     disableCaustics = false;        ///< Disable sampling of caustics. Use compile-time constant kDisableCaustics in shader.
-    int     _pad1;
 
     // Ray footprint
     float   screenSpacePixelSpreadAngle = 0.0; ///< The angle an "average" pixel spans from camera (Used by ray footprint).
