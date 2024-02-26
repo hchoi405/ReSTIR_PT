@@ -2,18 +2,16 @@ from falcor import *
 
 import os
 
-WORKSPACE_DIR = "C:/Users/hchoi/repositories/ReSTIR_PT"
-out_dir = "C:/Users/hchoi/repositories/ReSTIR_PT/data"
+OUT_DIR = "C:/Users/hchoi/repositories/ReSTIR_PT/output"
 
-SCENE_NAME = "BistroExterior2"
-SCENE_FILE = "C:/Users/hchoi/repositories/ORCA/Bistro/BistroExterior.pyscene"
-SCENE_ANIM = [700, 701]
-METHOD = "input"
-NUM_REF_SAMPLES = 8192
-FILELOAD_STARTFRAME = 0
 INTERACTIVE = False
+
+NAME = "VeachAjar"
+FILE = "VeachAjar/VeachAjar.pyscene"
+ANIM = [0, 100]
+METHOD = "ref"
+REF_COUNT = 8192
 ENABLE_RESTIR = True
-NO_CAPTURE_INPUT = False
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -177,7 +175,7 @@ def add_capture(g, pairs, start, end, opts=None):
     inputs = list(pairs.values())
 
     options = {
-        'directory': out_dir,
+        'directory': OUT_DIR,
         'channels': channels,
         'exitAtEnd': True,
         'accumulate': False,
@@ -250,7 +248,7 @@ def render_ref(start, end):
     }
     opts = {
         'accumulate': True,
-        'accumulateCount': NUM_REF_SAMPLES,
+        'accumulateCount': REF_COUNT,
     }
 
     add_capture(g, pairs, start, end, opts)
@@ -282,24 +280,26 @@ def render_input(start, end):
         # 'accumhistorylen': f"{reproj2}.Length",
         ## PathTracer
         'path': f"{path}.color",
-        'envLight': f"{path}.envLight",
-        'albedo': f"{path}.albedo",
-        ## GBufferRaster
-        'emissive': f"{gbuf}.emissive",
-        'normal': f"{gbuf}.normW",
-        'depth': f"{gbuf}.linearZ",
-        'position': f"{gbuf}.posW",
-        'mvec': f"{gbuf}.mvec",
-        'pnFwidth': f"{gbuf}.pnFwidth",
-        'specRough': f"{gbuf}.specRough",
-        'diffuseOpacity': f"{gbuf}.diffuseOpacity",
+        # 'envLight': f"{path}.envLight",
+        # 'albedo': f"{path}.albedo",
+        # # 'viewAlbedo': f"{path}.specularAlbedo",
+
+        # ## GBufferRaster
+        # 'emissive': f"{gbuf}.emissive",
+        # 'normal': f"{gbuf}.normW",
+        # 'depth': f"{gbuf}.linearZ",
+        # 'position': f"{gbuf}.posW",
+        # 'mvec': f"{gbuf}.mvec",
+        # 'pnFwidth': f"{gbuf}.pnFwidth",
+        # 'specRough': f"{gbuf}.specRough",
+        # 'diffuseOpacity': f"{gbuf}.diffuseOpacity",
     }
-    if ENABLE_RESTIR:
-        pairs['directLighting'] = f"{ss_restir}.color"
+    # if ENABLE_RESTIR:
+    #     pairs['directLighting'] = f"{ss_restir}.color"
     opts = {
         'captureCameraMat': False
     }
-    if not NO_CAPTURE_INPUT:
+    if not INTERACTIVE:
         add_capture(g, pairs, start, end, opts)
 
     # Add output
@@ -339,65 +339,72 @@ def render_svgf_optix(start, end):
     return g
 
 
-if SCENE_NAME == 'Dining-room-dynamic':
+if 'Dining-room-dynamic-static' == NAME:
+    start = -0.5
+    end = -0.5
+    step = 0
+    num_frames = 101
+    ANIM = [0, num_frames]
+    dir_list = [start] * num_frames
+elif 'Dining-room-dynamic' in NAME:
     # Dynamic directional light for dining-room
     # [-0.6, -0.0]
     start = -0.1
     end = -0.8
-    step = -0.005
+    step = -0.003
     num_frames = int((end - start) / step)
-    SCENE_ANIM = [0, num_frames]
+    ANIM = [0, num_frames]
+    dir_list = frange(start, end, step)
 
-SCENE_ANIM[1] += 3  # Add more frames
-
+print("ANIM = ", ANIM)
 if METHOD == 'input':
-    graph = render_input(*SCENE_ANIM)
+    graph = render_input(*ANIM)
 elif METHOD == 'ref':
-    graph = render_ref(*SCENE_ANIM)
+    graph = render_ref(*ANIM)
 elif METHOD == 'svgf_optix':
-    graph = render_svgf_optix(*SCENE_ANIM)
+    graph = render_svgf_optix(*ANIM)
 
 m.addGraph(graph)
-m.loadScene(SCENE_FILE)
+m.loadScene(FILE)
 # Call this after scene loading
-m.scene.camera.nearPlane = 0.15  # Increase near plane to prevent Z-fighting
+m.scene.camera.nearPlane = 0.15 # Increase near plane to prevent Z-fighting
 
-# m.profiler.enabled = True
-m.clock.framerate = 30
+m.clock.framerate = 60
 m.clock.time = 0
 if not INTERACTIVE:
     m.clock.pause()
 
-    if SCENE_NAME == 'Dining-room-dynamic':
+    # m.profiler.enabled = True
+    if 'Dining-room-dynamic' in NAME:
         frame = 0
-        for y in frange(start, end, step):
+        for y in dir_list:
             m.clock.frame = frame
+            print('Rendering frame:', m.clock.frame)
             m.scene.lights[0].direction.y = y
             if METHOD == 'ref':
-                for _ in range(NUM_REF_SAMPLES):
+                for _ in range(REF_COUNT):
                     m.renderFrame()
             else:
                 m.renderFrame()
             frame += 1
-            if frame == SCENE_ANIM[1] + 1: break
-
+            if frame == ANIM[1] + 1: break
     else:
-        # Start frame
-        for frame in range(*SCENE_ANIM):
-            # if frame == SCENE_ANIM[0] + 10:
-            #     m.profiler.startCapture()
+        num_frames = ANIM[1] - ANIM[0] + 1
 
-            m.clock.frame = frame
+        # Start frame
+        for frame in range(num_frames):
+            m.clock.frame = ANIM[0] + frame
+            print('Rendering frame:', m.clock.frame)
+            # if frame == ANIM[0] + 10:
+            #     m.profiler.startCapture()
             if METHOD == 'ref':
-                for i in range(NUM_REF_SAMPLES):
+                for i in range(REF_COUNT):
                     m.renderFrame()
             else:
                 m.renderFrame()
-            # print('frame:', m.clock.frame)
 
+    # capture = m.profiler.endCapture()
+    # m.profiler.enabled = False
+    # print(capture)
+    # with open('event.txt', 'w') as f: f.write(f'{capture}\n')
     exit()
-
-# capture = m.profiler.endCapture()
-# m.profiler.enabled = False
-# print(capture)
-# with open('C:/Users/hchoi/repositories/rt-denoiser/event.txt', 'w') as f: f.write(f'{capture}\n')
