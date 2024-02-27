@@ -46,11 +46,11 @@ struct GenerateLightTiles
         uint bufferIndex = tileIndex * kLightTileSize + sampleIndex;
 
         // Setup per-tile random generator and pick random offset.
-        TinyUniformSampleGenerator tileSg = TinyUniformSampleGenerator(tileIndex, frameIndex);
+        TinyUniformSampleGenerator tileSg = TinyUniformSampleGenerator(0, frameIndex);
         float offset = sampleNext1D(tileSg);
 
         // Setup per-thread random generator.
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(bufferIndex, frameIndex + 1);
+        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(0, frameIndex + 1);
 
         LightSample lightSample = LightSample::createInvalid();
 

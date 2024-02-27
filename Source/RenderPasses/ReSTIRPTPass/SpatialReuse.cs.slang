@@ -150,7 +150,7 @@ struct PathReusePass
 
     void ReSTIR(const uint2 pixel)
     {
-        var sg = TinyUniformSampleGenerator(pixel, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId);
+        var sg = TinyUniformSampleGenerator(0, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId);
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
@@ -198,7 +198,7 @@ struct PathReusePass
             else
             {
                 int2 block = (pixel - blockShiftOffset + 16) / 16;
-                var NRookSg = TinyUniformSampleGenerator(block, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
+                var NRookSg = TinyUniformSampleGenerator(0, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
                 // randomly select one N-rooks pattern from 256 patterns
                 const uint patternIndex = min(255, sampleNext1D(NRookSg) * 256);
                 pixelInBlock = (pixel - blockShiftOffset + 16) % 16;

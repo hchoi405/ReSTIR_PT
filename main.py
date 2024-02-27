@@ -9,7 +9,7 @@ INTERACTIVE = False
 NAME = "VeachAjar"
 FILE = "VeachAjar/VeachAjar.pyscene"
 ANIM = [0, 100]
-METHOD = "ref"
+METHOD = "input"
 REF_COUNT = 8192
 ENABLE_RESTIR = True
 
@@ -236,24 +236,24 @@ def render_input(start, end):
     # Connect input/output
     pairs = {
         ## PathTracer
-        'current': f"{path}.color",
-        'path': f"{path}.debug",
-        'envLight': f"{path}.envLight",
-        'albedo': f"{path}.albedo",
-        # 'viewAlbedo': f"{path}.specularAlbedo",
+        'crn': f"{path}.color",
+        # 'path': f"{path}.debug",
+        # 'envLight': f"{path}.envLight",
+        # 'albedo': f"{path}.albedo",
+        # # 'viewAlbedo': f"{path}.specularAlbedo",
 
-        ## GBufferRaster
-        'emissive': f"{gbuf}.emissive",
-        'normal': f"{gbuf}.normW",
-        'depth': f"{gbuf}.linearZ",
-        'position': f"{gbuf}.posW",
-        'mvec': f"{gbuf}.mvec",
-        'pnFwidth': f"{gbuf}.pnFwidth",
-        'specRough': f"{gbuf}.specRough",
-        'diffuseOpacity': f"{gbuf}.diffuseOpacity",
+        # ## GBufferRaster
+        # 'emissive': f"{gbuf}.emissive",
+        # 'normal': f"{gbuf}.normW",
+        # 'depth': f"{gbuf}.linearZ",
+        # 'position': f"{gbuf}.posW",
+        # 'mvec': f"{gbuf}.mvec",
+        # 'pnFwidth': f"{gbuf}.pnFwidth",
+        # 'specRough': f"{gbuf}.specRough",
+        # 'diffuseOpacity': f"{gbuf}.diffuseOpacity",
     }
-    if ENABLE_RESTIR:
-        pairs['directLighting'] = f"{ss_restir}.color"
+    # if ENABLE_RESTIR:
+    #     pairs['directLighting'] = f"{ss_restir}.color"
     opts = {
         'captureCameraMat': False
     }

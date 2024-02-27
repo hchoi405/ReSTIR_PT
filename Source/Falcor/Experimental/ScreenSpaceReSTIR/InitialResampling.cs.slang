@@ -119,12 +119,12 @@ struct InitialResampling
         uint2 screenTile = pixel / kScreenTileSize;
 
         // Determine light tile to use for this screen tile.
-        TinyUniformSampleGenerator tileSg = TinyUniformSampleGenerator(screenTile, frameIndex);
+        TinyUniformSampleGenerator tileSg = TinyUniformSampleGenerator(0, frameIndex);
         uint tileIndex = min(uint(sampleNext1D(tileSg) * kLightTileCount), kLightTileCount - 1);
         uint lightTileOffset = tileIndex * kLightTileSize;
 
         // Determine offset and stride to stratify samples within the light tile.
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(pixel, frameIndex);
+        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(0, frameIndex);
 
         print("Initial Resampling", 1);
         print("-",pixel);

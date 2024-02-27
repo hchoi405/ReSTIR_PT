@@ -33,7 +33,7 @@ struct PathReusePass
     RWStructuredBuffer<PathReservoir> temporalReservoirs;  // reservoir from previous frame
     StructuredBuffer<PixelReconnectionData> reconnectionDataBuffer;
 
-    Texture2D<float4> directLighting;                  
+    Texture2D<float4> directLighting;
     bool useDirectLighting;
 
     int  gNumSpatialRounds;
@@ -84,7 +84,7 @@ struct PathReusePass
     */
     void ReSTIR(const uint2 pixel)
     {
-        var sg = TinyUniformSampleGenerator(pixel, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
+        var sg = TinyUniformSampleGenerator(0, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
@@ -248,7 +248,7 @@ struct PathReusePass
                 // MIS weight
                 if (dstReservoir.weight > 0 && ReSTIRMISKind(kTemporalReSTIRMISKind) != ReSTIRMISKind::ConstantBiased && !gNoResamplingForTemporalReuse)
                 {
-                    if (chooseCurrent) // need to know prev pdf 
+                    if (chooseCurrent) // need to know prev pdf
                     {
                         float count = currentM;
                         float prefixJacobian = 1.f;

@@ -69,7 +69,7 @@ struct PathReusePass
 
     int2 getPathReuseNextNeighborPixel(int4 NRookQuery, int2 pixel, int i)
     {
-        // 
+        //
         if (PathReusePattern(gSpatialReusePattern) == PathReusePattern::Block)
         {
             int2 block = pixel / 4;
@@ -100,7 +100,7 @@ struct PathReusePass
         else blockShiftOffset = params.seed % 16;
         int2 block = (pixel - blockShiftOffset + 16) / 16;
         // TODO: How to seed efficiently?
-        var sg = TinyUniformSampleGenerator(block, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
+        var sg = TinyUniformSampleGenerator(0, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
 
         // randomly select one N-rooks pattern from 256 patterns
         const uint patternIndex = min(255, sampleNext1D(sg) * 256);

@@ -59,7 +59,7 @@ struct TemporalResampling
 
         const uint pixelIndex = getPixelIndex(pixel);
 
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(pixel, frameIndex);
+        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(0, frameIndex);
 
         // Back-project this pixel to previous frame.
         const int2 prevPixel = pixel + motionVectors[pixel] * frameDim + (sampleNext2D(sg) * 1.f - 0.f);

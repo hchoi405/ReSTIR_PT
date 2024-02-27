@@ -72,7 +72,7 @@ struct SpatialResampling
 
         const uint pixelIndex = getPixelIndex(pixel);
 
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(pixel, frameIndex);
+        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(0, frameIndex);
 
         print("Spatial Reuse", 1);
         print("-", pixel);
@@ -91,8 +91,6 @@ struct SpatialResampling
         RisState risState = RisState::createEmpty();
         const uint startIndex = sampleNext1D(sg) * kNeighborOffsetCount;
         uint validCount = 0;
-
-        TinyUniformSampleGenerator sg2 = TinyUniformSampleGenerator(int2(0, 0), frameIndex + 1);
 
         if (kUsePairwiseMIS)
         {
@@ -176,8 +174,6 @@ struct SpatialResampling
             // Iterate over neighbor pixels again.
             if (centerVisibility)
             {
-                TinyUniformSampleGenerator sg;
-
                 if (selected == -1)
                 {
                     for (uint i = 0; i < neighborCount; ++i)
