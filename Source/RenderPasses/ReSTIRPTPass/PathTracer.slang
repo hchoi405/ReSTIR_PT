@@ -1864,6 +1864,7 @@ struct PathTracer
         if (itersPerShaderPass == 1)
         {
             float3 L = 0.f;
+            float3 L2 = 0.f;
 
             if (useDirectLighting) L += path.LDeltaDirect;
 
@@ -1883,26 +1884,29 @@ struct PathTracer
             {
                 path.pathReservoir.finalizeRIS();
 
+                // Write color directly to frame buffer.
+                float3 color = path.pathReservoir.F * path.pathReservoir.weight;
+                if (any(isinf(color) || isnan(color))) color = 0.f;
+
                 if (isLastRound)
                 {
-                    // Write color directly to frame buffer.
-                    float3 color = path.pathReservoir.F * path.pathReservoir.weight;
-
-                    if (any(isinf(color) || isnan(color))) color = 0.f;
-
                     L += color;
                 }
+                L2 += color;
             }
 
             if (useDirectLighting && (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing || isLastRound))
             {
                 L += directLighting[pixel].rgb;
             }
+            L2 += directLighting[pixel].rgb;
 
             if (any(isinf(L) || isnan(L))) L = 0.f;
+            if (any(isinf(L2) || isnan(L2))) L2 = 0.f;
 
             if (PathSamplingMode(kPathSamplingMode) != PathSamplingMode::PathTracing)
                 L /= kSamplesPerPixel;
+            L2 /= kSamplesPerPixel;
 
             if (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing || kSamplesPerPixel == 1 || gSppId == 0 )
                 outputColor[pixel] = float4(L, 1.f);
@@ -1911,6 +1915,8 @@ struct PathTracer
 
             if (PathSamplingMode(kPathSamplingMode) != PathSamplingMode::PathTracing)
                 outputReservoirs[reservoirIdx] = path.pathReservoir;
+
+            outputDebug[pixel] = float4(L2, 1.f);
         }
         else
         {

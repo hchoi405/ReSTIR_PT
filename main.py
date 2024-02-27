@@ -279,7 +279,8 @@ def render_input(start, end):
         # 'history_demodul': f"{reproj2}.History",
         # 'accumhistorylen': f"{reproj2}.Length",
         ## PathTracer
-        'path': f"{path}.color",
+        'current': f"{path}.color",
+        'path': f"{path}.debug",
         # 'envLight': f"{path}.envLight",
         # 'albedo': f"{path}.albedo",
         # # 'viewAlbedo': f"{path}.specularAlbedo",
