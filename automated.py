@@ -130,8 +130,8 @@ def scale_exposure(img, exposure):
     return img * np.power(2.0, exposure)
 
 def process(src_dir, dest_dir, frame, scene_name):
-    # Copy path to current
-    shutil.copy(os.path.join(src_dir, f'path_{frame:04d}.exr'), os.path.join(dest_dir, f'current_{frame:04d}.exr'))
+    # # Copy path to current
+    # shutil.copy(os.path.join(src_dir, f'path_{frame:04d}.exr'), os.path.join(dest_dir, f'current_{frame:04d}.exr'))
 
     # LinearZ -> Depth
     shutil.move(os.path.join(src_dir, f'depth_{frame:04d}.exr'), os.path.join(dest_dir, f'linearZ_{frame:04d}.exr'))
