@@ -7,7 +7,8 @@ ORCA_PATH = f"{HOME_DIR}/ORCA/"
 
 defs = {
     # "Arcade": {'file': "Arcade/Arcade.pyscene", 'anim':[0, 10]},
-    "VeachAjar": {'file': "VeachAjar/VeachAjar.pyscene", 'anim':[0, 100]},
+    # "VeachAjar": {'file': "VeachAjar/VeachAjar.pyscene", 'anim':[0, 100]},
+    "VeachAjarAnimated": {'file': "VeachAjar/VeachAjarAnimated.pyscene", 'anim':[0, 100]},
     # "BistroExterior": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[0, 100]},
     # "BistroExterior2": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[1400, 1500]},
     # "Classroom": {'file': BITTERLI_SCENE_PATH + "classroom/scene.pyscene", 'anim':[0, 300]}, # [0, 597]
