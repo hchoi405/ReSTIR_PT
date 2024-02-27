@@ -171,7 +171,24 @@ namespace Falcor
             bool reSTIREnableTemporalJacobian = true;
 
             bool forceClearReservoirs = false;                  ///< Force clear temporal and spatial reservoirs.
+
+            // Spatial seed
+            bool fixSpatialSeed = false;
+            uint spatialSeed = 0;
+            // Temporal seed
+            bool fixTemporalSeed = false;
+            uint temporalSeed = 0;
+            uint temporalSeedOffset = 0;
         };
+
+        void setSeed(bool fixSpatialSeed, uint spatialSeed, bool fixTemporalSeed, uint temporalSeed, uint temporalSeedOffset)
+        {
+            mOptions->fixSpatialSeed = fixSpatialSeed;
+            mOptions->spatialSeed = spatialSeed;
+            mOptions->fixTemporalSeed = fixTemporalSeed;
+            mOptions->temporalSeed = temporalSeed;
+            mOptions->temporalSeedOffset = temporalSeedOffset;
+        }
 
         /** Create a new instance of the ReSTIR sampler.
             \param[in] pScene Scene.
@@ -352,6 +369,7 @@ namespace Falcor
 
         int mCurRISPass = 0;
         int mTotalRISPasses = 0;
+        int mSeedOffset = 0;
 
         struct
         {

@@ -32,6 +32,9 @@ struct GenerateLightTiles
     Lights lights;
 
     uint frameIndex;
+    bool fixTemporalSeed;
+    uint temporalSeed;
+    uint temporalSeedOffset;
 
     float getStratifiedRandom(uint sampleIndex, uint sampleCount, float offset)
     {
@@ -46,11 +49,13 @@ struct GenerateLightTiles
         uint bufferIndex = tileIndex * kLightTileSize + sampleIndex;
 
         // Setup per-tile random generator and pick random offset.
-        TinyUniformSampleGenerator tileSg = TinyUniformSampleGenerator(tileIndex, frameIndex);
+        uint temporalSeed2 = fixTemporalSeed ? temporalSeed : frameIndex;
+        TinyUniformSampleGenerator tileSg = TinyUniformSampleGenerator(tileIndex, temporalSeedOffset + temporalSeed2);
+
         float offset = sampleNext1D(tileSg);
 
         // Setup per-thread random generator.
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(bufferIndex, frameIndex + 1);
+        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(bufferIndex, temporalSeedOffset + temporalSeed2 + 1);
 
         LightSample lightSample = LightSample::createInvalid();
 

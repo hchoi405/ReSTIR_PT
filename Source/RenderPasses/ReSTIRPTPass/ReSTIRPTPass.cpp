@@ -166,7 +166,6 @@ namespace
     const std::string kColorFormat = "colorFormat";
     const std::string kMISHeuristic = "misHeuristic";
     const std::string kMISPowerExponent = "misPowerExponent";
-    const std::string kFixedSeed = "fixedSeed";
     const std::string kEmissiveSampler = "emissiveSampler";
     const std::string kLightBVHOptions = "lightBVHOptions";
     const std::string kPrimaryLodMode = "primaryLodMode";
@@ -274,15 +273,6 @@ void ReSTIRPTPass::registerBindings(pybind11::module& m)
 
     pybind11::class_<ReSTIRPTPass, RenderPass, ReSTIRPTPass::SharedPtr> pass(m, "ReSTIRPTPass");
     pass.def_property_readonly("pixelStats", &ReSTIRPTPass::getPixelStats);
-
-    pass.def_property("useFixedSeed",
-        [](const ReSTIRPTPass* pt) { return pt->mParams.useFixedSeed ? true : false; },
-        [](ReSTIRPTPass* pt, bool value) { pt->mParams.useFixedSeed = value ? 1 : 0; }
-    );
-    pass.def_property("fixedSeed",
-        [](const ReSTIRPTPass* pt) { return pt->mParams.fixedSeed; },
-        [](ReSTIRPTPass* pt, uint32_t value) { pt->mParams.fixedSeed = value; }
-    );
 }
 
 std::string ReSTIRPTPass::getDesc() { return kDesc; }
@@ -393,7 +383,6 @@ bool ReSTIRPTPass::parseDictionary(const Dictionary& dict)
         else if (key == kAdjustShadingNormals) mStaticParams.adjustShadingNormals = value;
         else if (key == kLODBias) mParams.lodBias = value;
         else if (key == kSampleGenerator) mStaticParams.sampleGenerator = value;
-        else if (key == kFixedSeed) { mParams.fixedSeed = value; mParams.useFixedSeed = true; }
         else if (key == kUseBSDFSampling) mStaticParams.useBSDFSampling = value;
         else if (key == kUseNEE) mStaticParams.useNEE = value;
         else if (key == kUseMIS) mStaticParams.useMIS = value;
@@ -423,7 +412,7 @@ bool ReSTIRPTPass::parseDictionary(const Dictionary& dict)
         else if (key == kNearFieldDistance) mParams.nearFieldDistance = value;
         else if (key == kTemporalHistoryLength) mTemporalHistoryLength = value;
         else if (key == kUseMaxHistory) mUseMaxHistory = value;
-        else if (key == kSeedOffset) mSeedOffset = value;
+        else if (key == kSeedOffset) mTemporalSeedOffset = value;
         else if (key == kEnableTemporalReuse) mEnableTemporalReuse = value;
         else if (key == kEnableSpatialReuse) mEnableSpatialReuse = value;
         else if (key == kNumSpatialRounds) mNumSpatialRounds = value;
@@ -549,7 +538,6 @@ Dictionary ReSTIRPTPass::getScriptingDictionary()
     d[kAdjustShadingNormals] = mStaticParams.adjustShadingNormals;
     d[kLODBias] = mParams.lodBias;
     d[kSampleGenerator] = mStaticParams.sampleGenerator;
-    if (mParams.useFixedSeed) d[kFixedSeed] = mParams.fixedSeed;
     d[kUseBSDFSampling] = mStaticParams.useBSDFSampling;
     d[kUseNEE] = mStaticParams.useNEE;
     d[kUseMIS] = mStaticParams.useMIS;
@@ -577,7 +565,7 @@ Dictionary ReSTIRPTPass::getScriptingDictionary()
     d[kNearFieldDistance] = mParams.nearFieldDistance;
     d[kTemporalHistoryLength] = mTemporalHistoryLength;
     d[kUseMaxHistory] = mUseMaxHistory;
-    d[kSeedOffset] = mSeedOffset;
+    d[kSeedOffset] = mTemporalSeedOffset;
     d[kEnableTemporalReuse] = mEnableSpatialReuse;
     d[kEnableSpatialReuse] = mEnableTemporalReuse;
     d[kNumSpatialRounds] = mNumSpatialRounds;
@@ -678,6 +666,24 @@ void ReSTIRPTPass::execute(RenderContext* pRenderContext, const RenderData& rend
 {
     if (!beginFrame(pRenderContext, renderData)) return;
     renderData.getDictionary()["enableScreenSpaceReSTIR"] = mUseDirectLighting;
+
+    static bool toBeTurnedOff = false;
+    if (mSyncSeedSSReSTIR)
+    {
+        renderData.getDictionary()["syncSeedSSReSTIR"] = true;
+        renderData.getDictionary()["fixSpatialSeed"] = mFixSpatialSeed;
+        renderData.getDictionary()["spatialSeed"] = mSpatialSeed;
+        renderData.getDictionary()["fixTemporalSeed"] = mFixTemporalSeed;
+        renderData.getDictionary()["temporalSeed"] = mTemporalSeed;
+        renderData.getDictionary()["temporalSeedOffset"] = mTemporalSeedOffset;
+        toBeTurnedOff = true;
+    }
+    else if (toBeTurnedOff)
+    {
+        // Set this only once, to reset the seed of SSReSTIR
+        renderData.getDictionary()["syncSeedSSReSTIR"] = false;
+        toBeTurnedOff = false;
+    }
 
     bool skipTemporalReuse = mReservoirFrameCount == 0;
     if (mStaticParams.pathSamplingMode != PathSamplingMode::ReSTIR) mStaticParams.candidateSamples = 1;
@@ -1121,13 +1127,29 @@ bool ReSTIRPTPass::renderDebugUI(Gui::Widgets& widget)
 
     if (auto group = widget.group("Debugging", true))
     {
-        dirty |= group.checkbox("Use fixed seed", mParams.useFixedSeed);
-        group.tooltip("Forces a fixed random seed for each frame.\n\n"
-            "This should produce exactly the same image each frame, which can be useful for debugging.");
-        if (mParams.useFixedSeed)
+        dirty |= group.checkbox("Sync seed with SSReSTIR (for CRN)", mSyncSeedSSReSTIR);
+
+        dirty |= group.checkbox("Fixed spatial seed", mFixSpatialSeed);
+        if (mFixSpatialSeed)
         {
-            dirty |= group.var("Seed", mParams.fixedSeed);
+            dirty |= group.var("Spatial Seed", mSpatialSeed, 0u, 1000000u);
         }
+        else
+        {
+            mSpatialSeed = 0;
+        }
+
+        dirty |= group.var("Temporal seed offset", mTemporalSeedOffset, 0u, 1000000u);
+        dirty |= group.checkbox("Fixed temporal seed", mFixTemporalSeed);
+        if (mFixTemporalSeed)
+        {
+            dirty |= group.var("Temporal Seed", mTemporalSeed, 0u, 1000000u);
+        }
+        else
+        {
+            mTemporalSeed = 0;
+        }
+
 
         mpPixelDebug->renderUI(group);
     }
@@ -1290,6 +1312,12 @@ void ReSTIRPTPass::preparePathTracer(const RenderData& renderData)
     setShaderData(var, renderData, true, false);
     var["outputReservoirs"] = mpOutputReservoirs;
     var["directLighting"] = renderData[kInputDirectLighting]->asTexture();
+
+    var["fixSpatialSeed"] = mFixSpatialSeed;
+    var["spatialSeed"] = mSpatialSeed;
+    var["fixTemporalSeed"] = mFixTemporalSeed;
+    var["temporalSeed"] = mTemporalSeed;
+    var["temporalSeedOffset"] = mTemporalSeedOffset;
 }
 
 void ReSTIRPTPass::resetLighting()
@@ -1545,7 +1573,7 @@ bool ReSTIRPTPass::beginFrame(RenderContext* pRenderContext, const RenderData& r
 
     // Update the random seed.
     int initialShaderPasses = mStaticParams.pathSamplingMode == PathSamplingMode::PathTracing ? 1 : mStaticParams.samplesPerPixel;
-    mParams.seed = mParams.useFixedSeed ? mParams.fixedSeed : mSeedOffset + initialShaderPasses * mParams.frameCount;
+    mParams.seed = initialShaderPasses * mParams.frameCount;
 
     return true;
 }
@@ -1731,6 +1759,12 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
     }
     var["gIsLastRound"] = mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse || isLastRound;
 
+    var["fixSpatialSeed"] = mFixSpatialSeed;
+    var["spatialSeed"] = mSpatialSeed;
+    var["fixTemporalSeed"] = mFixTemporalSeed;
+    var["temporalSeed"] = mTemporalSeed;
+    var["temporalSeedOffset"] = mTemporalSeedOffset;
+
     pass["gScene"] = mpScene->getParameterBlock();
     pass["gPathTracer"] = mpPathTracerBlock;
 
@@ -1796,6 +1830,12 @@ void ReSTIRPTPass::PathRetracePass(RenderContext* pRenderContext, uint32_t resti
         var["gSpatialReusePattern"] = mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse ? (uint32_t)mPathReusePattern : (uint32_t)mSpatialReusePattern;
         var["gFeatureBasedRejection"] = mFeatureBasedRejection;
     }
+
+    var["fixSpatialSeed"] = mFixSpatialSeed;
+    var["spatialSeed"] = mSpatialSeed;
+    var["fixTemporalSeed"] = mFixTemporalSeed;
+    var["temporalSeed"] = mTemporalSeed;
+    var["temporalSeedOffset"] = mTemporalSeedOffset;
 
     pass["gScene"] = mpScene->getParameterBlock();
     pass["gPathTracer"] = mpPathTracerBlock;

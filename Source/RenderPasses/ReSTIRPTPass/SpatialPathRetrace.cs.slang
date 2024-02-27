@@ -44,6 +44,12 @@ struct PathRetracePass
     // for small window
     int gSmallWindowRadius;
 
+    bool fixSpatialSeed;
+    uint spatialSeed;
+    bool fixTemporalSeed;
+    uint temporalSeed;
+    uint temporalSeedOffset;
+
     // for linear growth of M when merging reservoirs
 
     bool gFeatureBasedRejection;
@@ -112,7 +118,9 @@ struct PathRetracePass
     void ReSTIR(const uint2 pixel)
     {
         // TODO: How to seed efficiently?
-        var sg = TinyUniformSampleGenerator(pixel, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId);
+        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : pixel;
+        uint temporalSeed2 = fixTemporalSeed ? temporalSeed : (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId;
+        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);

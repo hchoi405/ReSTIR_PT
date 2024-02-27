@@ -45,6 +45,12 @@ struct TemporalResampling
     float normalThreshold;
     float depthThreshold;
 
+    bool fixSpatialSeed;
+    uint spatialSeed;
+    bool fixTemporalSeed;
+    uint temporalSeed;
+    uint temporalSeedOffset;
+
     uint getPixelIndex(uint2 pixel) { return pixel.y * frameDim.x + pixel.x; }
 
     bool isValidPixel(int2 pixel) { return all(pixel >= 0 && pixel < frameDim); }
@@ -59,7 +65,9 @@ struct TemporalResampling
 
         const uint pixelIndex = getPixelIndex(pixel);
 
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(pixel, frameIndex);
+        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : pixel;
+        uint temporalSeed2 = fixTemporalSeed ? temporalSeed : frameIndex;
+        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 
         // Back-project this pixel to previous frame.
         const int2 prevPixel = pixel + motionVectors[pixel] * frameDim + (sampleNext2D(sg) * 1.f - 0.f);

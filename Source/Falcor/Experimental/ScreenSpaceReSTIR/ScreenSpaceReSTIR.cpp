@@ -255,6 +255,27 @@ namespace Falcor
 
             mRecompile |= widget.checkbox("Unbiased", mOptions->unbiased);
             widget.tooltip("Use unbiased version of ReSTIR by querying extra visibility rays.");
+
+            mRecompile |= widget.checkbox("Fixed spatial seed", mOptions->fixSpatialSeed);
+            if (mOptions->fixSpatialSeed)
+            {
+                mRecompile |= widget.var("Spatial seed", mOptions->spatialSeed, 0u, 1000000u);
+            }
+            else
+            {
+                mOptions->spatialSeed = 0;
+            }
+
+            mRecompile |= widget.var("Temporal seed offset", mOptions->temporalSeedOffset, 0u, 1000000u);
+            mRecompile |= widget.checkbox("Fixed temporal seed", mOptions->fixTemporalSeed);
+            if (mOptions->fixTemporalSeed)
+            {
+                mRecompile |= widget.var("Temporal seed", mOptions->temporalSeed, 0u, 1000000u);
+            }
+            else
+            {
+                mOptions->temporalSeed = 0;
+            }
         }
 
         if (auto group = widget.group("ReSTIR GI options"))
@@ -802,6 +823,9 @@ namespace Falcor
         var["lightTileData"] = mpLightTileData;
         setLightsShaderData(var["lights"]);
         var["frameIndex"] = mTotalRISPasses * mFrameIndex + mCurRISPass;
+        var["fixTemporalSeed"] = mOptions->fixTemporalSeed;
+        var["temporalSeed"] = mOptions->temporalSeed;
+        var["temporalSeedOffset"] = mOptions->temporalSeedOffset;
         mCurRISPass += 2;
 
         mpGenerateLightTiles->execute(pRenderContext, uint3(mOptions->lightTileSize, mOptions->lightTileCount, 1));
@@ -827,6 +851,11 @@ namespace Falcor
         setLightsShaderData(var["lights"]);
         var["frameDim"] = mFrameDim;
         var["frameIndex"] = mTotalRISPasses * mFrameIndex + mCurRISPass;
+        var["fixSpatialSeed"] = mOptions->fixSpatialSeed;
+        var["spatialSeed"] = mOptions->spatialSeed;
+        var["fixTemporalSeed"] = mOptions->fixTemporalSeed;
+        var["temporalSeed"] = mOptions->temporalSeed;
+        var["temporalSeedOffset"] = mOptions->temporalSeedOffset;
         var["brdfCutoff"] = mOptions->brdfCutoff;
         mCurRISPass++;
 
@@ -862,6 +891,11 @@ namespace Falcor
         setLightsShaderData(var["lights"]);
         var["frameDim"] = mFrameDim;
         var["frameIndex"] = mTotalRISPasses * mFrameIndex + mCurRISPass;
+        var["fixSpatialSeed"] = mOptions->fixSpatialSeed;
+        var["spatialSeed"] = mOptions->spatialSeed;
+        var["fixTemporalSeed"] = mOptions->fixTemporalSeed;
+        var["temporalSeed"] = mOptions->temporalSeed;
+        var["temporalSeedOffset"] = mOptions->temporalSeedOffset;
         var["normalThreshold"] = mOptions->normalThreshold;
         var["depthThreshold"] = mOptions->depthThreshold;
         mCurRISPass++;
@@ -900,6 +934,11 @@ namespace Falcor
             var["reservoirs"] = mpReservoirs;
             var["prevReservoirs"] = mpPrevReservoirs;
             var["frameIndex"] = mTotalRISPasses * mFrameIndex + mCurRISPass;
+            var["fixSpatialSeed"] = mOptions->fixSpatialSeed;
+            var["spatialSeed"] = mOptions->spatialSeed;
+            var["fixTemporalSeed"] = mOptions->fixTemporalSeed;
+            var["temporalSeed"] = mOptions->temporalSeed;
+            var["temporalSeedOffset"] = mOptions->temporalSeedOffset;
             mCurRISPass += 1;
             mpSpatialResampling->execute(pRenderContext, mFrameDim.x, mFrameDim.y, 1);
         }

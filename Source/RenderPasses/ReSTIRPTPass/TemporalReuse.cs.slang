@@ -33,7 +33,7 @@ struct PathReusePass
     RWStructuredBuffer<PathReservoir> temporalReservoirs;  // reservoir from previous frame
     StructuredBuffer<PixelReconnectionData> reconnectionDataBuffer;
 
-    Texture2D<float4> directLighting;                  
+    Texture2D<float4> directLighting;
     bool useDirectLighting;
 
     int  gNumSpatialRounds;
@@ -43,6 +43,12 @@ struct PathReusePass
 
     float gTemporalHistoryLength;
     bool gNoResamplingForTemporalReuse;
+
+    bool fixSpatialSeed;
+    uint spatialSeed;
+    bool fixTemporalSeed;
+    uint temporalSeed;
+    uint temporalSeedOffset;
 
     bool isValidPackedHitInfo(PackedHitInfo packed)
     {
@@ -84,7 +90,9 @@ struct PathReusePass
     */
     void ReSTIR(const uint2 pixel)
     {
-        var sg = TinyUniformSampleGenerator(pixel, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
+        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : pixel;
+        uint temporalSeed2 = fixTemporalSeed ? temporalSeed : (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples;
+        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
@@ -248,7 +256,7 @@ struct PathReusePass
                 // MIS weight
                 if (dstReservoir.weight > 0 && ReSTIRMISKind(kTemporalReSTIRMISKind) != ReSTIRMISKind::ConstantBiased && !gNoResamplingForTemporalReuse)
                 {
-                    if (chooseCurrent) // need to know prev pdf 
+                    if (chooseCurrent) // need to know prev pdf
                     {
                         float count = currentM;
                         float prefixJacobian = 1.f;

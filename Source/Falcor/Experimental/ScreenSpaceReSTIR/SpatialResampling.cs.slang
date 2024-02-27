@@ -50,6 +50,12 @@ struct SpatialResampling
     uint neighborCount;     ///< Number of neighbor reservoirs to resample.
     float gatherRadius;     ///< Maximum radius to gather neighbors from.
 
+    bool fixSpatialSeed;
+    uint spatialSeed;
+    bool fixTemporalSeed;
+    uint temporalSeed;
+    uint temporalSeedOffset;
+
     uint getPixelIndex(uint2 pixel) { return pixel.y * frameDim.x + pixel.x; }
 
     bool isValidPixel(int2 pixel) { return all(pixel >= 0 && pixel < frameDim); }
@@ -72,7 +78,9 @@ struct SpatialResampling
 
         const uint pixelIndex = getPixelIndex(pixel);
 
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(pixel, frameIndex);
+        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : pixel;
+        uint temporalSeed2 = fixTemporalSeed ? temporalSeed : frameIndex;
+        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 
         print("Spatial Reuse", 1);
         print("-", pixel);
@@ -91,8 +99,6 @@ struct SpatialResampling
         RisState risState = RisState::createEmpty();
         const uint startIndex = sampleNext1D(sg) * kNeighborOffsetCount;
         uint validCount = 0;
-
-        TinyUniformSampleGenerator sg2 = TinyUniformSampleGenerator(int2(0, 0), frameIndex + 1);
 
         if (kUsePairwiseMIS)
         {
@@ -176,8 +182,6 @@ struct SpatialResampling
             // Iterate over neighbor pixels again.
             if (centerVisibility)
             {
-                TinyUniformSampleGenerator sg;
-
                 if (selected == -1)
                 {
                     for (uint i = 0; i < neighborCount; ++i)

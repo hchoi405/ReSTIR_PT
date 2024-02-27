@@ -81,6 +81,13 @@ namespace Falcor
             return mContainer.find(key) != mContainer.end();
         }
 
+        /** Remove a key.
+        */
+        void removeKey(const std::string& key)
+        {
+            mContainer.erase(key);
+        }
+
         /** Get value by key. Throws an exception if key does not exist.
         */
         template<typename T>

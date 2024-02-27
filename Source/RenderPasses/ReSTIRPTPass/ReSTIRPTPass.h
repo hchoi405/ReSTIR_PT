@@ -173,7 +173,15 @@ private:
 
     int                             mTemporalHistoryLength = 20;
     bool                            mNoResamplingForTemporalReuse = false;
-    int                             mSeedOffset = 0;
+
+    bool                            mSyncSeedSSReSTIR = false;
+    // Spatial seed
+    bool                            mFixSpatialSeed = false;
+    uint                            mSpatialSeed = 0;
+    // Temporal seed
+    bool                            mFixTemporalSeed = false;
+    uint                            mTemporalSeed = 0;
+    uint                            mTemporalSeedOffset = 0;
 
 
     bool mResetRenderPassFlags = false;

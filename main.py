@@ -9,7 +9,7 @@ INTERACTIVE = False
 NAME = "VeachAjar"
 FILE = "VeachAjar/VeachAjar.pyscene"
 ANIM = [0, 100]
-METHOD = "ref"
+METHOD = "input"
 REF_COUNT = 8192
 ENABLE_RESTIR = True
 
@@ -252,8 +252,8 @@ def render_input(start, end):
         'specRough': f"{gbuf}.specRough",
         'diffuseOpacity': f"{gbuf}.diffuseOpacity",
     }
-    if ENABLE_RESTIR:
-        pairs['directLighting'] = f"{ss_restir}.color"
+    # if ENABLE_RESTIR:
+    #     pairs['directLighting'] = f"{ss_restir}.color"
     opts = {
         'captureCameraMat': False
     }

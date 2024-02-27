@@ -40,6 +40,12 @@ struct PathReusePass
     uint gSpatialReusePattern;
     bool gIsLastRound;
 
+    bool fixSpatialSeed;
+    uint spatialSeed;
+    bool fixTemporalSeed;
+    uint temporalSeed;
+    uint temporalSeedOffset;
+
     bool isValidPackedHitInfo(PackedHitInfo packed)
     {
         return packed.x != 0;
@@ -69,7 +75,7 @@ struct PathReusePass
 
     int2 getPathReuseNextNeighborPixel(int4 NRookQuery, int2 pixel, int i)
     {
-        // 
+        //
         if (PathReusePattern(gSpatialReusePattern) == PathReusePattern::Block)
         {
             int2 block = pixel / 4;
@@ -97,10 +103,13 @@ struct PathReusePass
 #if BPR // path reuse
         int blockShiftOffset;
         if (PathReusePattern(gSpatialReusePattern) == PathReusePattern::NRooks) blockShiftOffset = 16;
-        else blockShiftOffset = params.seed % 16;
+        else blockShiftOffset = temporalSeed % 16;
         int2 block = (pixel - blockShiftOffset + 16) / 16;
         // TODO: How to seed efficiently?
-        var sg = TinyUniformSampleGenerator(block, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
+
+        int2 spatialSeed2 = fixSpatialSeed ? spatialSeed : block;
+        uint temporalSeed2 = fixTemporalSeed ? temporalSeed : (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples;
+        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 
         // randomly select one N-rooks pattern from 256 patterns
         const uint patternIndex = min(255, sampleNext1D(sg) * 256);

@@ -50,6 +50,12 @@ struct InitialResampling
     float brdfCutoff;
     bool useSourcePDFForRMIS;
 
+    bool fixSpatialSeed;
+    uint spatialSeed;
+    bool fixTemporalSeed;
+    uint temporalSeed;
+    uint temporalSeedOffset;
+
     uint getPixelIndex(uint2 pixel) { return pixel.y * frameDim.x + pixel.x; }
 
     /** Heuristic to determine a max visibility ray length from a PDF wrt. solid angle.
@@ -119,12 +125,15 @@ struct InitialResampling
         uint2 screenTile = pixel / kScreenTileSize;
 
         // Determine light tile to use for this screen tile.
-        TinyUniformSampleGenerator tileSg = TinyUniformSampleGenerator(screenTile, frameIndex);
+        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : screenTile;
+        uint temporalSeed2 = fixTemporalSeed ? temporalSeed : frameIndex;
+        var tileSg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
         uint tileIndex = min(uint(sampleNext1D(tileSg) * kLightTileCount), kLightTileCount - 1);
         uint lightTileOffset = tileIndex * kLightTileSize;
 
         // Determine offset and stride to stratify samples within the light tile.
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(pixel, frameIndex);
+        uint2 spatialSeed3 = fixSpatialSeed ? spatialSeed : pixel;
+        var sg = TinyUniformSampleGenerator(spatialSeed3, temporalSeedOffset + temporalSeed2);
 
         print("Initial Resampling", 1);
         print("-",pixel);
