@@ -35,65 +35,49 @@ def frange(start, stop=None, step=None):
         count += 1
 
 
-def addEdgeToReproject(g, path, gbuf, reproj):
-    g.addEdge(f"{path}.color", f"{reproj}.Color")
-    g.addEdge(f"{gbuf}.emissive", f"{reproj}.Emission")
-    g.addEdge(f"{gbuf}.posW", f"{reproj}.WorldPosition")
-    g.addEdge(f"{gbuf}.normW", f"{reproj}.WorldNormal")
-    g.addEdge(f"{gbuf}.pnFwidth", f"{reproj}.PositionNormalFwidth")
-    g.addEdge(f"{gbuf}.linearZ", f"{reproj}.LinearZ")
-    g.addEdge(f"{gbuf}.mvec", f"{reproj}.MotionVec")
-    g.addEdge(f"{gbuf}.diffuseOpacity", f"{reproj}.DiffuseOpacity")
-    g.addEdge(f"{gbuf}.specRough", f"{reproj}.SpecRough")
-
-
-def add_path_reproj(g, gbuf):
-    loadRenderPassLibrary("ReprojectPass.dll")
+def add_path(g, gbuf, enable_restir=True):
     loadRenderPassLibrary("ReSTIRPTPass.dll")
     loadRenderPassLibrary("ScreenSpaceReSTIRPass.dll")
 
     # Toggle between ReSTIRPT and MegakernelPathTracer
-    if ENABLE_RESTIR:
+    if enable_restir:
         PathTracer = createPass("ReSTIRPTPass", {'samplesPerPixel': 1})
         path = "ReSTIRPT"
         ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")
         screenReSTIR = "ScreenSpaceReSTIR"
         g.addPass(ScreenSpaceReSTIRPass, screenReSTIR)
     else:
-        PathTracer = createPass("MegakernelPathTracer", {'samplesPerPixel': 1})
-        path = "PathTracer"
-        screenReSTIR = None
-
-    # Reproject = createPass(
-    #     "ReprojectPass", {"singleReprojFrame": 0})
-    # Reproject2 = createPass("ReprojectPass", {'separateBuffer': False})
-
-    reproj = "Reproject"
-    reproj2 = "Reproject2"
+        PathTracer = createPass("ReSTIRPTPass", {
+            'samplesPerPixel': 1,
+            'useDirectLighting': False,         # Disble SSReSTIR
+            'disableDirectIllumination': False, # Enable direct lighting of path tracer
+            'pathSamplingMode': PathSamplingMode.PathTracing
+        })
+        path = "ReSTIRPT_PathTracing"
+        screenReSTIR = ""
 
     g.addPass(PathTracer, path)
-    # g.addPass(Reproject, reproj)
-    # g.addPass(Reproject2, reproj2)
 
     g.addEdge(f"{gbuf}.vbuffer", f"{path}.vbuffer")
-    if path == "ReSTIRPT":
+    if enable_restir:
         g.addEdge(f"{gbuf}.mvec", f"{path}.motionVectors")
-
         g.addEdge(f"{gbuf}.vbuffer", f"{screenReSTIR}.vbuffer")
         g.addEdge(f"{gbuf}.mvec", f"{screenReSTIR}.motionVectors")
         g.addEdge(f"{screenReSTIR}.color", f"{path}.directLighting")
 
-    # addEdgeToReproject(g, f"{path}", f"{gbuf}", reproj)
-    # addEdgeToReproject(g, f"{path}", f"{gbuf}", reproj2)
-
-    return path, reproj, reproj2, screenReSTIR
+    return path, screenReSTIR
 
 
 def add_gbuffer(g, center=True):
     loadRenderPassLibrary("GBuffer.dll")
 
-    GBufferRaster = createPass("GBufferRaster", {
-                               'samplePattern': SamplePattern.Center, 'sampleCount': 1, 'texLOD': TexLODMode.Mip0, 'useAlphaTest': True})  # for input and svgf
+    dicts = {
+        'samplePattern': SamplePattern.Center if center else SamplePattern.Stratified,
+        'sampleCount': 1,
+        'texLOD': TexLODMode.Mip0,
+        'useAlphaTest': True,
+    }
+    GBufferRaster = createPass("GBufferRaster", dicts)  # for input and svgf
     gbuf = "GBufferRaster"
     g.addPass(GBufferRaster, gbuf)
     return gbuf
@@ -203,48 +187,27 @@ def add_capture(g, pairs, start, end, opts=None):
 
 def render_ref(start, end):
     g = RenderGraph("PathGraph")
-    # Load libraries
-    loadRenderPassLibrary("ReprojectPass.dll")
-    loadRenderPassLibrary("GBuffer.dll")
-    loadRenderPassLibrary("CapturePass.dll")
-    loadRenderPassLibrary("AccumulatePass.dll")
-    loadRenderPassLibrary("MegakernelPathTracer.dll")
 
-    # Create pass
-    ReprojectPass = createPass("ReprojectPass")
-    GBufferRaster = createPass(
-        "GBufferRaster", {'samplePattern': SamplePattern.Stratified, 'sampleCount': 1, 'useAlphaTest': True})
-    MegakernelPathTracer = createPass("MegakernelPathTracer", {'samplesPerPixel': 1})
-    AccumulatePass = createPass("AccumulatePass", {'enabled': True})
+    gbuf = add_gbuffer(g, center=False)
+    path, _ = add_path(g, gbuf, False)
+
+    AccumulatePass1 = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass2 = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass3 = createPass("AccumulatePass", {'enabled': True})
-    AccumulatePass4 = createPass("AccumulatePass", {'enabled': True})
 
     # Add pass
-    g.addPass(ReprojectPass, "ReprojectPass")
-    g.addPass(GBufferRaster, "GBufferRaster")
-    g.addPass(MegakernelPathTracer, "MegakernelPathTracer")
-    g.addPass(AccumulatePass, "AccumulatePass")
+    g.addPass(AccumulatePass1, "AccumulatePass1")
     g.addPass(AccumulatePass2, "AccumulatePass2")
     g.addPass(AccumulatePass3, "AccumulatePass3")
-    g.addPass(AccumulatePass4, "AccumulatePass4")
 
-    # Connect input/output
-    addEdgeToReproject(g, "MegakernelPathTracer", "GBufferRaster", "ReprojectPass")
-
-    # Pass G-buffer to path tracer
-    g.addEdge("GBufferRaster.vbuffer", "MegakernelPathTracer.vbuffer")
-
-    g.addEdge("GBufferRaster.emissive", "AccumulatePass4.input")
-    g.addEdge("ReprojectPass.Current", "AccumulatePass2.input")
-    g.addEdge("MegakernelPathTracer.color", "AccumulatePass.input")
-    g.addEdge("MegakernelPathTracer.envLight", "AccumulatePass3.input")
+    g.addEdge(f"{path}.color", "AccumulatePass1.input")
+    g.addEdge(f"{path}.envLight", "AccumulatePass2.input")
+    g.addEdge(f"{gbuf}.emissive", "AccumulatePass3.input")
 
     pairs = {
-        'ref': f'AccumulatePass.output',
-        'ref_demodul': f'AccumulatePass2.output',
-        'ref_envLight': f'AccumulatePass3.output',
-        'ref_emissive': f'AccumulatePass4.output'
+        'ref': f'AccumulatePass1.output',
+        'ref_envLight': f'AccumulatePass2.output',
+        'ref_emissive': f'AccumulatePass3.output'
     }
     opts = {
         'accumulate': True,
@@ -252,7 +215,7 @@ def render_ref(start, end):
     }
 
     add_capture(g, pairs, start, end, opts)
-    g.markOutput("MegakernelPathTracer.color")
+    g.markOutput(f"{path}.color")
 
     return g
 
@@ -261,42 +224,29 @@ def render_input(start, end):
     g = RenderGraph("MutlipleGraph")
 
     gbuf = add_gbuffer(g, center=True)
-    path, reproj, reproj2, ss_restir = add_path_reproj(g, gbuf)
+    path, ss_restir = add_path(g, gbuf, ENABLE_RESTIR)
 
     # Connect input/output
     pairs = {
-        # # Reproject for ours
-        # 'current_demodul': f"{reproj}.Current",
-        # 'accum1_demodul': f"{reproj}.Accumulated",
-        # 'history1_demodul': f"{reproj}.History",
-        # 'accumhistorylen1': f"{reproj}.Length",
-        # 'accum2_demodul': f"{reproj}.Accumulated2",
-        # 'history2_demodul': f"{reproj}.History2",
-        # 'accumhistorylen2': f"{reproj}.Length2",
-        # 'albedo': f"{reproj}.Albedo",
-        # # Reproject for others (BMFR, NBG)
-        # 'accum_demodul': f"{reproj2}.Accumulated",
-        # 'history_demodul': f"{reproj2}.History",
-        # 'accumhistorylen': f"{reproj2}.Length",
         ## PathTracer
         'current': f"{path}.color",
         'path': f"{path}.debug",
-        # 'envLight': f"{path}.envLight",
-        # 'albedo': f"{path}.albedo",
-        # # 'viewAlbedo': f"{path}.specularAlbedo",
+        'envLight': f"{path}.envLight",
+        'albedo': f"{path}.albedo",
+        # 'viewAlbedo': f"{path}.specularAlbedo",
 
-        # ## GBufferRaster
-        # 'emissive': f"{gbuf}.emissive",
-        # 'normal': f"{gbuf}.normW",
-        # 'depth': f"{gbuf}.linearZ",
-        # 'position': f"{gbuf}.posW",
-        # 'mvec': f"{gbuf}.mvec",
-        # 'pnFwidth': f"{gbuf}.pnFwidth",
-        # 'specRough': f"{gbuf}.specRough",
-        # 'diffuseOpacity': f"{gbuf}.diffuseOpacity",
+        ## GBufferRaster
+        'emissive': f"{gbuf}.emissive",
+        'normal': f"{gbuf}.normW",
+        'depth': f"{gbuf}.linearZ",
+        'position': f"{gbuf}.posW",
+        'mvec': f"{gbuf}.mvec",
+        'pnFwidth': f"{gbuf}.pnFwidth",
+        'specRough': f"{gbuf}.specRough",
+        'diffuseOpacity': f"{gbuf}.diffuseOpacity",
     }
-    # if ENABLE_RESTIR:
-    #     pairs['directLighting'] = f"{ss_restir}.color"
+    if ENABLE_RESTIR:
+        pairs['directLighting'] = f"{ss_restir}.color"
     opts = {
         'captureCameraMat': False
     }
@@ -305,8 +255,6 @@ def render_input(start, end):
 
     # Add output
     g.markOutput(f"{path}.color")
-    # g.markOutput("Reproject.History")
-    # g.markOutput("Reproject.Accumulated")
 
     return g
 

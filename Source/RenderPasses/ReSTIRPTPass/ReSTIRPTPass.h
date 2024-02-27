@@ -123,21 +123,6 @@ private:
 
     void Init()
     {
-        mStaticParams = StaticParams();
-        mParams = RestirPathTracerParams();
-        mEnableTemporalReuse = true;
-        mEnableSpatialReuse = true;
-        mSpatialReusePattern = SpatialReusePattern::Default;
-        mPathReusePattern = PathReusePattern::NRooksShift;
-        mSmallWindowRestirWindowRadius = 2;
-        mSpatialNeighborCount = 3;
-        mSpatialReuseRadius = 20.f;
-        mNumSpatialRounds = 1;
-        mEnableTemporalReprojection = false;
-        mUseMaxHistory = true;
-        mUseDirectLighting = true;
-        mTemporalHistoryLength = 20;
-        mNoResamplingForTemporalReuse = false;
     }
 
     // Configuration

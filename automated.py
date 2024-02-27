@@ -196,9 +196,10 @@ def postprocess_input(src_dir, scene_name):
 
 def process_ref(src_dir, dest_dir, frame):
     # Change RGB visibility to Z
-    viz = exr.read_all(os.path.join(src_dir, f'ref_visibility_{frame:04d}.exr'))['default']
-    viz = viz[:,:,0:1]
-    exr.write(os.path.join(dest_dir, f'ref_visibility_{frame:04d}.exr'), viz, compression=exr.ZIP_COMPRESSION)
+    # viz = exr.read_all(os.path.join(src_dir, f'ref_visibility_{frame:04d}.exr'))['default']
+    # viz = viz[:,:,0:1]
+    # exr.write(os.path.join(dest_dir, f'ref_visibility_{frame:04d}.exr'), viz, compression=exr.ZIP_COMPRESSION)
+    pass
 
 def postprocess_ref(src_dir, scene_name):
     print('Post-processing the ref...', end=' ', flush=True)
