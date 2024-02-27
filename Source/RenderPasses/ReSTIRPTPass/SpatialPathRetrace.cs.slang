@@ -81,19 +81,7 @@ struct PathRetracePass
 
     int getNeighborCount()
     {
-        if (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathReuse) return 16; // include self
-        else
-        {
-            if (SpatialReusePattern(gSpatialReusePattern) == SpatialReusePattern::Default)
-            {
-                return gNeighborCount; // does not include self
-            }
-            else
-            {
-                int smallWindowDiameter = 2 * gSmallWindowRadius + 1;
-                return smallWindowDiameter * smallWindowDiameter; // count self, but not use self as neighbor
-            }
-        }
+        return gNeighborCount; // does not include self
     }
 
     int2 getNextNeighborPixel(const uint startIndex, int2 pixel, int i)

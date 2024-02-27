@@ -432,7 +432,7 @@ bool ReSTIRPTPass::parseDictionary(const Dictionary& dict)
         else if (key == kLocalStrategyType) mParams.localStrategyType = value;
         else if (key == kEnableTemporalReprojection) mEnableTemporalReprojection = value;
         else if (key == kNoResamplingForTemporalReuse) mNoResamplingForTemporalReuse = value;
-        else if (key == kSpatialNeighborCount) mStaticParams.mSpatialNeighborCount = value;
+        else if (key == kSpatialNeighborCount) mSpatialNeighborCount = value;
         else if (key == kFeatureBasedRejection) mFeatureBasedRejection = value;
         else if (key == kSpatialReusePattern) mSpatialReusePattern = value;
         else if (key == kSmallWindowRestirWindowRadius) mSmallWindowRestirWindowRadius = value;
@@ -586,7 +586,7 @@ Dictionary ReSTIRPTPass::getScriptingDictionary()
     d[kLocalStrategyType] = mParams.localStrategyType;
     d[kEnableTemporalReprojection] = mEnableTemporalReprojection;
     d[kNoResamplingForTemporalReuse] = mNoResamplingForTemporalReuse;
-    d[kSpatialNeighborCount] = mStaticParams.mSpatialNeighborCount;
+    d[kSpatialNeighborCount] = mSpatialNeighborCount;
     d[kFeatureBasedRejection] = mFeatureBasedRejection;
     d[kSpatialReusePattern] = mSpatialReusePattern;
     d[kSmallWindowRestirWindowRadius] = mSmallWindowRestirWindowRadius;
@@ -935,7 +935,7 @@ bool ReSTIRPTPass::renderRenderingUI(Gui::Widgets& widget)
                 }
                 else
                 {
-                    dirty |= widget.var("Spatial Neighbor Count", mStaticParams.mSpatialNeighborCount, 0, 6);
+                    dirty |= widget.var("Spatial Neighbor Count", mSpatialNeighborCount, 0, 6);
                     dirty |= widget.var("Spatial Reuse Radius", mSpatialReuseRadius, 0.f, 100.f);
                 }
 
@@ -1156,7 +1156,7 @@ void ReSTIRPTPass::updatePrograms()
 {
     if (mRecompile == false) return;
 
-    mStaticParams.rcDataOfflineMode = mStaticParams.mSpatialNeighborCount > 3 && mStaticParams.shiftStrategy == ShiftMapping::Hybrid;
+    mStaticParams.rcDataOfflineMode = mSpatialNeighborCount > 3 && mStaticParams.shiftStrategy == ShiftMapping::Hybrid;
 
     auto defines = mStaticParams.getDefines(*this);
 
@@ -1706,7 +1706,7 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
 
         if (!isPathReuseMISWeightComputation)
         {
-            var["gNeighborCount"] = mStaticParams.mSpatialNeighborCount;
+            var["gNeighborCount"] = mSpatialNeighborCount;
             var["gGatherRadius"] = mSpatialReuseRadius;
             var["gSpatialRoundId"] = spatialRoundId;
             var["gSmallWindowRadius"] = mSmallWindowRestirWindowRadius;
@@ -1792,7 +1792,7 @@ void ReSTIRPTPass::PathRetracePass(RenderContext* pRenderContext, uint32_t resti
         var["gSpatialRoundId"] = spatialRoundId;
         var["neighborOffsets"] = mpNeighborOffsets;
         var["gGatherRadius"] = mSpatialReuseRadius;
-        var["gNeighborCount"] = mStaticParams.mSpatialNeighborCount;
+        var["gNeighborCount"] = mSpatialNeighborCount;
         var["gSmallWindowRadius"] = mSmallWindowRestirWindowRadius;
         var["gSpatialReusePattern"] = mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse ? (uint32_t)mPathReusePattern : (uint32_t)mSpatialReusePattern;
         var["gFeatureBasedRejection"] = mFeatureBasedRejection;
@@ -1873,20 +1873,8 @@ Program::DefineList ReSTIRPTPass::StaticParams::getDefines(const ReSTIRPTPass& o
 
     defines.add("SEPARATE_PATH_BSDF", separatePathBSDF ? "1" : "0");
 
-    if (mSpatialNeighborCount <= 6)
-    {
-        defines.add("RCDATA_PATH_NUM", rcDataOfflineMode ? "12" : "6");
-        defines.add("RCDATA_PAD_SIZE", rcDataOfflineMode ? "2" : "1");
-    }
-    else if (mSpatialNeighborCount <= 12)
-    {
-        defines.add("RCDATA_PATH_NUM", "24");
-        defines.add("RCDATA_PAD_SIZE", "4");
-    }
-    else
-    {
-        logError("Unsupported spatial neighbor count: " + std::to_string(mSpatialNeighborCount));
-    }
+    defines.add("RCDATA_PATH_NUM", rcDataOfflineMode ? "12" : "6");
+    defines.add("RCDATA_PAD_SIZE", rcDataOfflineMode ? "2" : "1");
 
     return defines;
 }
