@@ -327,7 +327,7 @@ if __name__ == "__main__":
         if args.nas:
             # Move to NAS asynchronously
             print('Moving to NAS...', end=' ', flush=True)
-            nas_dir = f'//CGLAB-NAS/NFSStorage/{directory}/{scene_name}'
+            nas_dir = f'F:/{directory}/{scene_name}'
             p = subprocess.Popen(['robocopy', dest_dir, nas_dir, '/MOVE', '/MT:12', '/R:10', '/W:10'], shell=True)
             ps[p.pid] = p
 
