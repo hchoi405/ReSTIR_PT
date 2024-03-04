@@ -352,6 +352,7 @@ namespace Falcor
 
         int mCurRISPass = 0;
         int mTotalRISPasses = 0;
+        int mSeedOffset = 1000000;
 
         struct
         {

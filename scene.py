@@ -10,7 +10,7 @@ defs = {
     # "VeachAjar": {'file': "VeachAjar/VeachAjar.pyscene", 'anim':[0, 100]},
     # "VeachAjarAnimated": {'file': "VeachAjar/VeachAjarAnimated.pyscene", 'anim':[0, 100]},
     # "BistroExterior": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[0, 100]},
-    # "BistroExterior2": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[1400, 2000]},
+    "BistroExterior2": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[1400, 1500]},
     # "Classroom": {'file': BITTERLI_SCENE_PATH + "classroom/scene.pyscene", 'anim':[0, 300]}, # [0, 597]
     # "Dining-room": {'file': BITTERLI_SCENE_PATH + "dining-room/scene.pyscene", 'anim':[0, 300]},
     # "Dining-room-dynamic": {'file': BITTERLI_SCENE_PATH + "dining-room/scene-dynamic.pyscene", 'anim':[0, 0]},

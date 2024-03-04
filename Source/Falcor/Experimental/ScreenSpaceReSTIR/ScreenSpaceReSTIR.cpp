@@ -801,7 +801,7 @@ namespace Falcor
 
         var["lightTileData"] = mpLightTileData;
         setLightsShaderData(var["lights"]);
-        var["frameIndex"] = mTotalRISPasses * mFrameIndex + mCurRISPass;
+        var["frameIndex"] = mSeedOffset + mTotalRISPasses * mFrameIndex + mCurRISPass;
         mCurRISPass += 2;
 
         mpGenerateLightTiles->execute(pRenderContext, uint3(mOptions->lightTileSize, mOptions->lightTileCount, 1));
@@ -826,7 +826,7 @@ namespace Falcor
         var["debugOutput"] = mpDebugOutputTexture;
         setLightsShaderData(var["lights"]);
         var["frameDim"] = mFrameDim;
-        var["frameIndex"] = mTotalRISPasses * mFrameIndex + mCurRISPass;
+        var["frameIndex"] = mSeedOffset + mTotalRISPasses * mFrameIndex + mCurRISPass;
         var["brdfCutoff"] = mOptions->brdfCutoff;
         mCurRISPass++;
 
@@ -861,7 +861,7 @@ namespace Falcor
         var["debugOutput"] = mpDebugOutputTexture;
         setLightsShaderData(var["lights"]);
         var["frameDim"] = mFrameDim;
-        var["frameIndex"] = mTotalRISPasses * mFrameIndex + mCurRISPass;
+        var["frameIndex"] = mSeedOffset + mTotalRISPasses * mFrameIndex + mCurRISPass;
         var["normalThreshold"] = mOptions->normalThreshold;
         var["depthThreshold"] = mOptions->depthThreshold;
         mCurRISPass++;
@@ -899,7 +899,7 @@ namespace Falcor
             std::swap(mpReservoirs, mpPrevReservoirs);
             var["reservoirs"] = mpReservoirs;
             var["prevReservoirs"] = mpPrevReservoirs;
-            var["frameIndex"] = mTotalRISPasses * mFrameIndex + mCurRISPass;
+            var["frameIndex"] = mSeedOffset + mTotalRISPasses * mFrameIndex + mCurRISPass;
             mCurRISPass += 1;
             mpSpatialResampling->execute(pRenderContext, mFrameDim.x, mFrameDim.y, 1);
         }

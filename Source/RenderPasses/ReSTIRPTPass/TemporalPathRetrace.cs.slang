@@ -82,7 +82,7 @@ struct PathRetracePass
     void ReSTIR(const uint2 pixel)
     {
         // TODO: How to seed efficiently?
-        var sg = TinyUniformSampleGenerator(0, (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
+        var sg = TinyUniformSampleGenerator(0, 1000000 + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);

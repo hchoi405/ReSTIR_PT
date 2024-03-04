@@ -219,7 +219,7 @@ struct PathTracer
 
         uint maxSpp = itersPerShaderPass > 0 ? itersPerShaderPass : kMaxSamplesPerPixel;
         // path.sg = SampleGenerator(pixel, (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
-        path.sg = SampleGenerator(0, (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
+        path.sg = SampleGenerator(0, 1000000 + (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
         // path.sg = SampleGenerator(0, 0);
 
         if (kOutputNRDData)
