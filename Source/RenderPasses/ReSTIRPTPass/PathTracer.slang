@@ -1032,8 +1032,8 @@ struct PathTracer
 
         float3 attenuatedEmission = 0.f;
 
-        if (!isPrimaryHit && computeEmissive && any(sd.emissive > 0.f))
-        // if (computeEmissive && any(sd.emissive > 0.f))
+        // if (!isPrimaryHit && computeEmissive && any(sd.emissive > 0.f))
+        if (computeEmissive && any(sd.emissive > 0.f))
         {
             float lightPdf = 0.f;
 

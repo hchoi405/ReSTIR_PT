@@ -47,13 +47,20 @@ def add_path(g, gbuf, enable_restir=True):
         screenReSTIR = "ScreenSpaceReSTIR"
         g.addPass(ScreenSpaceReSTIRPass, screenReSTIR)
     else:
-        PathTracer = createPass("ReSTIRPTPass", {
-            'samplesPerPixel': 1,
-            'useDirectLighting': False,         # Disble SSReSTIR
-            'disableDirectIllumination': False, # Enable direct lighting of path tracer
-            'pathSamplingMode': PathSamplingMode.PathTracing
-        })
-        path = "ReSTIRPT_PathTracing"
+        # PathTracer = createPass("ReSTIRPTPass", {
+        #     'samplesPerPixel': 1,
+        #     'pathSamplingMode': PathSamplingMode.PathTracing,   # Disable ReSTIR PT
+        #     'disableDirectIllumination': True,                  # Disable primary emission
+        #     'useDirectLighting': False,                         # Enable ScreenSpaceReSTIR
+        # })
+        # path = "ReSTIRPT"
+
+        # ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass", {
+        #     'options':ScreenSpaceReSTIROptions(useReSTIRDI=False)
+        # })
+        # screenReSTIR = "ScreenSpaceReSTIR"
+        PathTracer = createPass("MegakernelPathTracer", {'samplesPerPixel': 1})
+        path = "PathTracer"
         screenReSTIR = ""
 
     g.addPass(PathTracer, path)
@@ -191,6 +198,7 @@ def render_ref(start, end):
     gbuf = add_gbuffer(g, center=False)
     path, _ = add_path(g, gbuf, False)
 
+    loadRenderPassLibrary("AccumulatePass.dll")
     AccumulatePass1 = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass2 = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass3 = createPass("AccumulatePass", {'enabled': True})
