@@ -154,7 +154,6 @@ namespace
     const std::string kUseNEE = "useNEE";
     const std::string kUseMIS = "useMIS";
     const std::string kUseRussianRoulette = "useRussianRoulette";
-    const std::string kScreenSpaceReSTIROptions = "screenSpaceReSTIROptions";
     const std::string kUseAlphaTest = "useAlphaTest";
     const std::string kMaxNestedMaterials = "maxNestedMaterials";
     const std::string kUseLightsInDielectricVolumes = "useLightsInDielectricVolumes";

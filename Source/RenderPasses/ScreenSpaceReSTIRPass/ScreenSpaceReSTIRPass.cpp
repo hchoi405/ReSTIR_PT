@@ -51,6 +51,7 @@ extern "C" __declspec(dllexport) const char* getProjDir()
 extern "C" __declspec(dllexport) void getPasses(Falcor::RenderPassLibrary & lib)
 {
     lib.registerClass("ScreenSpaceReSTIRPass", kDesc, ScreenSpaceReSTIRPass::create);
+    ScriptBindings::registerBinding(ScreenSpaceReSTIR::scriptBindings);
 }
 
 std::string ScreenSpaceReSTIRPass::getDesc() { return kDesc; }
