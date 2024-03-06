@@ -223,7 +223,7 @@ def render_ref(start, end):
 def render_input(start, end):
     g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, center=True)
+    gbuf = add_gbuffer(g, center=False)
     path, ss_restir = add_path(g, gbuf, ENABLE_RESTIR)
 
     # Connect input/output
