@@ -811,5 +811,7 @@ namespace Falcor
         material.def_property("thinSurface", &BasicMaterial::isThinSurface, &BasicMaterial::setThinSurface);
         material.def_property("displacementScale", &BasicMaterial::getDisplacementScale, &BasicMaterial::setDisplacementScale);
         material.def_property("displacementOffset", &BasicMaterial::getDisplacementOffset, &BasicMaterial::setDisplacementOffset);
+
+        material.def("isEmissive", &BasicMaterial::isEmissive);
     }
 }

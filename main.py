@@ -2,7 +2,7 @@ from falcor import *
 
 import os
 
-OUT_DIR = "C:/Users/hchoi/repositories/ReSTIR_PT/output"
+OUT_DIR = ""
 
 INTERACTIVE = False
 

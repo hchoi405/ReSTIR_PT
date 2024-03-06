@@ -180,7 +180,8 @@ def postprocess_input(src_dir, scene_name):
     num_frames = scene.defs[scene_name]['anim'][1] - scene.defs[scene_name]['anim'][0] + 1
 
     # Process multiprocessing
-    with mp.Pool(processes=mp.cpu_count()) as pool:
+    num_workers = min(60, mp.cpu_count()) # maximum for Windows
+    with mp.Pool(processes=num_workers) as pool:
         pool.starmap(process, [(src_dir, src_dir, frame, scene_name) for frame in frames])
     pool.close()
 
@@ -213,7 +214,8 @@ def postprocess_ref(src_dir, scene_name):
     frames = sorted(list(set([int(f.split('.')[0].split('_')[-1]) for f in exr_list])))
     num_frames = scene.defs[scene_name]['anim'][1] - scene.defs[scene_name]['anim'][0] + 1
 
-    with mp.Pool(processes=min(60, mp.cpu_count())) as pool:
+    num_workers = min(60, mp.cpu_count()) # maximum for Windows
+    with mp.Pool(processes=num_workers) as pool:
         pool.starmap(process_ref, [(src_dir, src_dir, frame) for frame in frames])
     pool.close()
 
@@ -238,6 +240,10 @@ if __name__ == "__main__":
     parser.add_argument('--dir', default='dataset')
     args = parser.parse_args()
 
+    # Update HOME_DIR
+    HOME_DIR = os.path.abspath('../').replace('\\', '/')
+    update_pyvariable("scene.py", "HOME_DIR", HOME_DIR)
+
     OUT_DIR = os.path.abspath('./output').replace('\\', '/')
     if not os.path.exists(OUT_DIR):
         print(f'{OUT_DIR} not found. Trying to create...')
@@ -250,9 +256,11 @@ if __name__ == "__main__":
     if args.interactive:
         args.nopostprocessing = True
         update_pyvariable("main.py", "INTERACTIVE", True)
+        update_pyvariable("main.py", "REF_COUNT", 65536)
     else:
         update_pyvariable("main.py", "INTERACTIVE", False)
         update_pyvariable("main.py", "OUT_DIR", OUT_DIR)
+        update_pyvariable("main.py", "REF_COUNT", 1024)
         # Create output directory
         os.makedirs(OUT_DIR, exist_ok=True)
 
@@ -292,6 +300,7 @@ if __name__ == "__main__":
     ps = {}
     for i in range(len(scene_names)):
         scene_name = scene_names[i]
+        dest_dir = os.path.join(directory, scene_name)
 
         change_scene(scene_name)
 
@@ -316,7 +325,6 @@ if __name__ == "__main__":
 
         # Move data directory
         if os.path.exists(OUT_DIR):
-            dest_dir = os.path.join(directory, scene_name)
             print(f'Moving to {dest_dir}...', end=' ', flush=True)
             os.makedirs(dest_dir, exist_ok=True)
             # Copy files explicitly for overwriting
