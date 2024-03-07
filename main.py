@@ -45,28 +45,27 @@ def add_path(g, gbuf, enable_restir=True):
         path = "ReSTIRPT"
         ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")
         screenReSTIR = "ScreenSpaceReSTIR"
-        g.addPass(ScreenSpaceReSTIRPass, screenReSTIR)
     else:
-        # PathTracer = createPass("ReSTIRPTPass", {
-        #     'samplesPerPixel': 1,
-        #     'pathSamplingMode': PathSamplingMode.PathTracing,   # Disable ReSTIR PT
-        #     'disableDirectIllumination': True,                  # Disable primary emission
-        #     'useDirectLighting': False,                         # Enable ScreenSpaceReSTIR
-        # })
-        # path = "ReSTIRPT"
+        PathTracer = createPass("ReSTIRPTPass", {
+            'samplesPerPixel': 1,
+            'pathSamplingMode': PathSamplingMode.PathTracing
+        })
+        path = "ReSTIRPT"
+        ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass", {
+            'options':ScreenSpaceReSTIROptions(useTemporalResampling=False, useSpatialResampling=False)
+        })
+        screenReSTIR = "ScreenSpaceReSTIR"
 
-        # ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass", {
-        #     'options':ScreenSpaceReSTIROptions(useReSTIRDI=False)
-        # })
-        # screenReSTIR = "ScreenSpaceReSTIR"
-        PathTracer = createPass("MegakernelPathTracer", {'samplesPerPixel': 1})
-        path = "PathTracer"
-        screenReSTIR = ""
+        # PathTracer = createPass("MegakernelPathTracer", {'samplesPerPixel': 1})
+        # path = "PathTracer"
+        # screenReSTIR = ""
 
     g.addPass(PathTracer, path)
+    g.addPass(ScreenSpaceReSTIRPass, screenReSTIR)
 
     g.addEdge(f"{gbuf}.vbuffer", f"{path}.vbuffer")
-    if enable_restir:
+    # if enable_restir:
+    if True:
         g.addEdge(f"{gbuf}.mvec", f"{path}.motionVectors")
         g.addEdge(f"{gbuf}.vbuffer", f"{screenReSTIR}.vbuffer")
         g.addEdge(f"{gbuf}.mvec", f"{screenReSTIR}.motionVectors")
