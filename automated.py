@@ -8,7 +8,6 @@ import multiprocessing as mp
 from functools import partial
 import argparse
 
-import scene
 import scripts.exr as exr
 
 # Function to update the variable value
@@ -229,6 +228,21 @@ def process_exposure(input_list, exposure, frame):
         else:
             print(f'{input_path} not found')
 
+def build(args):
+    print('Building..', end=' ')
+    if not args.nobuild or args.buildonly:
+        sys.stdout.flush()
+        ret = subprocess.run(['C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe', "Falcor.sln", "/p:Configuration=ReleaseD3D12", "/m:24", "/v:m"], capture_output=True, text=True)
+        if ret.returncode != 0:
+            print(ret.stdout)
+            sys.exit(1)
+        print('Done.')
+        if args.buildonly:
+            sys.exit(0)
+    else:
+        print('Skipped.')
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Automated script for Mogwai')
     parser.add_argument('--nobuild', action='store_true', default=False)
@@ -243,6 +257,9 @@ if __name__ == "__main__":
     # Update HOME_DIR
     HOME_DIR = os.path.abspath('../').replace('\\', '/')
     update_pyvariable("scene.py", "HOME_DIR", HOME_DIR)
+
+    # Import scene after updating HOME_DIR
+    import scene
 
     OUT_DIR = os.path.abspath('./output').replace('\\', '/')
     if not os.path.exists(OUT_DIR):
@@ -266,22 +283,7 @@ if __name__ == "__main__":
 
     #########################################################
     # Call build in silent mode and check if it was successful
-    print('Building..', end=' ')
-    if not args.nobuild or args.buildonly:
-        sys.stdout.flush()
-        if args.buildonly:
-            ret = subprocess.run(['C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe', "Falcor.sln", "/p:Configuration=ReleaseD3D12", "/m:24", "/v:m"])
-        else:
-            ret = subprocess.run(['C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe', "Falcor.sln", "/p:Configuration=ReleaseD3D12", "/m:24", "/v:m"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if ret.returncode != 0:
-            print('Failed.')
-            sys.exit(1)
-        print('Done.')
-
-        if args.buildonly:
-            sys.exit(0)
-    else:
-        print('Skipped.')
+    build(args)
 
     directory = args.dir
     print(f'Generating at {directory}...')
