@@ -41,6 +41,7 @@ struct TemporalResampling
 
     uint2 frameDim;
     uint frameIndex;
+    int spatialSeed;
 
     float normalThreshold;
     float depthThreshold;
@@ -59,7 +60,11 @@ struct TemporalResampling
 
         const uint pixelIndex = getPixelIndex(pixel);
 
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(0, frameIndex);
+        TinyUniformSampleGenerator sg;
+        if (spatialSeed > -1)
+            sg = TinyUniformSampleGenerator(spatialSeed, frameIndex);
+        else
+            sg = TinyUniformSampleGenerator(pixel, frameIndex);
 
         // Back-project this pixel to previous frame.
         const int2 prevPixel = pixel + motionVectors[pixel] * frameDim + (sampleNext2D(sg) * 1.f - 0.f);

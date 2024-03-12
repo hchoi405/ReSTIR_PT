@@ -49,6 +49,7 @@ struct InitialResampling
     uint frameIndex;
     float brdfCutoff;
     bool useSourcePDFForRMIS;
+    int spatialSeed;
 
     uint getPixelIndex(uint2 pixel) { return pixel.y * frameDim.x + pixel.x; }
 
@@ -119,12 +120,20 @@ struct InitialResampling
         uint2 screenTile = pixel / kScreenTileSize;
 
         // Determine light tile to use for this screen tile.
-        TinyUniformSampleGenerator tileSg = TinyUniformSampleGenerator(0, frameIndex);
+        TinyUniformSampleGenerator tileSg;
+        if (spatialSeed > -1)
+            tileSg = TinyUniformSampleGenerator(spatialSeed, frameIndex);
+        else
+            tileSg = TinyUniformSampleGenerator(screenTile, frameIndex);
         uint tileIndex = min(uint(sampleNext1D(tileSg) * kLightTileCount), kLightTileCount - 1);
         uint lightTileOffset = tileIndex * kLightTileSize;
 
         // Determine offset and stride to stratify samples within the light tile.
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(0, frameIndex);
+        TinyUniformSampleGenerator sg;
+        if (spatialSeed > -1)
+            sg = TinyUniformSampleGenerator(spatialSeed, frameIndex);
+        else
+            sg = TinyUniformSampleGenerator(pixel, frameIndex);
 
         print("Initial Resampling", 1);
         print("-",pixel);

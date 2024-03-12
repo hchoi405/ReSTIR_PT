@@ -43,6 +43,7 @@ struct SpatialResampling
 
     uint2 frameDim;         ///< Current frame dimensions.
     uint frameIndex;        ///< Current frame index.
+    int spatialSeed;
 
     float normalThreshold;
     float depthThreshold;
@@ -72,7 +73,11 @@ struct SpatialResampling
 
         const uint pixelIndex = getPixelIndex(pixel);
 
-        TinyUniformSampleGenerator sg = TinyUniformSampleGenerator(0, frameIndex);
+        TinyUniformSampleGenerator sg;
+        if (spatialSeed > -1)
+            sg = TinyUniformSampleGenerator(spatialSeed, frameIndex);
+        else
+            sg = TinyUniformSampleGenerator(pixel, frameIndex);
 
         print("Spatial Reuse", 1);
         print("-", pixel);

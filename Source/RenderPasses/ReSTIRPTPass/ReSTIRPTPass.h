@@ -169,7 +169,7 @@ private:
 
     int                             mReservoirFrameCount = 0; // internal
 
-    bool                            mUseDirectLighting = true;
+    bool                            mUseDirectLighting = false;
 
     int                             mTemporalHistoryLength = 20;
     bool                            mNoResamplingForTemporalReuse = false;

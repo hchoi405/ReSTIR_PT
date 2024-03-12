@@ -137,11 +137,11 @@ namespace Falcor
             float brdfCutoff = 0.f;                     ///< Value in range [0,1] to determine how much to shorten BRDF rays.
 
             // Temporal resampling options.
-            bool useTemporalResampling = true;          ///< Enable temporal resampling.
+            bool useTemporalResampling = false;          ///< Enable temporal resampling.
             uint32_t maxHistoryLength = 20;             ///< Maximum temporal history length.
 
             // Spatial resampling options.
-            bool useSpatialResampling = true;           ///< Enable spatial resampling.
+            bool useSpatialResampling = false;           ///< Enable spatial resampling.
             uint32_t spatialIterations = 1;             ///< Number of spatial resampling iterations.
             uint32_t spatialNeighborCount = 5;          ///< Number of neighbor samples to resample per pixel and iteration.
             uint32_t spatialGatherRadius = 30;          ///< Radius to gather samples from.
@@ -172,7 +172,8 @@ namespace Falcor
 
             bool forceClearReservoirs = false;                  ///< Force clear temporal and spatial reservoirs.
 
-            bool fixedSeed = false;                             ///< Use a fixed seed for the random number generator.
+            int spatialSeed = -1;
+            bool fixTemporalSeed = false;                             ///< Use a fixed seed for the random number generator.
             uint32_t temporalSeed = 0;
         };
 
