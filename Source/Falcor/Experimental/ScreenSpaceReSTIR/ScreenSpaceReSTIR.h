@@ -171,6 +171,9 @@ namespace Falcor
             bool reSTIREnableTemporalJacobian = true;
 
             bool forceClearReservoirs = false;                  ///< Force clear temporal and spatial reservoirs.
+
+            bool fixedSeed = false;                             ///< Use a fixed seed for the random number generator.
+            uint32_t temporalSeed = 0;
         };
 
         /** Create a new instance of the ReSTIR sampler.
