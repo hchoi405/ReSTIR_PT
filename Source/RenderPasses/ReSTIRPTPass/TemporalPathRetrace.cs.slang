@@ -41,6 +41,9 @@ struct PathRetracePass
     float gTemporalHistoryLength;
     bool gNoResamplingForTemporalReuse;
 
+    int spatialSeed;
+    uint temporalSeedOffset;
+
     bool isValidPackedHitInfo(PackedHitInfo packed)
     {
         return packed.x != 0;
@@ -82,7 +85,11 @@ struct PathRetracePass
     void ReSTIR(const uint2 pixel)
     {
         // TODO: How to seed efficiently?
-        var sg = TinyUniformSampleGenerator(0, 1000000 + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
+        TinyUniformSampleGenerator sg;
+        if (spatialSeed > -1)
+            sg = TinyUniformSampleGenerator(spatialSeed, temporalSeedOffset + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
+        else
+            sg = TinyUniformSampleGenerator(pixel, temporalSeedOffset + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);

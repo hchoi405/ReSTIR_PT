@@ -423,7 +423,7 @@ bool ReSTIRPTPass::parseDictionary(const Dictionary& dict)
         else if (key == kNearFieldDistance) mParams.nearFieldDistance = value;
         else if (key == kTemporalHistoryLength) mTemporalHistoryLength = value;
         else if (key == kUseMaxHistory) mUseMaxHistory = value;
-        else if (key == kSeedOffset) mSeedOffset = value;
+        else if (key == kSeedOffset) mTemporalSeedOffset = value;
         else if (key == kEnableTemporalReuse) mEnableTemporalReuse = value;
         else if (key == kEnableSpatialReuse) mEnableSpatialReuse = value;
         else if (key == kNumSpatialRounds) mNumSpatialRounds = value;
@@ -577,7 +577,7 @@ Dictionary ReSTIRPTPass::getScriptingDictionary()
     d[kNearFieldDistance] = mParams.nearFieldDistance;
     d[kTemporalHistoryLength] = mTemporalHistoryLength;
     d[kUseMaxHistory] = mUseMaxHistory;
-    d[kSeedOffset] = mSeedOffset;
+    d[kSeedOffset] = mTemporalSeedOffset;
     d[kEnableTemporalReuse] = mEnableSpatialReuse;
     d[kEnableSpatialReuse] = mEnableTemporalReuse;
     d[kNumSpatialRounds] = mNumSpatialRounds;
@@ -1121,12 +1121,22 @@ bool ReSTIRPTPass::renderDebugUI(Gui::Widgets& widget)
 
     if (auto group = widget.group("Debugging", true))
     {
-        dirty |= group.checkbox("Use fixed seed", mParams.useFixedSeed);
-        group.tooltip("Forces a fixed random seed for each frame.\n\n"
-            "This should produce exactly the same image each frame, which can be useful for debugging.");
+        dirty |= group.var("Temporal seed offset", mTemporalSeedOffset, 0, 1000000);
+        dirty |= group.checkbox("Use fixed temporal seed", mParams.useFixedSeed);
         if (mParams.useFixedSeed)
         {
             dirty |= group.var("Seed", mParams.fixedSeed);
+        }
+
+        static bool useFixedSpatialSeed = true;
+        dirty |= group.checkbox("Fixed spatial seed", useFixedSpatialSeed);
+        if (useFixedSpatialSeed)
+        {
+            dirty |= group.var("Spatial Seed", mSpatialSeed, 0, 1000);
+        }
+        else
+        {
+            mSpatialSeed = -1;
         }
 
         mpPixelDebug->renderUI(group);
@@ -1290,6 +1300,9 @@ void ReSTIRPTPass::preparePathTracer(const RenderData& renderData)
     setShaderData(var, renderData, true, false);
     var["outputReservoirs"] = mpOutputReservoirs;
     var["directLighting"] = renderData[kInputDirectLighting]->asTexture();
+
+    var["spatialSeed"] = mSpatialSeed;
+    var["temporalSeedOffset"] = mTemporalSeedOffset;
 }
 
 void ReSTIRPTPass::resetLighting()
@@ -1545,7 +1558,7 @@ bool ReSTIRPTPass::beginFrame(RenderContext* pRenderContext, const RenderData& r
 
     // Update the random seed.
     int initialShaderPasses = mStaticParams.pathSamplingMode == PathSamplingMode::PathTracing ? 1 : mStaticParams.samplesPerPixel;
-    mParams.seed = mParams.useFixedSeed ? mParams.fixedSeed : mSeedOffset + initialShaderPasses * mParams.frameCount;
+    mParams.seed = mParams.useFixedSeed ? mParams.fixedSeed : initialShaderPasses * mParams.frameCount;
 
     return true;
 }
@@ -1731,6 +1744,9 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
     }
     var["gIsLastRound"] = mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse || isLastRound;
 
+    var["spatialSeed"] = mSpatialSeed;
+    var["temporalSeedOffset"] = mTemporalSeedOffset;
+
     pass["gScene"] = mpScene->getParameterBlock();
     pass["gPathTracer"] = mpPathTracerBlock;
 
@@ -1796,6 +1812,9 @@ void ReSTIRPTPass::PathRetracePass(RenderContext* pRenderContext, uint32_t resti
         var["gSpatialReusePattern"] = mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse ? (uint32_t)mPathReusePattern : (uint32_t)mSpatialReusePattern;
         var["gFeatureBasedRejection"] = mFeatureBasedRejection;
     }
+
+    var["spatialSeed"] = mSpatialSeed;
+    var["temporalSeedOffset"] = mTemporalSeedOffset;
 
     pass["gScene"] = mpScene->getParameterBlock();
     pass["gPathTracer"] = mpPathTracerBlock;

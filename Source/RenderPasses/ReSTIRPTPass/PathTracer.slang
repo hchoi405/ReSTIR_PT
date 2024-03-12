@@ -66,6 +66,9 @@ struct PathTracer
     int  gSppId;
     int  gNumSpatialRounds;
 
+    int spatialSeed;
+    uint temporalSeedOffset;
+
     /*******************************************************************
                                 Static members
     *******************************************************************/
@@ -218,9 +221,10 @@ struct PathTracer
         static const uint itersPerShaderPass = PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing ? kSamplesPerPixel : kCandidateSamples;
 
         uint maxSpp = itersPerShaderPass > 0 ? itersPerShaderPass : kMaxSamplesPerPixel;
-        // path.sg = SampleGenerator(pixel, (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
-        path.sg = SampleGenerator(0, 1000000 + (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
-        // path.sg = SampleGenerator(0, 0);
+        if (spatialSeed > -1)
+            path.sg = SampleGenerator(spatialSeed, temporalSeedOffset + (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
+        else
+            path.sg = SampleGenerator(pixel, temporalSeedOffset + (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
 
         if (kOutputNRDData)
         {

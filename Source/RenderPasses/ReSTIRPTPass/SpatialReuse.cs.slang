@@ -58,7 +58,10 @@ struct PathReusePass
 
     uint gSppId;
 
-    Texture2D<float4> directLighting;  
+    int spatialSeed;
+    uint temporalSeedOffset;
+
+    Texture2D<float4> directLighting;
     bool useDirectLighting;
 
     bool isValidPackedHitInfo(PackedHitInfo packed)
@@ -111,7 +114,7 @@ struct PathReusePass
 
     int2 getPathReuseNextNeighborPixel(int4 NRookQuery, int2 pixel, int i)
     {
-        // 
+        //
         if (PathReusePattern(gSpatialReusePattern) == PathReusePattern::Block)
         {
             int2 block = pixel / 4;
@@ -144,13 +147,18 @@ struct PathReusePass
                 -gSmallWindowRadius + (i / smallWindowDiameter));
             if (all(neighborPixel == pixel)) neighborPixel = int2(-1);
         }
- 
+
         return neighborPixel;
     }
 
     void ReSTIR(const uint2 pixel)
     {
-        var sg = TinyUniformSampleGenerator(0, 100000 + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId);
+        TinyUniformSampleGenerator sg;
+        if (spatialSeed > -1)
+            sg = TinyUniformSampleGenerator(spatialSeed, temporalSeedOffset + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId);
+        else
+            sg = TinyUniformSampleGenerator(pixel, temporalSeedOffset + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId);
+
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
@@ -198,7 +206,11 @@ struct PathReusePass
             else
             {
                 int2 block = (pixel - blockShiftOffset + 16) / 16;
-                var NRookSg = TinyUniformSampleGenerator(0, 1000000 + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
+                TinyUniformSampleGenerator NRookSg;
+                if (spatialSeed > -1)
+                    NRookSg = TinyUniformSampleGenerator(spatialSeed, temporalSeedOffset + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
+                else
+                    NRookSg = TinyUniformSampleGenerator(block, temporalSeedOffset + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples);
                 // randomly select one N-rooks pattern from 256 patterns
                 const uint patternIndex = min(255, sampleNext1D(NRookSg) * 256);
                 pixelInBlock = (pixel - blockShiftOffset + 16) % 16;
@@ -227,7 +239,7 @@ struct PathReusePass
 
                 PathReservoir tempDstReservoir = dstReservoir;
 
-                if (i == pixelInBlock.x) 
+                if (i == pixelInBlock.x)
                 {
                     tempDstReservoir = neighborReservoir;
                     tempDstReservoir.rcVertexIrradiance[0] = tempDstReservoir.F;
@@ -375,7 +387,7 @@ struct PathReusePass
                 prefix_approxPdf = PathReservoir::computeWeight(prefixIntegrand) * prefixJacobian;
 
                 canonicalWeight += 1;
-                if (prefix_approxPdf > 0.f) 
+                if (prefix_approxPdf > 0.f)
                     canonicalWeight -= prefix_approxPdf * neighborReservoir.M / (prefix_approxPdf * neighborReservoir.M + centralReservoir.M * PathReservoir::computeWeight(centralReservoir.F) / (neighborCount));
 
                 PathReservoir tempDstReservoir = dstReservoir;
@@ -477,7 +489,7 @@ struct PathReusePass
                         {
                             chosen_approxPdf = PathReservoir::computeWeight(chosenReservoir.F) / chosen_Jacobian;
                             sum_approxPdf += chosen_approxPdf * chosenReservoir.M;
-                            count += chosenReservoir.M; 
+                            count += chosenReservoir.M;
 
                             continue;
                         }
@@ -557,7 +569,7 @@ struct PathReusePass
                 float hitDist = 0.f;
                 float3 reflectance = 0.f;
                 float3 radiance = 0.f;
-                NRDPathType pathType = NRDPathType::Residual; 
+                NRDPathType pathType = NRDPathType::Residual;
 
                 //
                 if (ShiftMapping(kShiftStrategy) == ShiftMapping::Reconnection ||

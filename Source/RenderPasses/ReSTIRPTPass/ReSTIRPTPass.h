@@ -173,7 +173,9 @@ private:
 
     int                             mTemporalHistoryLength = 20;
     bool                            mNoResamplingForTemporalReuse = false;
-    int                             mSeedOffset = 0;
+
+    int                             mTemporalSeedOffset = 1000000;
+    int                             mSpatialSeed = -1;
 
 
     bool mResetRenderPassFlags = false;
