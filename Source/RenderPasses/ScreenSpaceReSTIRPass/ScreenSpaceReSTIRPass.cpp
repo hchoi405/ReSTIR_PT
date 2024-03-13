@@ -170,6 +170,40 @@ void ScreenSpaceReSTIRPass::execute(RenderContext* pRenderContext, const RenderD
             mpScreenSpaceReSTIR[i]->enablePass((bool)dict["enableScreenSpaceReSTIR"]);
     }
 
+    // Sync spatial/temporal seed with ReSTIRPTPass
+    if (dict.keyExists("syncSeedSSReSTIR"))
+    {
+        bool sync = (bool)dict["syncSeedSSReSTIR"];
+        if (sync)
+        {
+            int spatialSeed = 0;
+            if (dict.keyExists("spatialSeed")) {
+                spatialSeed = (int)dict["spatialSeed"];
+            }else {
+                printf("spatialSeed does not exist\n");
+            }
+            uint temporalSeed = 0;
+            if (dict.keyExists("temporalSeed")) {
+                temporalSeed = (uint)dict["temporalSeed"];
+            } else {
+                printf("temporalSeed does not exist\n");
+            }
+            for (int i = 0; i < mpScreenSpaceReSTIR.size(); i++) {
+                mpScreenSpaceReSTIR[i]->setSeed(spatialSeed, temporalSeed);
+                mpScreenSpaceReSTIR[i]->mOptions->fixTemporalSeed = true;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < mpScreenSpaceReSTIR.size(); i++) {
+                mpScreenSpaceReSTIR[i]->setSeed(-1, 0);
+                mpScreenSpaceReSTIR[i]->mOptions->fixTemporalSeed = false;
+            }
+        }
+        // Remove the key from the dictionary to avoid re-execution of seed sync.
+        dict.removeKey("syncSeedSSReSTIR");
+    }
+
     // Update refresh flag if changes that affect the output have occured.
     if (mOptionsChanged)
     {

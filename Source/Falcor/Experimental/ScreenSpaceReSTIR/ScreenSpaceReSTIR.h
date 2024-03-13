@@ -174,8 +174,15 @@ namespace Falcor
 
             int spatialSeed = -1;
             bool fixTemporalSeed = false;                             ///< Use a fixed seed for the random number generator.
-            uint32_t temporalSeed = 0;
+            uint temporalSeed = 0;
         };
+
+        void setSeed(int spatialSeed, uint temporalSeed)
+        {
+            mOptions->fixTemporalSeed = true;
+            mOptions->spatialSeed = spatialSeed;
+            mOptions->temporalSeed = temporalSeed;
+        }
 
         /** Create a new instance of the ReSTIR sampler.
             \param[in] pScene Scene.

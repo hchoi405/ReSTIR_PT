@@ -174,6 +174,7 @@ private:
     int                             mTemporalHistoryLength = 20;
     bool                            mNoResamplingForTemporalReuse = false;
 
+    bool                            mSyncSeedSSReSTIR = false;
     int                             mTemporalSeedOffset = 1000000;
     int                             mSpatialSeed = -1;
 

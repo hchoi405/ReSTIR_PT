@@ -679,6 +679,21 @@ void ReSTIRPTPass::execute(RenderContext* pRenderContext, const RenderData& rend
     if (!beginFrame(pRenderContext, renderData)) return;
     renderData.getDictionary()["enableScreenSpaceReSTIR"] = mUseDirectLighting;
 
+    static bool toBeTurnedOff = false;
+    if (mSyncSeedSSReSTIR)
+    {
+        renderData.getDictionary()["syncSeedSSReSTIR"] = true;
+        renderData.getDictionary()["spatialSeed"] = mSpatialSeed;
+        renderData.getDictionary()["temporalSeed"] = mParams.fixedSeed;
+        toBeTurnedOff = true;
+    }
+    else if (toBeTurnedOff)
+    {
+        // Set this only once, to reset the seed of SSReSTIR
+        renderData.getDictionary()["syncSeedSSReSTIR"] = false;
+        toBeTurnedOff = false;
+    }
+
     bool skipTemporalReuse = mReservoirFrameCount == 0;
     if (mStaticParams.pathSamplingMode != PathSamplingMode::ReSTIR) mStaticParams.candidateSamples = 1;
     if (mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse)
@@ -1121,6 +1136,8 @@ bool ReSTIRPTPass::renderDebugUI(Gui::Widgets& widget)
 
     if (auto group = widget.group("Debugging", true))
     {
+        dirty |= group.checkbox("Sync seed with SSReSTIR (for CRN)", mSyncSeedSSReSTIR);
+
         dirty |= group.var("Temporal seed offset", mTemporalSeedOffset, 0, 1000000);
         dirty |= group.checkbox("Use fixed temporal seed", mParams.useFixedSeed);
         if (mParams.useFixedSeed)
