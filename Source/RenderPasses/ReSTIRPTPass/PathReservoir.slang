@@ -164,13 +164,17 @@ struct ReconnectionData
     }
 }
 
-// real time: RCDATA_PATH_NUM = 6, RCDATA_PAD_SIZE = 1  (256 bytes)
-// offline:   RCDATA_PATH_NUM = 12, RCDATA_PAD_SIZE = 2 (512 bytes)
+// ReconnectionData: 40 bytes
+// padding: 4 bytes
+// real time: RCDATA_PATH_NUM = 6, RCDATA_PAD_SIZE = 4  (256 bytes)
+// offline:   RCDATA_PATH_NUM = 12, RCDATA_PAD_SIZE = 8 (512 bytes)
+// more:      RCDATA_PATH_NUM = 25, RCDATA_PAD_SIZE = 6 (1024 bytes)
+// and more:  RCDATA_PATH_NUM = 51, RCDATA_PAD_SIZE = 2 (2048 bytes)
 
 struct PixelReconnectionData
 {
     ReconnectionData data[RCDATA_PATH_NUM];
-    float4 padding[RCDATA_PAD_SIZE]; //pad to 256 bytes
+    float padding[RCDATA_PAD_SIZE]; //pad to 256 bytes
 }
 
 

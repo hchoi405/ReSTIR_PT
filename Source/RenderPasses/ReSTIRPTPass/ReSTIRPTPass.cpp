@@ -949,7 +949,7 @@ bool ReSTIRPTPass::renderRenderingUI(Gui::Widgets& widget)
                 }
                 else
                 {
-                    dirty |= widget.var("Spatial Neighbor Count", mSpatialNeighborCount, 0, 6);
+                    dirty |= widget.var("Spatial Neighbor Count", mSpatialNeighborCount, 0, 20);
                     dirty |= widget.var("Spatial Reuse Radius", mSpatialReuseRadius, 0.f, 100.f);
                 }
 
@@ -1908,8 +1908,47 @@ Program::DefineList ReSTIRPTPass::StaticParams::getDefines(const ReSTIRPTPass& o
 
     defines.add("SEPARATE_PATH_BSDF", separatePathBSDF ? "1" : "0");
 
-    defines.add("RCDATA_PATH_NUM", rcDataOfflineMode ? "12" : "6");
-    defines.add("RCDATA_PAD_SIZE", rcDataOfflineMode ? "2" : "1");
+    int requiredCount = 0;
+    if (pathSamplingMode == PathSamplingMode::ReSTIR && owner.mSpatialReusePattern == SpatialReusePattern::SmallWindow)
+    {
+        int diameter = 2 * owner.mSmallWindowRestirWindowRadius + 1;
+        int numNeighbors = diameter * diameter;
+        requiredCount = 2 * numNeighbors; // center->neighbor and neighbor->center
+    }
+    if (pathSamplingMode == PathSamplingMode::ReSTIR && owner.mSpatialReusePattern == SpatialReusePattern::Default)
+    {
+        requiredCount = 2 * owner.mSpatialNeighborCount;
+    }
+    else
+    {
+        requiredCount = rcDataOfflineMode ? 12 : 6;
+    }
+
+    // Set the number of spatial neighbors and the padding size.
+    if (requiredCount <= 6)
+    {
+        defines.add("RCDATA_PATH_NUM", "6");
+        defines.add("RCDATA_PAD_SIZE", "4");
+    }
+    else if (requiredCount <= 12)
+    {
+        defines.add("RCDATA_PATH_NUM", "12");
+        defines.add("RCDATA_PAD_SIZE", "8");
+    }
+    else if (requiredCount <= 25)
+    {
+        defines.add("RCDATA_PATH_NUM", "25");
+        defines.add("RCDATA_PAD_SIZE", "6");
+    }
+    else if (requiredCount <= 51)
+    {
+        defines.add("RCDATA_PATH_NUM", "51");
+        defines.add("RCDATA_PAD_SIZE", "2");
+    }
+    else
+    {
+        logError("Unsupported spatial neighbor count: " + std::to_string(requiredCount / 2));
+    }
 
     return defines;
 }
