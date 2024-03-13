@@ -119,6 +119,7 @@ namespace
     {
         { (uint32_t)SpatialReusePattern::Default, std::string("Default")},
         { (uint32_t)SpatialReusePattern::SmallWindow, std::string("Small Window")},
+        { (uint32_t)SpatialReusePattern::Tile, std::string("Tile")},
     };
 
     const Gui::DropdownList kEmissiveSamplerList =
@@ -947,10 +948,15 @@ bool ReSTIRPTPass::renderRenderingUI(Gui::Widgets& widget)
                 {
                     dirty |= widget.var("Window radius", mSmallWindowRestirWindowRadius, 0u, 32u);
                 }
-                else
+                else if (SpatialReusePattern(mSpatialReusePattern) == SpatialReusePattern::Default)
                 {
                     dirty |= widget.var("Spatial Neighbor Count", mSpatialNeighborCount, 0, 20);
                     dirty |= widget.var("Spatial Reuse Radius", mSpatialReuseRadius, 0.f, 100.f);
+                }
+                else if (SpatialReusePattern(mSpatialReusePattern) == SpatialReusePattern::Tile)
+                {
+                    dirty |= widget.var("Tile Width", mTileWidth, 1u, 5u);
+                    dirty |= widget.checkbox("Use tile seed", mUseTileSeed);
                 }
 
                 dirty |= widget.dropdown("Spatial Resampling MIS Kind", kReSTIRMISList, reinterpret_cast<uint32_t&>(mStaticParams.spatialMisKind));
@@ -1320,6 +1326,10 @@ void ReSTIRPTPass::preparePathTracer(const RenderData& renderData)
 
     var["spatialSeed"] = mSpatialSeed;
     var["temporalSeedOffset"] = mTemporalSeedOffset;
+
+    var["gTileWidth"] = mTileWidth;
+    var["useTileSeed"] = mUseTileSeed;
+
 }
 
 void ReSTIRPTPass::resetLighting()
@@ -1751,6 +1761,9 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
             var["primaryHitEmission"] = renderData[kOutputNRDEmission]->asTexture();
             var["gSppId"] = restir_i;
         }
+
+        var["gTileWidth"] = mTileWidth;
+        var["useTileSeed"] = mUseTileSeed;
     }
 
 
@@ -1828,6 +1841,9 @@ void ReSTIRPTPass::PathRetracePass(RenderContext* pRenderContext, uint32_t resti
         var["gSmallWindowRadius"] = mSmallWindowRestirWindowRadius;
         var["gSpatialReusePattern"] = mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse ? (uint32_t)mPathReusePattern : (uint32_t)mSpatialReusePattern;
         var["gFeatureBasedRejection"] = mFeatureBasedRejection;
+
+        var["gTileWidth"] = mTileWidth;
+        var["useTileSeed"] = mUseTileSeed;
     }
 
     var["spatialSeed"] = mSpatialSeed;
@@ -1909,15 +1925,19 @@ Program::DefineList ReSTIRPTPass::StaticParams::getDefines(const ReSTIRPTPass& o
     defines.add("SEPARATE_PATH_BSDF", separatePathBSDF ? "1" : "0");
 
     int requiredCount = 0;
-    if (pathSamplingMode == PathSamplingMode::ReSTIR && owner.mSpatialReusePattern == SpatialReusePattern::SmallWindow)
+    if (owner.mSpatialReusePattern == SpatialReusePattern::SmallWindow)
     {
         int diameter = 2 * owner.mSmallWindowRestirWindowRadius + 1;
         int numNeighbors = diameter * diameter;
         requiredCount = 2 * numNeighbors; // center->neighbor and neighbor->center
     }
-    if (pathSamplingMode == PathSamplingMode::ReSTIR && owner.mSpatialReusePattern == SpatialReusePattern::Default)
+    else if (owner.mSpatialReusePattern == SpatialReusePattern::Default)
     {
         requiredCount = 2 * owner.mSpatialNeighborCount;
+    }
+    else if (owner.mSpatialReusePattern == SpatialReusePattern::Tile)
+    {
+        requiredCount = 2 * owner.mTileWidth * owner.mTileWidth;
     }
     else
     {

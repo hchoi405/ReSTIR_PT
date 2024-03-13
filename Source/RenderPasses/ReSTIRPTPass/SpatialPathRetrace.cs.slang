@@ -43,9 +43,11 @@ struct PathRetracePass
     float gGatherRadius;
     // for small window
     int gSmallWindowRadius;
+    uint gTileWidth;
 
     int spatialSeed;
     uint temporalSeedOffset;
+    bool useTileSeed;
 
     // for linear growth of M when merging reservoirs
 
@@ -88,11 +90,16 @@ struct PathRetracePass
         {
             return gNeighborCount;
         }
-        else
+        else if (SpatialReusePattern(gSpatialReusePattern) == SpatialReusePattern::SmallWindow)
         {
             int smallWindowDiameter = 2 * gSmallWindowRadius + 1;
             return smallWindowDiameter * smallWindowDiameter; // count self, but not use self as neighbor
         }
+        else if (SpatialReusePattern(gSpatialReusePattern) == SpatialReusePattern::Tile)
+        {
+            return gTileWidth * gTileWidth;
+        }
+        return 0;
     }
 
     int2 getNextNeighborPixel(const uint startIndex, int2 pixel, int i)
@@ -109,8 +116,15 @@ struct PathRetracePass
             int smallWindowDiameter = 2 * gSmallWindowRadius + 1;
             neighborPixel = pixel + int2(-gSmallWindowRadius + (i % smallWindowDiameter),
                 -gSmallWindowRadius + (i / smallWindowDiameter));
-            if (all(neighborPixel == pixel)) neighborPixel = int2(-1);
         }
+        else if (SpatialReusePattern(gSpatialReusePattern) == SpatialReusePattern::Tile)
+        {
+            uint2 tileId = pixel / gTileWidth;
+            uint2 tileOffset = tileId * gTileWidth;
+            uint2 tileDim = min(params.frameDim - tileId * gTileWidth, gTileWidth);
+            neighborPixel = tileOffset + int2(i % tileDim.x, i / tileDim.x);
+        }
+        if (all(neighborPixel == pixel)) neighborPixel = int2(-1);
 
         return neighborPixel;
     }
@@ -122,12 +136,18 @@ struct PathRetracePass
     */
     void ReSTIR(const uint2 pixel)
     {
-        // TODO: How to seed efficiently?
+        uint2 tileSeed = pixel % gTileWidth;
+
         TinyUniformSampleGenerator sg;
         if (spatialSeed > -1)
             sg = TinyUniformSampleGenerator(spatialSeed, temporalSeedOffset + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId);
         else
-            sg = TinyUniformSampleGenerator(pixel, temporalSeedOffset + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId);
+        {
+            if (useTileSeed)
+                sg = TinyUniformSampleGenerator(tileSeed, temporalSeedOffset + (kCandidateSamples + 1 + gNumSpatialRounds) * spatialSeed + kCandidateSamples + 1 + gSpatialRoundId);
+            else
+                sg = TinyUniformSampleGenerator(pixel, temporalSeedOffset + (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId);
+        }
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);

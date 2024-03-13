@@ -68,6 +68,8 @@ struct PathTracer
 
     int spatialSeed;
     uint temporalSeedOffset;
+    uint gTileWidth;
+    bool useTileSeed;
 
     /*******************************************************************
                                 Static members
@@ -220,11 +222,17 @@ struct PathTracer
         // Create sample generator.
         static const uint itersPerShaderPass = PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing ? kSamplesPerPixel : kCandidateSamples;
 
+        uint2 tileSeed = pixel % gTileWidth;
         uint maxSpp = itersPerShaderPass > 0 ? itersPerShaderPass : kMaxSamplesPerPixel;
         if (spatialSeed > -1)
             path.sg = SampleGenerator(spatialSeed, temporalSeedOffset + (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
         else
-            path.sg = SampleGenerator(pixel, temporalSeedOffset + (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
+        {
+            if (useTileSeed)
+                path.sg = SampleGenerator(tileSeed, temporalSeedOffset + (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
+            else
+                path.sg = SampleGenerator(pixel, temporalSeedOffset + (itersPerShaderPass + 1 + gNumSpatialRounds) * params.seed + path.getSampleIdx());
+        }
 
         if (kOutputNRDData)
         {

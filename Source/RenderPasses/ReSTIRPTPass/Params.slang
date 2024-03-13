@@ -105,6 +105,7 @@ enum class SpatialReusePattern
 {
     Default = 0, // same as in ScreenSpaceReSTIR
     SmallWindow = 1,
+    Tile = 2,
 };
 
 enum class PathSamplingMode

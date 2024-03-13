@@ -161,6 +161,7 @@ private:
     int                             mSpatialNeighborCount = 3;
     float                           mSpatialReuseRadius = 20.f;
     int                             mNumSpatialRounds = 1;
+    uint                            mTileWidth = 4; // 4x4
 
     bool                            mEnableTemporalReprojection = true;
     bool                            mFeatureBasedRejection = true;
@@ -177,6 +178,7 @@ private:
     bool                            mSyncSeedSSReSTIR = false;
     int                             mTemporalSeedOffset = 1000000;
     int                             mSpatialSeed = -1;
+    bool                            mUseTileSeed = false;
 
 
     bool mResetRenderPassFlags = false;
