@@ -327,7 +327,10 @@ m.scene.camera.nearPlane = 0.15 # Increase near plane to prevent Z-fighting
 
 m.clock.framerate = 60
 m.clock.time = 0
-if not INTERACTIVE:
+if INTERACTIVE:
+    m.clock.pause()
+    m.clock.frame = ANIM[0]
+else:
     m.clock.pause()
 
     # m.profiler.enabled = True
