@@ -244,7 +244,7 @@ float3 computeShiftedIntegrandReconnectionPathTree(const RestirPathTracerParams 
     {
         return 0.f;
     }
-    bool isTransmission = srcReservoir.pathFlags.decodeIsTransmissionEvent(true, false);
+    bool isTransmission = srcReservoir.pathFlags.decodeIsTransmissionEvent(true);
 
     srcPrimarySd.posW = srcPrimarySd.computeNewRayOrigin(!isTransmission);
     dstPrimarySd.posW = dstPrimarySd.computeNewRayOrigin(!isTransmission);
