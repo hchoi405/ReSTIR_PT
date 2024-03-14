@@ -826,7 +826,6 @@ namespace Falcor
         {
             var["frameIndex"] = mSeedOffset + mTotalRISPasses * mFrameIndex + mCurRISPass;
         }
-        var["spatialSeed"] = mOptions->spatialSeed;
         mCurRISPass += 2;
 
         mpGenerateLightTiles->execute(pRenderContext, uint3(mOptions->lightTileSize, mOptions->lightTileCount, 1));
