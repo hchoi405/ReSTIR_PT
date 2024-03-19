@@ -277,7 +277,7 @@ if __name__ == "__main__":
     else:
         update_pyvariable("main.py", "INTERACTIVE", False)
         update_pyvariable("main.py", "OUT_DIR", OUT_DIR)
-        update_pyvariable("main.py", "REF_COUNT", 1024)
+        update_pyvariable("main.py", "REF_COUNT", 8192)
         # Create output directory
         os.makedirs(OUT_DIR, exist_ok=True)
 
