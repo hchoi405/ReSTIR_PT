@@ -198,6 +198,9 @@ namespace
     const std::string kCandidateSamples = "candidateSamples";
     const std::string kTemporalUpdateForDynamicScene = "temporalUpdateForDynamicScene";
     const std::string kEnableRayStats = "enableRayStats";
+    const std::string kSyncSeedSSReSTIR = "syncSeedSSReSTIR";
+    const std::string kFixSpatialSeed = "fixSpatialSeed";
+    const std::string kTemporalSeedOffset = "temporalSeedOffset";
 
     const uint32_t kNeighborOffsetCount = 8192;
 }
@@ -430,6 +433,9 @@ bool ReSTIRPTPass::parseDictionary(const Dictionary& dict)
         else if (key == kCandidateSamples) mStaticParams.candidateSamples = value;
         else if (key == kTemporalUpdateForDynamicScene) mStaticParams.temporalUpdateForDynamicScene = value;
         else if (key == kEnableRayStats) mEnableRayStats = value;
+        else if (key == kSyncSeedSSReSTIR) mSyncSeedSSReSTIR = value;
+        else if (key == kFixSpatialSeed) mFixSpatialSeed = value;
+        else if (key == kTemporalSeedOffset) mTemporalSeedOffset = value;
         else logWarning("Unknown field '" + key + "' in ReSTIRPTPass dictionary");
     }
 
@@ -583,6 +589,9 @@ Dictionary ReSTIRPTPass::getScriptingDictionary()
     d[kCandidateSamples] = mStaticParams.candidateSamples;
     d[kTemporalUpdateForDynamicScene] = mStaticParams.temporalUpdateForDynamicScene;
     d[kEnableRayStats] = mEnableRayStats;
+    d[kSyncSeedSSReSTIR] = mSyncSeedSSReSTIR;
+    d[kFixSpatialSeed] = mFixSpatialSeed;
+    d[kTemporalSeedOffset] = mTemporalSeedOffset;
     // Denoising parameters
     d[kUseNRDDemodulation] = mStaticParams.useNRDDemodulation;
 

@@ -1,6 +1,6 @@
 from falcor import *
 
-import os
+import random
 
 OUT_DIR = ""
 
@@ -12,6 +12,7 @@ ANIM = [0, 100]
 METHOD = "input"
 REF_COUNT = 8192
 ENABLE_RESTIR = True
+CENTER = False
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -35,13 +36,18 @@ def frange(start, stop=None, step=None):
         count += 1
 
 
-def add_path(g, gbuf, enable_restir=True):
+def add_path(g, gbuf, enable_restir=True, crn=False):
     loadRenderPassLibrary("ReSTIRPTPass.dll")
     loadRenderPassLibrary("ScreenSpaceReSTIRPass.dll")
 
     # Toggle between ReSTIRPT and MegakernelPathTracer
     if enable_restir:
-        PathTracer = createPass("ReSTIRPTPass", {'samplesPerPixel': 1})
+        PathTracer = createPass("ReSTIRPTPass", {
+            'samplesPerPixel': 1,
+            'syncSeedSSReSTIR': True if crn else False,
+            'fixSpatialSeed': True if crn else False,
+            'temporalSeedOffset': 1000000 if crn else 0,
+        })
         path = "ReSTIRPT"
         ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")
         screenReSTIR = "ScreenSpaceReSTIR"
@@ -74,12 +80,13 @@ def add_path(g, gbuf, enable_restir=True):
     return path, screenReSTIR
 
 
-def add_gbuffer(g, center=True):
+def add_gbuffer(g, init_seed=1):
     loadRenderPassLibrary("GBuffer.dll")
 
     dicts = {
-        'samplePattern': SamplePattern.Center if center else SamplePattern.Uniform,
-        'sampleCount': 1, # This is seed for Uniform pattern
+        'samplePattern': SamplePattern.Center if CENTER else SamplePattern.Uniform,
+        # sampleCount becomes a seed when used for Uniform pattern
+        'sampleCount': 1 if CENTER else init_seed,
         'texLOD': TexLODMode.Mip0,
         'useAlphaTest': True,
     }
@@ -194,7 +201,7 @@ def add_capture(g, pairs, start, end, opts=None):
 def render_ref(start, end):
     g = RenderGraph("PathGraph")
 
-    gbuf = add_gbuffer(g, center=False)
+    gbuf = add_gbuffer(g)
     path, _ = add_path(g, gbuf, False)
 
     loadRenderPassLibrary("AccumulatePass.dll")
@@ -230,8 +237,8 @@ def render_ref(start, end):
 def render_input(start, end):
     g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, center=False)
-    path, ss_restir = add_path(g, gbuf, ENABLE_RESTIR)
+    gbuf = add_gbuffer(g, init_seed=random.randint(1, 1000))
+    path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False)
 
     # Connect input/output
     pairs = {
@@ -252,11 +259,29 @@ def render_input(start, end):
         'specRough': f"{gbuf}.specRough",
         'diffuseOpacity': f"{gbuf}.diffuseOpacity",
     }
-    # if ENABLE_RESTIR:
-    #     pairs['directLighting'] = f"{ss_restir}.color"
+    if ENABLE_RESTIR:
+        pairs['directLighting'] = f"{ss_restir}.color"
     opts = {
         'captureCameraMat': False
     }
+    if not INTERACTIVE:
+        add_capture(g, pairs, start, end, opts)
+
+    # Add output
+    g.markOutput(f"{path}.color")
+
+    return g
+
+
+def render_crn(start, end):
+    g = RenderGraph("MutlipleGraph")
+
+    gbuf = add_gbuffer(g, init_seed=random.randint(1, 1000))
+    path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=True)
+
+    # Connect input/output
+    pairs = {'crn': f"{path}.color",}
+    opts = {'captureCameraMat': False}
     if not INTERACTIVE:
         add_capture(g, pairs, start, end, opts)
 
@@ -315,6 +340,8 @@ elif 'Dining-room-dynamic' in NAME:
 print("ANIM = ", ANIM)
 if METHOD == 'input':
     graph = render_input(*ANIM)
+elif METHOD == 'crn':
+    graph = render_crn(*ANIM)
 elif METHOD == 'ref':
     graph = render_ref(*ANIM)
 elif METHOD == 'svgf_optix':
