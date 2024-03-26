@@ -54,6 +54,7 @@ void GBufferBase::registerBindings(pybind11::module& m)
     samplePattern.value("DirectX", GBufferBase::SamplePattern::DirectX);
     samplePattern.value("Halton", GBufferBase::SamplePattern::Halton);
     samplePattern.value("Stratified", GBufferBase::SamplePattern::Stratified);
+    samplePattern.value("Uniform", GBufferBase::SamplePattern::Uniform);
 }
 
 namespace
@@ -76,6 +77,7 @@ namespace
         { (uint32_t)GBufferBase::SamplePattern::DirectX, "DirectX" },
         { (uint32_t)GBufferBase::SamplePattern::Halton, "Halton" },
         { (uint32_t)GBufferBase::SamplePattern::Stratified, "Stratified" },
+        { (uint32_t)GBufferBase::SamplePattern::Uniform, "Uniform" },
     };
 
     const Gui::DropdownList kCullModeList =
@@ -214,6 +216,8 @@ static CPUSampleGenerator::SharedPtr createSamplePattern(GBufferBase::SamplePatt
         return HaltonSamplePattern::create(sampleCount);
     case GBufferBase::SamplePattern::Stratified:
         return StratifiedSamplePattern::create(sampleCount);
+    case GBufferBase::SamplePattern::Uniform:
+        return UniformSamplePattern::create(sampleCount);
     default:
         should_not_get_here();
         return nullptr;

@@ -43,6 +43,7 @@ public:
         DirectX,
         Halton,
         Stratified,
+        Uniform,
     };
 
     virtual void renderUI(Gui::Widgets& widget) override;

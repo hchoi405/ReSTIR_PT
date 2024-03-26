@@ -141,6 +141,7 @@
 #include "Utils/SampleGenerators/DxSamplePattern.h"
 #include "Utils/SampleGenerators/HaltonSamplePattern.h"
 #include "Utils/SampleGenerators/StratifiedSamplePattern.h"
+#include "Utils/SampleGenerators/UniformSamplePattern.h"
 #include "Utils/SampleGenerators/CPUSampleGenerator.h"
 #include "Utils/Scripting/Scripting.h"
 #include "Utils/Scripting/Console.h"

@@ -78,8 +78,8 @@ def add_gbuffer(g, center=True):
     loadRenderPassLibrary("GBuffer.dll")
 
     dicts = {
-        'samplePattern': SamplePattern.Center if center else SamplePattern.Stratified,
-        'sampleCount': 1,
+        'samplePattern': SamplePattern.Center if center else SamplePattern.Uniform,
+        'sampleCount': 1, # This is seed for Uniform pattern
         'texLOD': TexLODMode.Mip0,
         'useAlphaTest': True,
     }

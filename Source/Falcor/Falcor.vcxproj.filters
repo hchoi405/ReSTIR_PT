@@ -351,6 +351,9 @@
     <ClInclude Include="Utils\SampleGenerators\StratifiedSamplePattern.h">
       <Filter>Utils\SampleGenerators</Filter>
     </ClInclude>
+    <ClInclude Include="Utils\SampleGenerators\UniformSamplePattern.h">
+      <Filter>Utils\SampleGenerators</Filter>
+    </ClInclude>
     <ClInclude Include="Scene\Scene.h">
       <Filter>Scene</Filter>
     </ClInclude>
@@ -1173,6 +1176,9 @@
       <Filter>Scene</Filter>
     </ClCompile>
     <ClCompile Include="Utils\SampleGenerators\StratifiedSamplePattern.cpp">
+      <Filter>Utils\SampleGenerators</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\SampleGenerators\UniformSamplePattern.cpp">
       <Filter>Utils\SampleGenerators</Filter>
     </ClCompile>
     <ClCompile Include="Scene\Scene.cpp">
