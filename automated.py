@@ -77,57 +77,6 @@ def change_method(new_method):
     else:
         print('Could not find METHOD variable in file.')
 
-def merge_gbufs(dest_dirs, num):
-    directory = dest_dirs[0]
-    files = os.listdir(directory)
-    files = [f for f in files if f.endswith('.exr')]
-    types = [f.rsplit('_', 1)[0] for f in files]
-    types = list(set(types))
-
-    dest_dir = dest_dirs[0].rsplit('_', 1)[0]
-    if not os.path.exists(dest_dir):
-        os.mkdir(dest_dir)
-
-    frames = [int(f.rsplit('_', 1)[1].split('.')[0]) for f in files]
-    num_frames = max(frames) + 1
-    print(types)
-    print(num_frames)
-
-    # Load the exr files and average them
-    for t in types:
-        for frame in range(num_frames):
-            imgs = []
-            for directory in dest_dirs:
-                filename = f'{t}_{frame:04d}.exr'
-                filepath = os.path.join(directory, filename)
-                img = exr.read_all(filepath)['default']
-                imgs.append(img)
-            imgs = np.array(imgs)
-            avg_img = np.mean(imgs, axis=0)
-            dest_path = os.path.join(dest_dir, f'{t}_{frame:04d}.exr')
-            exr.write(dest_path, avg_img)
-
-def process_albedo(dest_dir, primary_delta_file, nrd_reflectance_file, albedo_file):
-    primary_delta_img = exr.read_all(os.path.join(dest_dir, primary_delta_file))['default']
-    nrd_reflectance_img = exr.read_all(os.path.join(dest_dir, nrd_reflectance_file))['default']
-    albedo_img = exr.read_all(os.path.join(dest_dir, albedo_file))['default']
-
-    new_albedo = np.where(primary_delta_img[:,:,0:1] > 0.0, nrd_reflectance_img, albedo_img)
-    exr.write(os.path.join(dest_dir, albedo_file), new_albedo, compression=exr.ZIP_COMPRESSION)
-
-def make_albedo(dest_dir):
-    files = os.listdir(dest_dir)
-    files = [f for f in files if f.endswith('.exr')]
-    primary_delta_files = [f for f in files if f.startswith('primaryDelta')]
-    nrd_reflectance_files = [f for f in files if f.startswith('nrdDeltaReflectionReflectance')]
-    albedo_files = [f for f in files if f.startswith('albedo')]
-
-    with mp.Pool(10) as p:
-        p.starmap(partial(process_albedo, dest_dir), zip(primary_delta_files, nrd_reflectance_files, albedo_files))
-
-def scale_exposure(img, exposure):
-    return img * np.power(2.0, exposure)
-
 def process(src_dir, dest_dir, frame, scene_name):
     # # Copy path to current
     # shutil.copy(os.path.join(src_dir, f'path_{frame:04d}.exr'), os.path.join(dest_dir, f'current_{frame:04d}.exr'))
