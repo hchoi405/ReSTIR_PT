@@ -48,6 +48,9 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     uint2 pixel = dispatchThreadId.xy;
     if (all(pixel >= gPathTracer.params.frameDim)) return;
 
+    // Reset buffer
+    gPathTracer.outputAlbedo[pixel] = float4(0.0f);
+
     // Skip pixel if there is no hit in the vbuffer.
     HitInfo hit = HitInfo(gPathTracer.vbuffer[pixel]);
     if (!hit.isValid()) return;
