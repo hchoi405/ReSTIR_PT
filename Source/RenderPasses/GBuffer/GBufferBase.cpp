@@ -55,6 +55,7 @@ void GBufferBase::registerBindings(pybind11::module& m)
     samplePattern.value("Halton", GBufferBase::SamplePattern::Halton);
     samplePattern.value("Stratified", GBufferBase::SamplePattern::Stratified);
     samplePattern.value("Uniform", GBufferBase::SamplePattern::Uniform);
+    samplePattern.value("UniformRandom", GBufferBase::SamplePattern::UniformRandom);
 }
 
 namespace
@@ -78,6 +79,7 @@ namespace
         { (uint32_t)GBufferBase::SamplePattern::Halton, "Halton" },
         { (uint32_t)GBufferBase::SamplePattern::Stratified, "Stratified" },
         { (uint32_t)GBufferBase::SamplePattern::Uniform, "Uniform" },
+        { (uint32_t)GBufferBase::SamplePattern::UniformRandom, "UniformRandom" },
     };
 
     const Gui::DropdownList kCullModeList =
@@ -218,6 +220,8 @@ static CPUSampleGenerator::SharedPtr createSamplePattern(GBufferBase::SamplePatt
         return StratifiedSamplePattern::create(sampleCount);
     case GBufferBase::SamplePattern::Uniform:
         return UniformSamplePattern::create(sampleCount);
+    case GBufferBase::SamplePattern::UniformRandom:
+        return nullptr;
     default:
         should_not_get_here();
         return nullptr;
@@ -231,7 +235,13 @@ void GBufferBase::updateFrameDim(const uint2 frameDim)
     mInvFrameDim = 1.f / float2(frameDim);
 
     // Update sample generator for camera jitter.
-    if (mpScene) mpScene->getCamera()->setPatternGenerator(mpSampleGenerator, mInvFrameDim);
+    if (mpScene)
+    {
+        if (mSamplePattern == SamplePattern::UniformRandom)
+            mpScene->getCamera()->setJitterRandom(true, mSampleCount);
+        else
+            mpScene->getCamera()->setPatternGenerator(mpSampleGenerator, mInvFrameDim);
+    }
 }
 
 void GBufferBase::updateSamplePattern()

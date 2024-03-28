@@ -44,6 +44,7 @@ public:
         Halton,
         Stratified,
         Uniform,
+        UniformRandom,
     };
 
     virtual void renderUI(Gui::Widgets& widget) override;

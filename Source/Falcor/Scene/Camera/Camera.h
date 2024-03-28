@@ -187,6 +187,7 @@ namespace Falcor
         void setJitter(float jitterX, float jitterY);
         float getJitterX() const { return mData.jitterX; }
         float getJitterY() const { return mData.jitterY; }
+        void setJitterRandom(bool random, uint offset);
 
         /** Compute pixel spread in screen space -- to be used with RayCones for texture level-of-detail.
             \param[in] winHeightPixels Window height in pixels

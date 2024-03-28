@@ -28,6 +28,7 @@
 import Scene.Camera.CameraData;
 __exported import Utils.Math.Ray;
 import Utils.Math.MathHelpers;
+import Utils.Sampling.TinyUniformSampleGenerator;
 
 struct Camera
 {
@@ -83,7 +84,18 @@ struct Camera
     {
         // Compute sample position in screen space in [0,1] with origin at the top-left corner.
         // The camera jitter offsets the sample by +-0.5 pixels from the pixel center.
-        float2 p = (pixel + float2(0.5f, 0.5f)) / frameDim + float2(-data.jitterX, data.jitterY);
+        float2 p = (pixel + float2(0.5f, 0.5f)) / frameDim;
+        if (data.useRandomJitter == 1)
+        {
+            var sg = TinyUniformSampleGenerator(pixel, data.jitterSeedOffset + data.frameCount);
+            float2 u = sampleNext2D(sg);
+            const float2 invFrameDim = 1.f / float2(frameDim);
+            p += (u - 0.5f) * invFrameDim;
+        }
+        else
+        {
+            p += float2(-data.jitterX, data.jitterY);
+        }
         float2 ndc = float2(2, -2) * p + float2(-1, 1);
 
         // Compute the non-normalized ray direction assuming a pinhole camera.

@@ -82,6 +82,7 @@ namespace Falcor
         mData.prevCameraW = mPrevData.cameraW;
         mData.prevJitterX = mPrevData.jitterX;
         mData.prevJitterY = mPrevData.jitterY;
+        mData.frameCount = mPrevData.frameCount + 1;
 
         mChanges = is_set(mChanges, Changes::Movement | Changes::Frustum) ? Changes::History : Changes::None;
 
@@ -306,6 +307,14 @@ namespace Falcor
     {
         mData.jitterX = jitterX;
         mData.jitterY = jitterY;
+        mDirty = true;
+        mData.useRandomJitter = false;
+    }
+
+    void Camera::setJitterRandom(bool randomize, uint offset)
+    {
+        mData.useRandomJitter = randomize;
+        mData.jitterSeedOffset = offset;
         mDirty = true;
     }
 

@@ -63,10 +63,13 @@ struct CameraData
     float    focalDistance          = 10000.0f;                 ///< Camera focal distance in scene units.
     float    apertureRadius         = 0.0f;                     ///< Camera aperture radius in scene units.
     float    shutterSpeed           = 0.004f;                   ///< Camera shutter speed in seconds.
-    float    ISOSpeed               = 100.0f;                   ///< Camera film speed based on ISO standards.
-    float2   _padding1;
+    float ISOSpeed = 100.0f;                                    ///< Camera film speed based on ISO standards.
+    // for random jitter (do not change the order of these lines)
+    uint     useRandomJitter = 0;
+    uint     frameCount = 0;
+    uint     jitterSeedOffset = 0;
 
-    float3   _padding2;
+    float2   _padding2;
     float    prevNearZ              = 0.1f;
     float3   prevCameraU            = float3(0, 0, 1);          ///< Camera base vector U. Normalized it indicates the right image plane vector. The length is dependent on the FOV.
     float    prevFarZ               = 1000.0f;                  ///< Camera far plane.

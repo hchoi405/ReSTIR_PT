@@ -12,7 +12,7 @@ ANIM = [0, 100]
 METHOD = "input"
 REF_COUNT = 8192
 ENABLE_RESTIR = True
-CENTER = False
+SAMPLING_PATTERN = "UniformRandom" # [Center, DirectX, Halton, Stratified, Uniform, UniformRandom]
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -83,16 +83,32 @@ def add_path(g, gbuf, enable_restir=True, crn=False):
 def add_gbuffer(g, init_seed=1):
     loadRenderPassLibrary("GBuffer.dll")
 
+    if SAMPLING_PATTERN == "Center":
+        pattern = SamplePattern.Center
+    elif SAMPLING_PATTERN == "Stratified":
+        pattern = SamplePattern.Stratified
+    elif SAMPLING_PATTERN == "Uniform":
+        pattern = SamplePattern.Uniform
+    elif SAMPLING_PATTERN == "UniformRandom":
+        pattern = SamplePattern.UniformRandom
+    else:
+        raise ValueError("Invalid sampling pattern")
+
+    if SAMPLING_PATTERN == "Center":
+        sample_count = 1
+    else:
+        sample_count = init_seed
+
     dicts = {
-        'samplePattern': SamplePattern.Center if CENTER else SamplePattern.Uniform,
+        'samplePattern': pattern,
         # sampleCount becomes a seed when used for Uniform pattern
-        'sampleCount': 1 if CENTER else init_seed,
-        'texLOD': TexLODMode.Mip0,
+        'sampleCount': sample_count,
         'useAlphaTest': True,
+        'texLOD': TexLODMode.RayDiffs,
     }
-    GBufferRaster = createPass("GBufferRaster", dicts)  # for input and svgf
-    gbuf = "GBufferRaster"
-    g.addPass(GBufferRaster, gbuf)
+    GBufferRT = createPass("GBufferRT", dicts)  # for input and svgf
+    gbuf = "GBufferRT"
+    g.addPass(GBufferRT, gbuf)
     return gbuf
 
 
