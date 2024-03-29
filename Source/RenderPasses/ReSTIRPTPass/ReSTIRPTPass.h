@@ -159,8 +159,8 @@ private:
     PathReusePattern                mPathReusePattern = PathReusePattern::NRooksShift;
     uint32_t                        mSmallWindowRestirWindowRadius = 2;
     int                             mSpatialNeighborCount = 3;
-    float                           mSpatialReuseRadius = 20.f;
-    int                             mNumSpatialRounds = 1;
+    float                           mSpatialReuseRadius = 5.f;
+    int                             mNumSpatialRounds = 4;
 
     bool                            mEnableTemporalReprojection = true;
     bool                            mFeatureBasedRejection = true;

@@ -1908,7 +1908,7 @@ struct PathTracer
             {
                 L += directLighting[pixel].rgb;
             }
-            L2 += directLighting[pixel].rgb;
+            // L2 += directLighting[pixel].rgb;
 
             if (any(isinf(L) || isnan(L))) L = 0.f;
             if (any(isinf(L2) || isnan(L2))) L2 = 0.f;

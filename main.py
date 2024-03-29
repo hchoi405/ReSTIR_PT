@@ -241,7 +241,7 @@ def render_input(start, end):
     pairs = {
         ## PathTracer
         'current': f"{path}.color",
-        'path': f"{path}.debug",
+        'indirect1spp': f"{path}.debug",
         'envLight': f"{path}.envLight",
         'albedo': f"{path}.albedo",
         # 'viewAlbedo': f"{path}.specularAlbedo",

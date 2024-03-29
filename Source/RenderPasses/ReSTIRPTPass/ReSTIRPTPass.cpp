@@ -939,7 +939,7 @@ bool ReSTIRPTPass::renderRenderingUI(Gui::Widgets& widget)
         {
             if (auto group = widget.group("Spatial reuse controls", true))
             {
-                dirty |= widget.var("Num Spatial Rounds", mNumSpatialRounds, 1, 5);
+                dirty |= widget.var("Num Spatial Rounds", mNumSpatialRounds, 1, 8);
                 dirty |= widget.checkbox("Feature-based rejection", mFeatureBasedRejection);
                 dirty |= widget.dropdown("Spatial Reuse Pattern", kSpatialReusePatternList, reinterpret_cast<uint32_t&>(mSpatialReusePattern));
 
