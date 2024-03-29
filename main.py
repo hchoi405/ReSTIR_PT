@@ -83,11 +83,10 @@ def add_gbuffer(g, pattern, init_seed=1):
         # sampleCount becomes a seed when used for [Uniform, UniformRandom CRN] patterns
         'sampleCount': init_seed,
         'useAlphaTest': True,
-        'texLOD': TexLODMode.RayDiffs,
     }
-    GBufferRT = createPass("GBufferRT", dicts)  # for input and svgf
-    gbuf = "GBufferRT"
-    g.addPass(GBufferRT, gbuf)
+    GBufferRaster = createPass("GBufferRaster", dicts)  # for input and svgf
+    gbuf = "GBufferRaster"
+    g.addPass(GBufferRaster, gbuf)
     return gbuf
 
 
@@ -239,13 +238,13 @@ def render_input(start, end):
         'albedo': f"{path}.albedo",
         # 'viewAlbedo': f"{path}.specularAlbedo",
 
-        ## GBufferRT
+        ## GBufferRaster
         'emissive': f"{gbuf}.emissive",
         'normal': f"{gbuf}.normW",
         'depth': f"{gbuf}.linearZ",
         'position': f"{gbuf}.posW",
         'mvec': f"{gbuf}.mvec",
-        # 'pnFwidth': f"{gbuf}.pnFwidth",
+        'pnFwidth': f"{gbuf}.pnFwidth",
         'specRough': f"{gbuf}.specRough",
         'diffuseOpacity': f"{gbuf}.diffuseOpacity",
     }
@@ -266,22 +265,22 @@ def render_input(start, end):
 def render_crn(start, end):
     g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, pattern=SamplePattern.CRN, init_seed=1000000)
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Center, init_seed=1000000)
     path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=True)
 
     # Connect input/output
     pairs = {
         #
         'crn': f"{path}.color",
-        'albedo2': f"{path}.albedo",
-        #
-        'emissive2': f"{gbuf}.emissive",
-        'normal2': f"{gbuf}.normW",
-        'depth2': f"{gbuf}.linearZ",
-        'position2': f"{gbuf}.posW",
-        'mvec2': f"{gbuf}.mvec",
-        'specRough2': f"{gbuf}.specRough",
-        'diffuseOpacity2': f"{gbuf}.diffuseOpacity",
+        # 'albedo2': f"{path}.albedo",
+        # #
+        # 'emissive2': f"{gbuf}.emissive",
+        # 'normal2': f"{gbuf}.normW",
+        # 'depth2': f"{gbuf}.linearZ",
+        # 'position2': f"{gbuf}.posW",
+        # 'mvec2': f"{gbuf}.mvec",
+        # 'specRough2': f"{gbuf}.specRough",
+        # 'diffuseOpacity2': f"{gbuf}.diffuseOpacity",
     }
     opts = {'captureCameraMat': False}
     if not INTERACTIVE:
