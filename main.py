@@ -41,14 +41,22 @@ def add_path(g, gbuf, enable_restir=True, crn=False):
     if enable_restir:
         PathTracer = createPass("ReSTIRPTPass", {
             'samplesPerPixel': 1,
-            'syncSeedSSReSTIR': True if crn else False,
+            # 'syncSeedSSReSTIR': True if crn else False,
             'fixSpatialSeed': True if crn else False,
             'temporalSeedOffset': 1000000 if crn else 0,
         })
         path = "ReSTIRPT"
-        ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass")
+        ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass", {
+            'options':ScreenSpaceReSTIROptions(
+                fixSpatialSeed=True if crn else False,
+                temporalSeedOffset=1000000 if crn else 0
+            )
+        })
         screenReSTIR = "ScreenSpaceReSTIR"
     else:
+        if crn:
+            print("ERROR: CRN for PathTracing is not supported.")
+            exit()
         PathTracer = createPass("ReSTIRPTPass", {
             'samplesPerPixel': 1,
             'pathSamplingMode': PathSamplingMode.PathTracing

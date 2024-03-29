@@ -1226,6 +1226,12 @@ namespace Falcor
         options.field(diffuseThreshold);
         options.field(reSTIRGIEnableSpatialWeightClamping);
         options.field(forceClearReservoirs);
+
+        options.field(fixSpatialSeed);
+        options.field(spatialSeed);
+        options.field(fixTemporalSeed);
+        options.field(temporalSeed);
+        options.field(temporalSeedOffset);
 #undef field
     }
 }
