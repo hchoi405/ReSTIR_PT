@@ -187,7 +187,16 @@ namespace Falcor
         void setJitter(float jitterX, float jitterY);
         float getJitterX() const { return mData.jitterX; }
         float getJitterY() const { return mData.jitterY; }
-        void setJitterRandom(bool random, uint offset);
+        /**
+         * Set the jitter pattern to a random with a given offset for temporal seed.
+        */
+        void setJitterRandom(bool random, uint temporalSeedOffset);
+        /**
+         * Set the jitter spatial seed to a given value.
+         * 0: pixel seed
+         * 1~: fixed spatial seed (shared for all pixels in the frame)
+        */
+        void setJitterSpatialSeed(uint seed);
 
         /** Compute pixel spread in screen space -- to be used with RayCones for texture level-of-detail.
             \param[in] winHeightPixels Window height in pixels

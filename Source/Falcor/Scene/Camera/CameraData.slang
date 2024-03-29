@@ -67,9 +67,10 @@ struct CameraData
     // for random jitter (do not change the order of these lines)
     uint     useRandomJitter = 0;
     uint     frameCount = 0;
-    uint     jitterSeedOffset = 0;
+    uint     jitterTemporalSeedOffset = 0;
+    uint     jitterSpatialSeed = 0;
 
-    float2   _padding2;
+    float    _padding2;
     float    prevNearZ              = 0.1f;
     float3   prevCameraU            = float3(0, 0, 1);          ///< Camera base vector U. Normalized it indicates the right image plane vector. The length is dependent on the FOV.
     float    prevFarZ               = 1000.0f;                  ///< Camera far plane.

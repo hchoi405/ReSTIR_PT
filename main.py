@@ -12,7 +12,6 @@ ANIM = [0, 100]
 METHOD = "input"
 REF_COUNT = 8192
 ENABLE_RESTIR = True
-SAMPLING_PATTERN = "UniformRandom" # [Center, DirectX, Halton, Stratified, Uniform, UniformRandom]
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -37,8 +36,6 @@ def frange(start, stop=None, step=None):
 
 
 def add_path(g, gbuf, enable_restir=True, crn=False):
-    loadRenderPassLibrary("ReSTIRPTPass.dll")
-    loadRenderPassLibrary("ScreenSpaceReSTIRPass.dll")
 
     # Toggle between ReSTIRPT and MegakernelPathTracer
     if enable_restir:
@@ -80,29 +77,11 @@ def add_path(g, gbuf, enable_restir=True, crn=False):
     return path, screenReSTIR
 
 
-def add_gbuffer(g, init_seed=1):
-    loadRenderPassLibrary("GBuffer.dll")
-
-    if SAMPLING_PATTERN == "Center":
-        pattern = SamplePattern.Center
-    elif SAMPLING_PATTERN == "Stratified":
-        pattern = SamplePattern.Stratified
-    elif SAMPLING_PATTERN == "Uniform":
-        pattern = SamplePattern.Uniform
-    elif SAMPLING_PATTERN == "UniformRandom":
-        pattern = SamplePattern.UniformRandom
-    else:
-        raise ValueError("Invalid sampling pattern")
-
-    if SAMPLING_PATTERN == "Center":
-        sample_count = 1
-    else:
-        sample_count = init_seed
-
+def add_gbuffer(g, pattern, init_seed=1):
     dicts = {
         'samplePattern': pattern,
-        # sampleCount becomes a seed when used for Uniform pattern
-        'sampleCount': sample_count,
+        # sampleCount becomes a seed when used for [Uniform, UniformRandom CRN] patterns
+        'sampleCount': init_seed,
         'useAlphaTest': True,
         'texLOD': TexLODMode.RayDiffs,
     }
@@ -113,7 +92,6 @@ def add_gbuffer(g, init_seed=1):
 
 
 def add_fileload(g):
-    loadRenderPassLibrary("FileloadPass.dll")
 
     # key:value = filename:channelName
     channels = {
@@ -149,7 +127,6 @@ def add_fileload(g):
 
 
 def add_optix(g, gbuffer, path):
-    loadRenderPassLibrary("OptixDenoiser.dll")
     OptixDenoiser = createPass("OptixDenoiser")
     optix = "OptixDenoiser"
     g.addPass(OptixDenoiser, optix)
@@ -163,7 +140,6 @@ def add_optix(g, gbuffer, path):
 
 
 def add_svgf(g, gbuffer, path):
-    loadRenderPassLibrary("SVGFPass.dll")
     SVGFPass = createPass("SVGFPass", {'Enabled': True, 'Iterations': 4, 'FeedbackTap': 1,
                           'VarianceEpsilon': 1.0e-4, 'PhiColor': 10.0, 'PhiNormal': 128.0, 'Alpha': 0.2, 'MomentsAlpha': 0.2})
     svgf = "SVGFPass"
@@ -182,7 +158,6 @@ def add_svgf(g, gbuffer, path):
 
 
 def add_capture(g, pairs, start, end, opts=None):
-    loadRenderPassLibrary("CapturePass.dll")
 
     channels = list(pairs.keys())
     inputs = list(pairs.values())
@@ -217,10 +192,9 @@ def add_capture(g, pairs, start, end, opts=None):
 def render_ref(start, end):
     g = RenderGraph("PathGraph")
 
-    gbuf = add_gbuffer(g)
+    gbuf = add_gbuffer(g, pattern=SamplePattern.UniformRandom)
     path, _ = add_path(g, gbuf, False)
 
-    loadRenderPassLibrary("AccumulatePass.dll")
     AccumulatePass1 = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass2 = createPass("AccumulatePass", {'enabled': True})
     AccumulatePass3 = createPass("AccumulatePass", {'enabled': True})
@@ -253,7 +227,7 @@ def render_ref(start, end):
 def render_input(start, end):
     g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, init_seed=random.randint(1, 1000))
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Center)
     path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False)
 
     # Connect input/output
@@ -265,13 +239,13 @@ def render_input(start, end):
         'albedo': f"{path}.albedo",
         # 'viewAlbedo': f"{path}.specularAlbedo",
 
-        ## GBufferRaster
+        ## GBufferRT
         'emissive': f"{gbuf}.emissive",
         'normal': f"{gbuf}.normW",
         'depth': f"{gbuf}.linearZ",
         'position': f"{gbuf}.posW",
         'mvec': f"{gbuf}.mvec",
-        'pnFwidth': f"{gbuf}.pnFwidth",
+        # 'pnFwidth': f"{gbuf}.pnFwidth",
         'specRough': f"{gbuf}.specRough",
         'diffuseOpacity': f"{gbuf}.diffuseOpacity",
     }
@@ -292,11 +266,23 @@ def render_input(start, end):
 def render_crn(start, end):
     g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, init_seed=random.randint(1, 1000))
+    gbuf = add_gbuffer(g, pattern=SamplePattern.CRN, init_seed=1000000)
     path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=True)
 
     # Connect input/output
-    pairs = {'crn': f"{path}.color",}
+    pairs = {
+        #
+        'crn': f"{path}.color",
+        'albedo2': f"{path}.albedo",
+        #
+        'emissive2': f"{gbuf}.emissive",
+        'normal2': f"{gbuf}.normW",
+        'depth2': f"{gbuf}.linearZ",
+        'position2': f"{gbuf}.posW",
+        'mvec2': f"{gbuf}.mvec",
+        'specRough2': f"{gbuf}.specRough",
+        'diffuseOpacity2': f"{gbuf}.diffuseOpacity",
+    }
     opts = {'captureCameraMat': False}
     if not INTERACTIVE:
         add_capture(g, pairs, start, end, opts)
@@ -310,7 +296,6 @@ def render_crn(start, end):
 def render_svgf_optix(start, end):
     g = RenderGraph("MutlipleGraph")
     # Load libraries
-    # loadRenderPassLibrary("TorchPass.dll")
 
     gbuffile, pathfile = add_fileload(g)
 
@@ -352,6 +337,15 @@ elif 'Dining-room-dynamic' in NAME:
     num_frames = int((end - start) / step)
     ANIM = [0, num_frames]
     dir_list = frange(start, end, step)
+
+loadRenderPassLibrary("ReSTIRPTPass.dll")
+loadRenderPassLibrary("ScreenSpaceReSTIRPass.dll")
+loadRenderPassLibrary("GBuffer.dll")
+loadRenderPassLibrary("FileloadPass.dll")
+loadRenderPassLibrary("OptixDenoiser.dll")
+loadRenderPassLibrary("SVGFPass.dll")
+loadRenderPassLibrary("CapturePass.dll")
+loadRenderPassLibrary("AccumulatePass.dll")
 
 print("ANIM = ", ANIM)
 if METHOD == 'input':

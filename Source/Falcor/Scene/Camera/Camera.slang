@@ -87,7 +87,12 @@ struct Camera
         float2 p = (pixel + float2(0.5f, 0.5f)) / frameDim;
         if (data.useRandomJitter == 1)
         {
-            var sg = TinyUniformSampleGenerator(pixel, data.jitterSeedOffset + data.frameCount);
+            uint2 spatialSeed = pixel;
+            if (data.jitterSpatialSeed > 0)
+            {
+                spatialSeed = uint2(data.jitterSpatialSeed);
+            }
+            var sg = TinyUniformSampleGenerator(spatialSeed, data.jitterTemporalSeedOffset + data.frameCount);
             float2 u = sampleNext2D(sg);
             const float2 invFrameDim = 1.f / float2(frameDim);
             p += (u - 0.5f) * invFrameDim;

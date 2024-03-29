@@ -45,6 +45,7 @@ public:
         Stratified,
         Uniform,
         UniformRandom,
+        CRN,
     };
 
     virtual void renderUI(Gui::Widgets& widget) override;

@@ -56,6 +56,7 @@ void GBufferBase::registerBindings(pybind11::module& m)
     samplePattern.value("Stratified", GBufferBase::SamplePattern::Stratified);
     samplePattern.value("Uniform", GBufferBase::SamplePattern::Uniform);
     samplePattern.value("UniformRandom", GBufferBase::SamplePattern::UniformRandom);
+    samplePattern.value("CRN", GBufferBase::SamplePattern::CRN);
 }
 
 namespace
@@ -80,6 +81,7 @@ namespace
         { (uint32_t)GBufferBase::SamplePattern::Stratified, "Stratified" },
         { (uint32_t)GBufferBase::SamplePattern::Uniform, "Uniform" },
         { (uint32_t)GBufferBase::SamplePattern::UniformRandom, "UniformRandom" },
+        { (uint32_t)GBufferBase::SamplePattern::CRN, "CRN" },
     };
 
     const Gui::DropdownList kCullModeList =
@@ -221,6 +223,7 @@ static CPUSampleGenerator::SharedPtr createSamplePattern(GBufferBase::SamplePatt
     case GBufferBase::SamplePattern::Uniform:
         return UniformSamplePattern::create(sampleCount);
     case GBufferBase::SamplePattern::UniformRandom:
+    case GBufferBase::SamplePattern::CRN:
         return nullptr;
     default:
         should_not_get_here();
@@ -237,8 +240,16 @@ void GBufferBase::updateFrameDim(const uint2 frameDim)
     // Update sample generator for camera jitter.
     if (mpScene)
     {
-        if (mSamplePattern == SamplePattern::UniformRandom)
+        if (mSamplePattern == SamplePattern::UniformRandom) {
+            // Use mSampleCount as temporal seed offset
             mpScene->getCamera()->setJitterRandom(true, mSampleCount);
+            mpScene->getCamera()->setJitterSpatialSeed(0); // pixel-wise seed
+        }
+        else if (mSamplePattern == SamplePattern::CRN) {
+            // Use mSampleCount as temporal seed offset
+            mpScene->getCamera()->setJitterRandom(true, mSampleCount);
+            mpScene->getCamera()->setJitterSpatialSeed(1000000);
+        }
         else
             mpScene->getCamera()->setPatternGenerator(mpSampleGenerator, mInvFrameDim);
     }

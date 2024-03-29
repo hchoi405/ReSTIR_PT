@@ -311,10 +311,16 @@ namespace Falcor
         mData.useRandomJitter = false;
     }
 
-    void Camera::setJitterRandom(bool randomize, uint offset)
+    void Camera::setJitterRandom(bool randomize, uint temporalSeedOffset)
     {
         mData.useRandomJitter = randomize;
-        mData.jitterSeedOffset = offset;
+        mData.jitterTemporalSeedOffset = temporalSeedOffset;
+        mDirty = true;
+    }
+
+    void Camera::setJitterSpatialSeed(uint spatialSeed)
+    {
+        mData.jitterSpatialSeed = spatialSeed;
         mDirty = true;
     }
 

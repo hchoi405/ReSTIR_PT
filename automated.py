@@ -197,7 +197,7 @@ if __name__ == "__main__":
     parser.add_argument('--nobuild', action='store_true', default=False)
     parser.add_argument('--buildonly', action='store_true', default=False)
     parser.add_argument('--nopostprocessing', action='store_true', default=False)
-    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'ref', 'svgf_optix'], required=True)
+    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'svgf_optix'], required=True)
     parser.add_argument('--nas', action='store_true', default=False)
     parser.add_argument('--interactive', action='store_true', default=False)
     parser.add_argument('--dir', default='dataset')
