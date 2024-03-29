@@ -940,16 +940,24 @@ bool ReSTIRPTPass::renderRenderingUI(Gui::Widgets& widget)
             if (auto group = widget.group("Spatial reuse controls", true))
             {
                 dirty |= widget.var("Num Spatial Rounds", mNumSpatialRounds, 1, 5);
-                dirty |= widget.dropdown("Spatial Reuse Pattern", kSpatialReusePatternList, reinterpret_cast<uint32_t&>(mSpatialReusePattern));
                 dirty |= widget.checkbox("Feature-based rejection", mFeatureBasedRejection);
+                dirty |= widget.dropdown("Spatial Reuse Pattern", kSpatialReusePatternList, reinterpret_cast<uint32_t&>(mSpatialReusePattern));
 
                 if (SpatialReusePattern(mSpatialReusePattern) == SpatialReusePattern::SmallWindow)
                 {
-                    dirty |= widget.var("Window radius", mSmallWindowRestirWindowRadius, 0u, 32u);
+                    dirty |= widget.var("Window radius", mSmallWindowRestirWindowRadius, 0u, 2u);
                 }
                 else
                 {
-                    dirty |= widget.var("Spatial Neighbor Count", mSpatialNeighborCount, 0, 6);
+                    dirty |= widget.var("Spatial Neighbor Count", mSpatialNeighborCount, 0, 25);
+                    if (dirty |= widget.button("+", true))
+                    {
+                        mSpatialNeighborCount++;
+                    }
+                    if (dirty |= widget.button("-", true))
+                    {
+                        mSpatialNeighborCount--;
+                    }
                     dirty |= widget.var("Spatial Reuse Radius", mSpatialReuseRadius, 0.f, 100.f);
                 }
 
@@ -1921,8 +1929,53 @@ Program::DefineList ReSTIRPTPass::StaticParams::getDefines(const ReSTIRPTPass& o
 
     defines.add("SEPARATE_PATH_BSDF", separatePathBSDF ? "1" : "0");
 
-    defines.add("RCDATA_PATH_NUM", rcDataOfflineMode ? "12" : "6");
-    defines.add("RCDATA_PAD_SIZE", rcDataOfflineMode ? "2" : "1");
+    // Calculate required bytes
+    int requiredCount = 0;
+    if (owner.mSpatialReusePattern == SpatialReusePattern::SmallWindow)
+    {
+        int diameter = 2 * owner.mSmallWindowRestirWindowRadius + 1;
+        int numNeighbors = diameter * diameter;
+        requiredCount = 2 * numNeighbors; // center->neighbor and neighbor->center
+    }
+    else if (owner.mSpatialReusePattern == SpatialReusePattern::Default)
+    {
+        requiredCount = 2 * owner.mSpatialNeighborCount; // center->neighbor and neighbor->center
+    }
+    else
+    {
+        requiredCount = rcDataOfflineMode ? 12 : 6;
+    }
+    printf("Required buffer count for reconnection: %d\n", requiredCount);
+
+    // Set the number of spatial neighbors and the padding size.
+    if (requiredCount <= 6)
+    {
+        // RCDATA_PATH_NUM = 6, RCDATA_PAD_SIZE = 4  (256 bytes)
+        defines.add("RCDATA_PATH_NUM", "6");
+        defines.add("RCDATA_PAD_SIZE", "4");
+    }
+    else if (requiredCount <= 12)
+    {
+        // RCDATA_PATH_NUM = 12, RCDATA_PAD_SIZE = 8 (512 bytes)
+        defines.add("RCDATA_PATH_NUM", "12");
+        defines.add("RCDATA_PAD_SIZE", "8");
+    }
+    else if (requiredCount <= 25)
+    {
+        // RCDATA_PATH_NUM = 25, RCDATA_PAD_SIZE = 6 (1024 bytes)
+        defines.add("RCDATA_PATH_NUM", "25");
+        defines.add("RCDATA_PAD_SIZE", "6");
+    }
+    else if (requiredCount <= 51)
+    {
+        // RCDATA_PATH_NUM = 51, RCDATA_PAD_SIZE = 2 (2048 bytes)
+        defines.add("RCDATA_PATH_NUM", "51");
+        defines.add("RCDATA_PAD_SIZE", "2");
+    }
+    else
+    {
+        logError("Unsupported spatial neighbor count: " + std::to_string(requiredCount / 2));
+    }
 
     return defines;
 }

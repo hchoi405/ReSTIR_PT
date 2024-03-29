@@ -164,13 +164,16 @@ struct ReconnectionData
     }
 }
 
-// real time: RCDATA_PATH_NUM = 6, RCDATA_PAD_SIZE = 1  (256 bytes)
-// offline:   RCDATA_PATH_NUM = 12, RCDATA_PAD_SIZE = 2 (512 bytes)
+// ReconnectionData: 40 bytes
+// RCDATA_PATH_NUM = 6, RCDATA_PAD_SIZE = 4  (256 bytes)
+// RCDATA_PATH_NUM = 12, RCDATA_PAD_SIZE = 8 (512 bytes)
+// RCDATA_PATH_NUM = 25, RCDATA_PAD_SIZE = 6 (1024 bytes)
+// RCDATA_PATH_NUM = 51, RCDATA_PAD_SIZE = 2 (2048 bytes)
 
 struct PixelReconnectionData
 {
     ReconnectionData data[RCDATA_PATH_NUM];
-    float4 padding[RCDATA_PAD_SIZE]; //pad to 256 bytes
+    float padding[RCDATA_PAD_SIZE]; //pad to 256 bytes
 }
 
 
@@ -223,7 +226,7 @@ struct PathReuseMISWeight
 // 88/128 B
 struct PathReservoir
 {
-    float M = 0.f; // this is a float, because temporal history length is allowed to be a fraction. 
+    float M = 0.f; // this is a float, because temporal history length is allowed to be a fraction.
     float weight = 0.f; // during RIS and when used as a "RisState", this is w_sum; during RIS when used as an incoming reseroivr or after RIS, this is 1/p(y) * 1/M * w_sum
     ReSTIRPathFlags pathFlags; // this is a path type indicator, see the struct definition for details
     uint rcRandomSeed; // saved random seed after rcVertex (due to the need of blending half-vector reuse and random number replay)
@@ -236,7 +239,7 @@ struct PathReservoir
     float3 rcVertexIrradiance[kRcAttrCount]; // sampled irradiance on reconnection vertex
 
 #if BPR
-    float rcLightPdf; 
+    float rcLightPdf;
     float3 rcVertexBSDFLightSamplingIrradiance;
 
     uint rcLightType()
