@@ -329,7 +329,8 @@ struct PathReusePass
             // outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
         }
 
-        {
+        // Temporal 2
+        if (false) {
             PathReservoir dstReservoir2 = centralReservoir;
             dstReservoir2.init();
             ReconnectionData dummyRcData2;
@@ -460,6 +461,76 @@ struct PathReusePass
             }
             outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
         }
+
+        // Temporal 3
+        {
+            PathReservoir dstReservoir2 = centralReservoir;
+            dstReservoir2.init();
+            ReconnectionData dummyRcData2;
+            dummyRcData2.Init();
+
+            var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
+
+            // color averaging test
+
+            // fetch temporal reservoir
+            float2 motionVector = motionVectors[pixel];
+            int2 prevPixel = pixel;
+
+            if (gEnableTemporalReprojection)
+            {
+                prevPixel = pixel + motionVector * params.frameDim + (sampleNext2D(sg2) * 1.f - 0.f);
+            }
+
+            if (!isValidScreenRegion(prevPixel)) return;
+
+            PackedHitInfo temporalPrimaryHitPacked;
+            ShadingData prevPrimarySd = getPixelTemporalShadingData(prevPixel, temporalPrimaryHitPacked);
+            if (!isValidPackedHitInfo(temporalPrimaryHitPacked)) return;
+
+            bool doTemporalUpdateForDynamicScene = kTemporalUpdateForDynamicScene;
+
+            PathReservoir prevReservoir = temporalReservoirs[params.getReservoirOffset(prevPixel)];
+
+            float dstJacobian = 1.f;
+            PathReservoir tempDstReservoir = dstReservoir2;
+
+            ReconnectionData rcData;
+            if (ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && prevReservoir.pathFlags.rcVertexLength() > 1)
+                rcData = reconnectionDataBuffer[centralOffset].data[3];
+            else
+                rcData = dummyRcData2;
+
+            // Create another sample by reconnecting to path of prev pixel
+            bool possibleToBeSelected = shiftAndMergeReservoir(params, doTemporalUpdateForDynamicScene, dstJacobian, centralPrimaryHitPacked, centralPrimarySd, tempDstReservoir,
+                                                               prevPrimarySd, prevReservoir, rcData, true, sg2, false, 1.f, true); // "true" means hypothetically selected as the sample
+
+            float misWeight = 0.f;
+            if (possibleToBeSelected)
+            {
+                misWeight = 1.f;
+            }
+
+            mergeReservoirWithResamplingMIS(params, tempDstReservoir.F, dstJacobian, dstReservoir2, tempDstReservoir, prevReservoir, sg2, false, misWeight);
+
+            if (dstReservoir2.weight > 0)
+            {
+                dstReservoir2.finalizeGRIS();
+            }
+
+            if (dstReservoir2.weight < 0.f || isinf(dstReservoir2.weight) || isnan(dstReservoir2.weight)) dstReservoir2.weight = 0.f;
+            color = dstReservoir2.F * dstReservoir2.weight;
+
+            // Write temporal color
+            float3 temporalColor = color;
+            if (useDirectLighting)
+            {
+                temporalColor += directLighting[pixel].rgb;
+                if (any(isnan(temporalColor) || isinf(temporalColor))) temporalColor = 0.f;
+            }
+            outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
+        }
+
     }
 
     /** Entry point for merge pass.
