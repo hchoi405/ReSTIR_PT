@@ -35,7 +35,7 @@ float3 computeShiftedIntegrandExtraOutput(
 
 float3 computeShiftedIntegrand(
     const RestirPathTracerParams params, inout float dstJacobian, const PackedHitInfo dstPrimaryHitPacked, const ShadingData dstPrimarySd,
-    const ShadingData srcPrimarySd, const PathReservoir srcReservoir, ReconnectionData rcData, bool evalVisibility, bool usePrev = false, bool temporalUpdateForDynamicScene = false)
+    const ShadingData srcPrimarySd, const PathReservoir srcReservoir, const ReconnectionData rcData, bool evalVisibility, bool usePrev = false, bool temporalUpdateForDynamicScene = false)
 {
     PathReservoir tempReservoir = srcReservoir;
     float3 res = computeShiftedIntegrand_(params, dstJacobian, dstPrimaryHitPacked, dstPrimarySd,
@@ -48,7 +48,7 @@ float3 computeShiftedIntegrand(
 }
 
 float3 computeShiftedIntegrand_(const RestirPathTracerParams params, inout float dstJacobian, const PackedHitInfo dstPrimaryHitPacked, const ShadingData dstPrimarySd,
-    const ShadingData srcPrimarySd, inout PathReservoir srcReservoir, ReconnectionData rcData, bool evalVisibility, bool usePrev = false, bool temporalUpdateForDynamicScene = false)
+    const ShadingData srcPrimarySd, inout PathReservoir srcReservoir, const ReconnectionData rcData, bool evalVisibility, bool usePrev = false, bool temporalUpdateForDynamicScene = false)
 {
     dstJacobian = 0.f;
 
@@ -114,7 +114,7 @@ float3 computeShiftedIntegrandRandomReplay(const RestirPathTracerParams params, 
 }
 
 float3 computeShiftedIntegrandHybrid(const RestirPathTracerParams params, bool usePrev, bool temporalUpdateForDynamicScene, inout float dstJacobian, const PackedHitInfo dstPrimaryHitPacked, const ShadingData dstPrimarySd, const ShadingData srcPrimarySd,
-    inout PathReservoir tempPathReservoir, ReconnectionData rcData, bool evalVisibility)
+    inout PathReservoir tempPathReservoir, const ReconnectionData rcData, bool evalVisibility)
 {
     dstJacobian = 0.f;
 
@@ -287,7 +287,7 @@ float3 computeShiftedIntegrandReconnectionPathTree(const RestirPathTracerParams 
     if (isJacobianInvalid(Jacobian)) return 0.f;
 
     float3 dstF1 = evalBSDFCosine(dstPrimarySd, dstConnectionV, allowedSampledTypes1, isDelta1);
-    float3 dstIntegrand = dstF1 / dstPDF1; 
+    float3 dstIntegrand = dstF1 / dstPDF1;
 
     float3 dstIntegrandNEE;
 
@@ -400,7 +400,7 @@ float3 computeShiftedIntegrandReconnection(const RestirPathTracerParams params, 
     srcPrimarySd.posW = srcPrimarySd.computeNewRayOrigin(!isTransmission);
     dstPrimarySd.posW = dstPrimarySd.computeNewRayOrigin(!isTransmission);
 
-    if (!rcVertexHitExists) 
+    if (!rcVertexHitExists)
     {
         float3 dstIntegrand = 0.f;
         // are we having a infinite light as rcVertex?
@@ -487,8 +487,8 @@ float3 computeShiftedIntegrandReconnection(const RestirPathTracerParams params, 
 
     float dstRcVertexScatterPdfAll = 0.f;
     float dstPDF2 = 1.f;
-    float dstRcVertexScatterPdf = 1.f; 
-    float srcRcVertexScatterPdf = 1.f;  
+    float dstRcVertexScatterPdf = 1.f;
+    float srcRcVertexScatterPdf = 1.f;
 
     uint allowedSampledTypes2 = isRcVertexNEE ? -1 : getAllowedBSDFFlags(srcReservoir.pathFlags.decodeIsSpecularBounce(false));
 
@@ -528,7 +528,7 @@ float3 computeShiftedIntegrandReconnection(const RestirPathTracerParams params, 
         {
             float lightPdf = srcReservoir.lightPdf;
             float misWeight = PathTracer::evalMIS(1, isRcVertexNEE ? lightPdf : dstRcVertexScatterPdfAll, 1, isRcVertexNEE ? dstRcVertexScatterPdfAll : lightPdf);
-            dstIntegrand = dstIntegrand * misWeight; 
+            dstIntegrand = dstIntegrand * misWeight;
             dstIntegrandNoF1 = dstIntegrandNoF1 * misWeight;
             if (!isRcVertexNEE)
                 Jacobian *= dstRcVertexScatterPdf / srcRcVertexScatterPdf;

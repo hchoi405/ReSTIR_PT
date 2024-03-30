@@ -330,7 +330,8 @@ struct PathReusePass
         }
 
         {
-            dstReservoir.init();
+            PathReservoir dstReservoir2 = centralReservoir;
+            dstReservoir2.init();
             ReconnectionData dummyRcData2;
             dummyRcData2.Init();
 
@@ -350,14 +351,14 @@ struct PathReusePass
             if (!isValidScreenRegion(prevPixel)) return;
 
             PackedHitInfo temporalPrimaryHitPacked;
-            ShadingData temporalPrimarySd = getPixelTemporalShadingData(prevPixel, temporalPrimaryHitPacked);
+            ShadingData prevPrimarySd = getPixelTemporalShadingData(prevPixel, temporalPrimaryHitPacked);
             if (!isValidPackedHitInfo(temporalPrimaryHitPacked)) return;
 
             bool doTemporalUpdateForDynamicScene = kTemporalUpdateForDynamicScene;
 
-            PathReservoir temporalReservoir = temporalReservoirs[params.getReservoirOffset(prevPixel)];
+            PathReservoir prevReservoir = temporalReservoirs[params.getReservoirOffset(prevPixel)];
 
-            temporalReservoir.M = min(gTemporalHistoryLength * currentM, temporalReservoir.M);
+            prevReservoir.M = min(gTemporalHistoryLength * currentM, prevReservoir.M);
 
             float dstJacobian;
 
@@ -374,7 +375,7 @@ struct PathReusePass
                     float p_sum = 0;
                     float p_self = 0;
 
-                    PathReservoir tempDstReservoir = dstReservoir;
+                    PathReservoir tempDstReservoir = dstReservoir2;
 
                     bool possibleToBeSelected = false;
 
@@ -387,13 +388,14 @@ struct PathReusePass
                     else
                     {
                         ReconnectionData rcData;
-                        if (ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && temporalReservoir.pathFlags.rcVertexLength() > 1)
+                        if (ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && prevReservoir.pathFlags.rcVertexLength() > 1)
                             rcData = reconnectionDataBuffer[centralOffset].data[3];
                         else
                             rcData = dummyRcData2;
 
+                        // Create another sample by reconnecting to path of prev pixel
                         possibleToBeSelected = shiftAndMergeReservoir(params, doTemporalUpdateForDynamicScene, dstJacobian, centralPrimaryHitPacked, centralPrimarySd, tempDstReservoir,
-                                                                      temporalPrimarySd, temporalReservoir, rcData, true, sg2, false, 1.f, true); // "true" means hypothetically selected as the sample
+                                                                      prevPrimarySd, prevReservoir, rcData, true, sg2, false, 1.f, true); // "true" means hypothetically selected as the sample
                     }
 
                     if (possibleToBeSelected)
@@ -410,7 +412,7 @@ struct PathReusePass
                             {
                                 if (i == j)
                                 {
-                                    p_self = PathReservoir::toScalar(temporalReservoir.F) / dstJacobian * temporalReservoir.M;
+                                    p_self = PathReservoir::toScalar(prevReservoir.F) / dstJacobian * prevReservoir.M;
                                     p_sum += p_self;
                                     continue;
                                 }
@@ -424,10 +426,10 @@ struct PathReusePass
                                 else
                                     rcData = dummyRcData2;
 
-                                float3 tneighborIntegrand = computeShiftedIntegrand(params, tneighborJacobian, temporalPrimaryHitPacked, temporalPrimarySd,
+                                float3 tneighborIntegrand = computeShiftedIntegrand(params, tneighborJacobian, temporalPrimaryHitPacked, prevPrimarySd,
                                                                                     centralPrimarySd, tempDstReservoir, rcData, true, true); // usePrev
                                 p_ = PathReservoir::toScalar(tneighborIntegrand) * tneighborJacobian;
-                                p_sum += p_ * temporalReservoir.M;
+                                p_sum += p_ * prevReservoir.M;
                             }
                         }
                     }
@@ -435,19 +437,19 @@ struct PathReusePass
                     float misWeight = p_sum == 0.f ? 0.f : p_self / p_sum;
                     PathReservoir neighborReservoir;
                     if (i == curSampleId) neighborReservoir = tempDstReservoir;
-                    else neighborReservoir = temporalReservoir;
+                    else neighborReservoir = prevReservoir;
 
-                    mergeReservoirWithResamplingMIS(params, tempDstReservoir.F, dstJacobian, dstReservoir, tempDstReservoir, neighborReservoir, sg2, false, misWeight);
+                    mergeReservoirWithResamplingMIS(params, tempDstReservoir.F, dstJacobian, dstReservoir2, tempDstReservoir, neighborReservoir, sg2, false, misWeight);
                 }
 
-                if (dstReservoir.weight > 0)
+                if (dstReservoir2.weight > 0)
                 {
-                    dstReservoir.finalizeGRIS();
+                    dstReservoir2.finalizeGRIS();
                 }
             }
 
-            if (dstReservoir.weight < 0.f || isinf(dstReservoir.weight) || isnan(dstReservoir.weight)) dstReservoir.weight = 0.f;
-            color = dstReservoir.F * dstReservoir.weight;
+            if (dstReservoir2.weight < 0.f || isinf(dstReservoir2.weight) || isnan(dstReservoir2.weight)) dstReservoir2.weight = 0.f;
+            color = dstReservoir2.F * dstReservoir2.weight;
 
             // Write temporal color
             float3 temporalColor = color;
