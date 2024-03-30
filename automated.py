@@ -1,12 +1,15 @@
 import os
 import subprocess
+import threading
 import re
 import shutil
 import sys
 import numpy as np
+import time
 import multiprocessing as mp
 from functools import partial
 import argparse
+import glob
 
 import scripts.exr as exr
 
@@ -191,6 +194,73 @@ def build(args):
     else:
         print('Skipped.')
 
+def get_latest_log_file(log_directory, log_pattern, baseline=None):
+    while True:
+        log_files = glob.glob(os.path.join(log_directory, log_pattern))
+        log_files.sort(key=os.path.getmtime, reverse=True)
+        if log_files:
+            latest_log_file = log_files[0]
+            if baseline is None or os.path.getmtime(latest_log_file) > os.path.getmtime(baseline):
+                return latest_log_file
+        time.sleep(0.5)  # Adjust as needed
+
+def monitor_log_file(log_file, stop_signal):
+    print(f"Monitoring log file: {log_file}")
+    with open(log_file, 'r') as file:
+        file.seek(0, os.SEEK_END)  # Skip existing content
+        try:
+            while not stop_signal.is_set():
+                line = file.readline()
+                if not line:
+                    time.sleep(0.5)  # Adjust as needed
+                    continue
+                print(line, end='')
+        except KeyboardInterrupt:
+            print("\nStopped monitoring the log file.")
+
+def run(local=True):
+    if local:
+        # Call Mogwai
+        binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
+        binary_args = ["--script=main.py"]
+        script_dir = os.path.abspath(os.path.dirname(__file__))
+        binary_abs_path = os.path.join(script_dir, binary_path)
+        subprocess.run([binary_abs_path] + binary_args)
+    else:
+        script_file = "main.py"
+        binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
+
+        cwd = os.path.abspath(os.path.dirname(__file__))
+        binary_args_path = os.path.join(cwd, script_file)
+        binary_abs_path = os.path.join(cwd, binary_path)
+
+        binary_command = f"psexec -i 1 {binary_abs_path} --script={binary_args_path}"
+
+        ## Log monitoring
+
+        log_directory = './Bin/x64/Release/'
+        log_pattern = r'Mogwai.exe.*.log'
+
+        # Determine the latest log file before starting the subprocess
+        existing_latest_log = get_latest_log_file(log_directory, log_pattern)
+
+        # Start the subprocess
+        proc = subprocess.Popen(binary_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # Determine the new log file created by this subprocess run
+        new_log_file = get_latest_log_file(log_directory, log_pattern, baseline=existing_latest_log)
+
+        stop_thread = threading.Event()
+        # Start monitoring the new log file
+        log_thread = threading.Thread(target=monitor_log_file, args=(new_log_file, stop_thread))
+        log_thread.start()
+
+        # Wait for the subprocess to complete
+        proc.wait()
+
+        # Signal the monitoring thread to stop
+        stop_thread.set()
+        log_thread.join()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Automated script for Mogwai')
@@ -237,13 +307,6 @@ if __name__ == "__main__":
     directory = args.dir
     print(f'Generating at {directory}...')
 
-    #########################################################
-    # Call Mogwai
-    binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
-    binary_args = ["--script=main.py"]
-    script_dir = os.path.abspath(os.path.dirname(__file__))
-    binary_abs_path = os.path.join(script_dir, binary_path)
-
     scene_names = list(scene.defs.keys())
 
     print('automated.py for scenes', scene_names)
@@ -259,7 +322,7 @@ if __name__ == "__main__":
             change_method(method)
 
             # Launch Mogwai
-            subprocess.run([binary_abs_path] + binary_args)
+            run()
 
             if args.interactive:
                 exit()
