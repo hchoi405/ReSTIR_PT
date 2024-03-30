@@ -41,6 +41,7 @@ namespace
     const std::string kOutputPathLength = "pathLength";
     const std::string kOutputDebug = "debug";
     const std::string kOutputTime = "time";
+    const std::string kOutputTemporal = "temporalColor";
     const std::string kOutputNRDDiffuseRadianceHitDist = "nrdDiffuseRadianceHitDist";
     const std::string kOutputNRDSpecularRadianceHitDist = "nrdSpecularRadianceHitDist";
     const std::string kOutputNRDResidualRadianceHitDist = "nrdResidualRadianceHitDist";
@@ -59,6 +60,7 @@ namespace
         { kOutputPathLength,            "",                             "Per-pixel path length", true /* optional */, ResourceFormat::R32Uint },
         { kOutputDebug,                 "",                             "Debug output", true /* optional */, ResourceFormat::RGBA32Float },
         { kOutputTime,                  "",                             "Per-pixel time", true /* optional */, ResourceFormat::R32Uint },
+        { kOutputTemporal,              "",                             "Output temporally reused color, without spatial reuse", true /* optional */ },
         { kOutputSpecularAlbedo,                "gOutputSpecularAlbedo",                "Output specular albedo (linear)", true /* optional */, ResourceFormat::RGBA8Unorm },
         { kOutputIndirectAlbedo,                "gOutputIndirectAlbedo",                "Output indirect albedo (linear)", true /* optional */, ResourceFormat::RGBA8Unorm },
         { kOutputReflectionPosW,                "gOutputReflectionPosW",                "Output reflection pos (world space)", true /* optional */, ResourceFormat::RGBA32Float },
@@ -1533,6 +1535,9 @@ bool ReSTIRPTPass::beginFrame(RenderContext* pRenderContext, const RenderData& r
         return false;
     }
 
+    const auto& pOutputTemporal = renderData[kOutputTemporal]->asTexture();
+    if (pOutputTemporal) pRenderContext->clearUAV(pOutputTemporal->getUAV().get(), float4(0.f));
+
     // Clear envLight
     if (renderData[kOutputEnvLight] != nullptr)
     {
@@ -1743,6 +1748,8 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
         var["gNoResamplingForTemporalReuse"] = mNoResamplingForTemporalReuse;
         if (!mUseMaxHistory) var["gTemporalHistoryLength"] = 1e30f;
         else var["gTemporalHistoryLength"] = (float)mTemporalHistoryLength;
+
+        var["outputTemporal"] = renderData[kOutputTemporal]->asTexture();
     }
     else
     {

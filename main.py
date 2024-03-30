@@ -242,7 +242,7 @@ def render_input(start, end):
         ## PathTracer
         'current': f"{path}.color",
         'indirect1spp': f"{path}.debug",
-        'envLight': f"{path}.envLight",
+        'temporal': f"{path}.temporalColor",
         'albedo': f"{path}.albedo",
         # 'viewAlbedo': f"{path}.specularAlbedo",
 
