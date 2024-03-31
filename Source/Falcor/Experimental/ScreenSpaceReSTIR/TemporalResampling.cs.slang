@@ -36,6 +36,7 @@ struct TemporalResampling
     RWStructuredBuffer<PackedReservoir> reservoirs;
     StructuredBuffer<PackedReservoir> prevReservoirs;
     RWTexture2D<float4> debugOutput;
+    RWTexture2D<float4> temporalLi;
 
     Lights lights;
 
@@ -120,6 +121,34 @@ struct TemporalResampling
 
         // Save reservoir.
         reservoirs[pixelIndex] = risState.toReservoir().pack();
+
+        // Output temporal reuse only output (no spatial)
+        var reservoir = risState.toReservoir();
+        if (reservoir.isValid())
+        {
+            // Evaluate light sample.
+            EvaluatedLightSample evaluatedLightSample = lights.evalLightSample(reservoir.lightSample, currentContext.pos);
+
+            // Evaluate visibility.
+            float visibility = currentContext.evalVisibility(evaluatedLightSample);
+
+            if (visibility > 0.f)
+            {
+                if (evaluatedLightSample.distance > 0.f)
+                {
+                    float3 Li = reservoir.weight * evaluatedLightSample.geomFactor * lights.evalEmission(reservoir.lightSample);
+                    temporalLi[pixel] = float4(Li, 1.f);
+                }
+                else
+                {
+                    temporalLi[pixel] = float4(0.f);
+                }
+            }
+            else
+            {
+                temporalLi[pixel] = float4(0.f);
+            }
+        }
     }
 };
 

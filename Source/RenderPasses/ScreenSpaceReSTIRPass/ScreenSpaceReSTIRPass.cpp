@@ -35,6 +35,7 @@ namespace
         { "specularIllumination",   "gSpecularIllumination",    "Specular illumination",    true /* optional */, ResourceFormat::RGBA32Float },
         { "specularReflectance",    "gSpecularReflectance",     "Specular reflectance",     true /* optional */, ResourceFormat::RGBA32Float },
         { "debug",                  "gDebug",                   "Debug output",             true /* optional */, ResourceFormat::RGBA32Float },
+        { "temporalOutput",         "gTemporalOutput",          "",                         true /* optional */, ResourceFormat::RGBA32Float },
     };
 
     // Scripting options.

@@ -112,6 +112,7 @@ namespace Falcor
         var["surfaceData"] = mpSurfaceData;
         var["normalDepth"] = mpNormalDepthTexture;
         var["finalSamples"] = mpFinalSamples;
+        var["temporalLi"] = mpTemporalLiTexture;
 
         var["frameDim"] = mFrameDim;
 
@@ -521,6 +522,12 @@ namespace Falcor
         {
             mpDebugOutputTexture = Texture::create2D(mFrameDim.x, mFrameDim.y, ResourceFormat::RGBA32Float, 1, 1, nullptr, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
         }
+
+        // Create temporal Li texture
+        if (!mpTemporalLiTexture || mpTemporalLiTexture->getWidth() != mFrameDim.x || mpTemporalLiTexture->getHeight() != mFrameDim.y)
+        {
+            mpTemporalLiTexture = Texture::create2D(mFrameDim.x, mFrameDim.y, ResourceFormat::RGBA32Float, 1, 1, nullptr, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
+        }
     }
 
     void ScreenSpaceReSTIR::prepareLighting(RenderContext* pRenderContext)
@@ -888,6 +895,7 @@ namespace Falcor
         var["reservoirs"] = mpReservoirs;
         var["prevReservoirs"] = mpPrevReservoirs;
         var["debugOutput"] = mpDebugOutputTexture;
+        var["temporalLi"] = mpTemporalLiTexture;
         setLightsShaderData(var["lights"]);
         var["frameDim"] = mFrameDim;
         var["frameIndex"] = mTotalRISPasses * mFrameIndex + mCurRISPass;

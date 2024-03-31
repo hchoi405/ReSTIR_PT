@@ -349,6 +349,7 @@ namespace Falcor
         Texture::SharedPtr mpNormalDepthTexture;            ///< Compact normal/depth texture used for fast neighbor pixel validation.
         Texture::SharedPtr mpPrevNormalDepthTexture;        ///< Compact normal/depth texture used for fast neighbor pixel validation.
         Texture::SharedPtr mpDebugOutputTexture;            ///< Debug output texture.
+        Texture::SharedPtr mpTemporalLiTexture;
 
         Buffer::SharedPtr mpLightTileData;                  ///< Buffer with the light tiles (light samples).
 

@@ -19,6 +19,7 @@ RWTexture2D<float4> gDiffuseReflectance;
 RWTexture2D<float4> gSpecularIllumination;
 RWTexture2D<float4> gSpecularReflectance;
 RWTexture2D<float4> gDebug;
+RWTexture2D<float4> gTemporalOutput;
 
 #define is_valid(name) (is_valid_##name != 0)
 
@@ -51,6 +52,8 @@ struct FinalShading
         float3 specularIllumination = {};
         float hitT = 10000.f; // TODO: Remove magic number also used in SpatioTemporalResampling pass.
 
+        float3 temporal = {};
+
         ShadingData sd;
         if (loadShadingData(pixel, frameDim, gScene.camera, vbuffer, sd))
         {
@@ -67,12 +70,17 @@ struct FinalShading
             if (valid)
             {
                 sd.setActiveLobes((uint)LobeType::DiffuseReflection);
-                diffuse = standardMaterial.eval(sd, dir) * Li;
+                float3 diffuseFactor = standardMaterial.eval(sd, dir);
+                diffuse = diffuseFactor * Li;
 
                 sd.setActiveLobes((uint)LobeType::SpecularReflection);
-                specular = standardMaterial.eval(sd, dir) * Li;
+                float3 specularFactor = standardMaterial.eval(sd, dir);
+                specular = specularFactor * Li;
 
                 hitT = distance;
+
+                float3 temporalLi = screenSpaceReSTIR.temporalLi[pixel].rgb;
+                temporal = diffuseFactor * temporalLi + specularFactor * temporalLi;
             }
 
             emission = sd.emissive;
@@ -111,6 +119,7 @@ struct FinalShading
             if (is_valid(gDiffuseIllumination)) gDiffuseIllumination[pixel] = float4(diffuseIllumination, hitT) / numReSTIRInstances;
             if (is_valid(gSpecularReflectance)) gSpecularReflectance[pixel] = float4(specularReflectance, 1.f) / numReSTIRInstances;
             if (is_valid(gSpecularIllumination)) gSpecularIllumination[pixel] = float4(specularIllumination, hitT) / numReSTIRInstances;
+            if (is_valid(gTemporalOutput)) gTemporalOutput[pixel] = float4(temporal, 1.f) / numReSTIRInstances;
         }
         else
         {
@@ -120,6 +129,7 @@ struct FinalShading
             if (is_valid(gDiffuseIllumination)) gDiffuseIllumination[pixel] += float4(diffuseIllumination, hitT) / numReSTIRInstances;
             if (is_valid(gSpecularReflectance)) gSpecularReflectance[pixel] += float4(specularReflectance, 1.f) / numReSTIRInstances;
             if (is_valid(gSpecularIllumination)) gSpecularIllumination[pixel] += float4(specularIllumination, hitT) / numReSTIRInstances;
+            if (is_valid(gTemporalOutput)) gTemporalOutput[pixel] += float4(temporal, 1.f) / numReSTIRInstances;
         }
     }
 };

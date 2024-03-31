@@ -37,6 +37,7 @@ struct ScreenSpaceReSTIR
 
     // ReSTIR DI resources.
     StructuredBuffer<PackedFinalSample> finalSamples;
+    Texture2D<float4> temporalLi;
 
     // ReSTIR GI resources.
     RWStructuredBuffer<PackedGIReservoir> initialSamples;
