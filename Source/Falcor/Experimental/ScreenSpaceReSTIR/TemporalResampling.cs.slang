@@ -125,32 +125,63 @@ struct TemporalResampling
             reservoirs[pixelIndex] = risState.toReservoir().pack();
         }
 
-        // Output temporal reuse only output (no spatial)
-        var reservoir = risState.toReservoir();
-        if (reservoir.isValid())
+        // Output temporal reuse only output (temporal2: no spatial, reuse with different seed).
         {
-            // Evaluate light sample.
-            EvaluatedLightSample evaluatedLightSample = lights.evalLightSample(reservoir.lightSample, currentContext.pos);
+            var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
 
-            // Evaluate visibility.
-            float visibility = currentContext.evalVisibility(evaluatedLightSample);
+            // Back-project this pixel to previous frame.
+            const int2 prevPixel = pixel + motionVectors[pixel] * frameDim + (sampleNext2D(sg2) * 1.f - 0.f);
+            if (!isValidPixel(prevPixel)) return;
+            const uint prevPixelIndex = getPixelIndex(prevPixel);
 
-            if (visibility > 0.f)
+            // Setup evaluation context for back-projected pixel.
+            const EvalContext prevContext = EvalContext::create(prevPixel, frameDim, SurfaceData::createFromPacked(prevSurfaceData[prevPixelIndex]));
+            if (!prevContext.isValid()) return;
+
+            // Load reservoirs.
+            Reservoir prevReservoir = Reservoir::createFromPacked(prevReservoirs[prevPixelIndex]);
+            prevReservoir.M = min(prevReservoir.M, currentReservoir.M * kMaxHistoryLength);
+
+            // Setup resampling.
+            RisState risState2 = RisState::createEmpty();
+
+            if (!kUsePairwiseMIS)
             {
-                if (evaluatedLightSample.distance > 0.f)
+                // Check if previous sample is valid for reuse.
+                if (!kUnbiased && !currentContext.isValidNeighbor(prevContext, normalThreshold, depthThreshold)) return;
+
+                // Resample current and previous reservoirs.
+                streamingResampleStep(risState2, currentReservoir, currentContext, lights, sg2);
+                bool usedPrev = streamingResampleStep(risState2, prevReservoir, currentContext, lights, sg2);
+
+                // Compute the unbiased normalization term (instead of using 1/M).
+                const LoadedLightSample lightSample = lights.loadLightSample(risState2.lightSample);
+                float currentPdf = currentContext.evalTargetFunction(lightSample, kUnbiased);
+                float prevPdf = prevContext.evalTargetFunction(lightSample, kUnbiased);
+                float normalization = (usedPrev ? prevPdf : currentPdf) / (currentReservoir.M * currentPdf + prevReservoir.M * prevPdf);
+                risState2.weight = risState2.weight > 0.f ? (risState2.weightSum * normalization) / risState2.weight : 0.f;
+            }
+
+            var reservoir = risState2.toReservoir();
+
+            float3 Li = float3(0.f);
+            if (reservoir.isValid())
+            {
+                // Evaluate light sample.
+                EvaluatedLightSample evaluatedLightSample = lights. evalLightSample(reservoir.lightSample, currentContext.pos);
+
+                // Evaluate visibility.
+                float visibility = currentContext.evalVisibility(evaluatedLightSample);
+
+                if (visibility > 0.f)
                 {
-                    float3 Li = reservoir.weight * evaluatedLightSample.geomFactor * lights.evalEmission(reservoir.lightSample);
-                    temporalLi[pixel] = float4(Li, 1.f);
-                }
-                else
-                {
-                    temporalLi[pixel] = float4(0.f);
+                    if (evaluatedLightSample.distance > 0.f)
+                    {
+                        Li = reservoir.weight * evaluatedLightSample.geomFactor * lights.evalEmission(reservoir.lightSample);
+                    }
                 }
             }
-            else
-            {
-                temporalLi[pixel] = float4(0.f);
-            }
+            temporalLi[pixel] = float4(Li, 1.f);
         }
     }
 };

@@ -19,7 +19,7 @@ RWTexture2D<float4> gDiffuseReflectance;
 RWTexture2D<float4> gSpecularIllumination;
 RWTexture2D<float4> gSpecularReflectance;
 RWTexture2D<float4> gDebug;
-RWTexture2D<float4> gTemporalOutput;
+RWTexture2D<float4> gTemporalColor;
 
 #define is_valid(name) (is_valid_##name != 0)
 
@@ -119,7 +119,7 @@ struct FinalShading
             if (is_valid(gDiffuseIllumination)) gDiffuseIllumination[pixel] = float4(diffuseIllumination, hitT) / numReSTIRInstances;
             if (is_valid(gSpecularReflectance)) gSpecularReflectance[pixel] = float4(specularReflectance, 1.f) / numReSTIRInstances;
             if (is_valid(gSpecularIllumination)) gSpecularIllumination[pixel] = float4(specularIllumination, hitT) / numReSTIRInstances;
-            if (is_valid(gTemporalOutput)) gTemporalOutput[pixel] = float4(temporal, 1.f) / numReSTIRInstances;
+            if (is_valid(gTemporalColor)) gTemporalColor[pixel] = float4(temporal, 1.f) / numReSTIRInstances;
         }
         else
         {
@@ -129,7 +129,7 @@ struct FinalShading
             if (is_valid(gDiffuseIllumination)) gDiffuseIllumination[pixel] += float4(diffuseIllumination, hitT) / numReSTIRInstances;
             if (is_valid(gSpecularReflectance)) gSpecularReflectance[pixel] += float4(specularReflectance, 1.f) / numReSTIRInstances;
             if (is_valid(gSpecularIllumination)) gSpecularIllumination[pixel] += float4(specularIllumination, hitT) / numReSTIRInstances;
-            if (is_valid(gTemporalOutput)) gTemporalOutput[pixel] += float4(temporal, 1.f) / numReSTIRInstances;
+            if (is_valid(gTemporalColor)) gTemporalColor[pixel] += float4(temporal, 1.f) / numReSTIRInstances;
         }
     }
 };
