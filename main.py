@@ -103,7 +103,7 @@ def add_fileload(g):
 
     # key:value = filename:channelName
     channels = {
-        'path': 'color',
+        'current': 'color',
         'albedo': 'albedo',
         'normal': 'normW',
         'mvec': 'mvec',
@@ -112,12 +112,12 @@ def add_fileload(g):
         'position': 'posW',
         'pnFwidth': 'pnFwidth',
     }
-    input_dir = f"{WORKSPACE_DIR}/data"
+    input_dir = OUT_DIR
     FileloadPassGbuf = createPass("FileloadPass", {
         'directory': input_dir,
         'filenames': list(channels.keys()),
         'channalNames': list(channels.values()),
-        'startFrame': FILELOAD_STARTFRAME,
+        'startFrame': 0,
     })
     gbuffile = "GbufFileloadPass"
     g.addPass(FileloadPassGbuf, gbuffile)
@@ -126,7 +126,7 @@ def add_fileload(g):
         'directory': input_dir,
         'filenames': list(channels.keys()),
         'channalNames': list(channels.values()),
-        'startFrame': FILELOAD_STARTFRAME,
+        'startFrame': 0,
     })
     pathfile = "PathFileloadPass"
     g.addPass(FileloadPassPath, pathfile)
