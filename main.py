@@ -81,6 +81,7 @@ def add_path(g, gbuf, enable_restir=True, crn=False):
         g.addEdge(f"{gbuf}.vbuffer", f"{screenReSTIR}.vbuffer")
         g.addEdge(f"{gbuf}.mvec", f"{screenReSTIR}.motionVectors")
         g.addEdge(f"{screenReSTIR}.color", f"{path}.directLighting")
+        g.addEdge(f"{screenReSTIR}.temporalColor", f"{path}.directTemporal")
 
     return path, screenReSTIR
 

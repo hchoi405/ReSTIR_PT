@@ -59,6 +59,7 @@ struct PathTracer
     RWTexture2D<float4> outputAlbedo;
 
     Texture2D<float4> directLighting;                   ///< Output offset into per-sample buffers. Only valid when kSamplesPerPixel == 0.
+    Texture2D<float4> directTemporal;                   ///< Output offset into per-sample buffers. Only valid when kSamplesPerPixel == 0.
 
     RWStructuredBuffer<PathReservoir> outputReservoirs;            ///< Output paths from the path tracing pass.
     bool isLastRound;

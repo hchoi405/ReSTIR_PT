@@ -36,6 +36,7 @@ struct PathReusePass
 
     Texture2D<float4> directLighting;
     bool useDirectLighting;
+    Texture2D<float4> directTemporal;
 
     int  gNumSpatialRounds;
 
@@ -318,19 +319,11 @@ struct PathReusePass
 
                 outputColor[pixel] += float4(color / kSamplesPerPixel, 1.f);
             }
-
-            // // Write temporal color
-            // float3 temporalColor = color;
-            // if (useDirectLighting)
-            // {
-            //     temporalColor += directLighting[pixel].rgb;
-            //     if (any(isnan(temporalColor) || isinf(temporalColor))) temporalColor = 0.f;
-            // }
-            // outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
         }
 
         // Temporal 2
-        if (false) {
+        float3 temporalColor = 0.f;
+        {
             PathReservoir dstReservoir2 = centralReservoir;
             dstReservoir2.init();
             ReconnectionData dummyRcData2;
@@ -450,20 +443,11 @@ struct PathReusePass
             }
 
             if (dstReservoir2.weight < 0.f || isinf(dstReservoir2.weight) || isnan(dstReservoir2.weight)) dstReservoir2.weight = 0.f;
-            color = dstReservoir2.F * dstReservoir2.weight;
-
-            // Write temporal color
-            float3 temporalColor = color;
-            if (useDirectLighting)
-            {
-                temporalColor += directLighting[pixel].rgb;
-                if (any(isnan(temporalColor) || isinf(temporalColor))) temporalColor = 0.f;
-            }
-            outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
+            temporalColor = dstReservoir2.F * dstReservoir2.weight;
         }
 
         // Temporal 3
-        {
+        if (false) {
             PathReservoir dstReservoir2 = centralReservoir;
             dstReservoir2.init();
             ReconnectionData dummyRcData2;
@@ -519,18 +503,16 @@ struct PathReusePass
             }
 
             if (dstReservoir2.weight < 0.f || isinf(dstReservoir2.weight) || isnan(dstReservoir2.weight)) dstReservoir2.weight = 0.f;
-            color = dstReservoir2.F * dstReservoir2.weight;
-
-            // Write temporal color
-            float3 temporalColor = color;
-            if (useDirectLighting)
-            {
-                temporalColor += directLighting[pixel].rgb;
-                if (any(isnan(temporalColor) || isinf(temporalColor))) temporalColor = 0.f;
-            }
-            outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
+            temporalColor = dstReservoir2.F * dstReservoir2.weight;
         }
 
+        // Write temporal color
+        if (useDirectLighting)
+        {
+            temporalColor += directTemporal[pixel].rgb;
+            if (any(isnan(temporalColor) || isinf(temporalColor))) temporalColor = 0.f;
+        }
+        outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
     }
 
     /** Entry point for merge pass.

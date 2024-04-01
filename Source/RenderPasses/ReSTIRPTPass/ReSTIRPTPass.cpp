@@ -22,12 +22,14 @@ namespace
     const std::string kInputVBuffer = "vbuffer";
     const std::string kInputMotionVectors = "motionVectors";
     const std::string kInputDirectLighting = "directLighting";
+    const std::string kInputDirectTemporal = "directTemporal";
 
     const Falcor::ChannelList kInputChannels =
     {
         { kInputVBuffer,        "gVBuffer",         "Visibility buffer in packed format", false, ResourceFormat::Unknown },
         { kInputMotionVectors,  "gMotionVectors",   "Motion vector buffer (float format)", true /* optional */, ResourceFormat::RG32Float },
         { kInputDirectLighting,    "gDirectLighting",     "Sample count buffer (integer format)", true /* optional */, ResourceFormat::RGBA32Float },
+        { kInputDirectTemporal,    "gDirectTemporal",     "Sample count buffer (integer format)", true /* optional */, ResourceFormat::RGBA32Float },
     };
 
     const std::string kOutputColor = "color";
@@ -1331,6 +1333,7 @@ void ReSTIRPTPass::preparePathTracer(const RenderData& renderData)
     setShaderData(var, renderData, true, false);
     var["outputReservoirs"] = mpOutputReservoirs;
     var["directLighting"] = renderData[kInputDirectLighting]->asTexture();
+    var["directTemporal"] = renderData[kInputDirectTemporal]->asTexture();
 
     var["fixSpatialSeed"] = mFixSpatialSeed;
     var["spatialSeed"] = mSpatialSeed;
@@ -1780,6 +1783,8 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
     {
         var["directLighting"] = renderData[kInputDirectLighting]->asTexture();
         var["useDirectLighting"] = mUseDirectLighting;
+        if (isTemporalReuse)
+            var["directTemporal"] = renderData[kInputDirectTemporal]->asTexture();
     }
     var["gIsLastRound"] = mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse || isLastRound;
 

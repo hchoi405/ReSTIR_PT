@@ -125,8 +125,11 @@ struct TemporalResampling
             reservoirs[pixelIndex] = risState.toReservoir().pack();
         }
 
+        // Setup resampling.
+        RisState risState2 = RisState::createEmpty();
+
         // Output temporal reuse only output (temporal2: no spatial, reuse with different seed).
-        if (false) {
+        {
             var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
 
             // Back-project this pixel to previous frame.
@@ -141,9 +144,6 @@ struct TemporalResampling
             // Load reservoirs.
             Reservoir prevReservoir = Reservoir::createFromPacked(prevReservoirs[prevPixelIndex]);
             prevReservoir.M = min(prevReservoir.M, currentReservoir.M * kMaxHistoryLength);
-
-            // Setup resampling.
-            RisState risState2 = RisState::createEmpty();
 
             if (!kUsePairwiseMIS)
             {
@@ -162,30 +162,10 @@ struct TemporalResampling
                 risState2.weight = risState2.weight > 0.f ? (risState2.weightSum * normalization) / risState2.weight : 0.f;
             }
 
-            var reservoir = risState2.toReservoir();
-
-            float3 Li = float3(0.f);
-            if (reservoir.isValid())
-            {
-                // Evaluate light sample.
-                EvaluatedLightSample evaluatedLightSample = lights. evalLightSample(reservoir.lightSample, currentContext.pos);
-
-                // Evaluate visibility.
-                float visibility = currentContext.evalVisibility(evaluatedLightSample);
-
-                if (visibility > 0.f)
-                {
-                    if (evaluatedLightSample.distance > 0.f)
-                    {
-                        Li = reservoir.weight * evaluatedLightSample.geomFactor * lights.evalEmission(reservoir.lightSample);
-                    }
-                }
-            }
-            temporalLi[pixel] = float4(Li, 1.f);
         }
 
         // Output (temporal3: temporal2 + no current sample).
-        {
+        if (false) {
             var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
 
             // Back-project this pixel to previous frame.
@@ -201,43 +181,40 @@ struct TemporalResampling
             Reservoir prevReservoir = Reservoir::createFromPacked(prevReservoirs[prevPixelIndex]);
             prevReservoir.M = min(prevReservoir.M, currentReservoir.M * kMaxHistoryLength);
 
-            // Setup resampling.
-            RisState risState3 = RisState::createEmpty();
-
             // Check if previous sample is valid for reuse.
             if (!kUnbiased && !currentContext.isValidNeighbor(prevContext, normalThreshold, depthThreshold)) return;
 
             // streamingResampleStep(risState2, currentReservoir, currentContext, lights, sg2);
             // Resample previous reservoir.
-            bool usedPrev = streamingResampleStep(risState3, prevReservoir, currentContext, lights, sg2);
+            bool usedPrev = streamingResampleStep(risState2, prevReservoir, currentContext, lights, sg2);
 
             // Compute the unbiased normalization term (instead of using 1/M).
-            const LoadedLightSample lightSample = lights.loadLightSample(risState3.lightSample);
+            const LoadedLightSample lightSample = lights.loadLightSample(risState2.lightSample);
             float prevPdf = prevContext.evalTargetFunction(lightSample, kUnbiased);
             float normalization = (usedPrev ? prevPdf : 0.f) / (prevReservoir.M * prevPdf);
-            risState3.weight = risState3.weight > 0.f ? (risState3.weightSum * normalization) / risState3.weight : 0.f;
+            risState2.weight = risState2.weight > 0.f ? (risState2.weightSum * normalization) / risState2.weight : 0.f;
+        }
 
-            var reservoir = risState3.toReservoir();
+        // Evaluate color for temporal
+        var reservoir = risState2.toReservoir();
+        float3 Li = float3(0.f);
+        if (reservoir.isValid())
+        {
+            // Evaluate light sample.
+            EvaluatedLightSample evaluatedLightSample = lights.evalLightSample(reservoir.lightSample, currentContext.pos);
 
-            float3 Li = float3(0.f);
-            if (reservoir.isValid())
+            // Evaluate visibility.
+            float visibility = currentContext.evalVisibility(evaluatedLightSample);
+
+            if (visibility > 0.f)
             {
-                // Evaluate light sample.
-                EvaluatedLightSample evaluatedLightSample = lights.evalLightSample(reservoir.lightSample, currentContext.pos);
-
-                // Evaluate visibility.
-                float visibility = currentContext.evalVisibility(evaluatedLightSample);
-
-                if (visibility > 0.f)
+                if (evaluatedLightSample.distance > 0.f)
                 {
-                    if (evaluatedLightSample.distance > 0.f)
-                    {
-                        Li = reservoir.weight * evaluatedLightSample.geomFactor * lights.evalEmission(reservoir.lightSample);
-                    }
+                    Li = reservoir.weight * evaluatedLightSample.geomFactor * lights.evalEmission(reservoir.lightSample);
                 }
             }
-            temporalLi[pixel] = float4(Li, 1.f);
         }
+        temporalLi[pixel] = float4(Li, 1.f);
 
     }
 };
