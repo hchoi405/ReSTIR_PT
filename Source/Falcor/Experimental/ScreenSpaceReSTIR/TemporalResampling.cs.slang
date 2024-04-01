@@ -126,7 +126,7 @@ struct TemporalResampling
         }
 
         // Output temporal reuse only output (temporal2: no spatial, reuse with different seed).
-        {
+        if (false) {
             var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
 
             // Back-project this pixel to previous frame.
@@ -183,6 +183,62 @@ struct TemporalResampling
             }
             temporalLi[pixel] = float4(Li, 1.f);
         }
+
+        // Output (temporal3: temporal2 + no current sample).
+        {
+            var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
+
+            // Back-project this pixel to previous frame.
+            const int2 prevPixel = pixel + motionVectors[pixel] * frameDim + (sampleNext2D(sg2) * 1.f - 0.f);
+            if (!isValidPixel(prevPixel)) return;
+            const uint prevPixelIndex = getPixelIndex(prevPixel);
+
+            // Setup evaluation context for back-projected pixel.
+            const EvalContext prevContext = EvalContext::create(prevPixel, frameDim, SurfaceData::createFromPacked(prevSurfaceData[prevPixelIndex]));
+            if (!prevContext.isValid()) return;
+
+            // Load reservoirs.
+            Reservoir prevReservoir = Reservoir::createFromPacked(prevReservoirs[prevPixelIndex]);
+            prevReservoir.M = min(prevReservoir.M, currentReservoir.M * kMaxHistoryLength);
+
+            // Setup resampling.
+            RisState risState3 = RisState::createEmpty();
+
+            // Check if previous sample is valid for reuse.
+            if (!kUnbiased && !currentContext.isValidNeighbor(prevContext, normalThreshold, depthThreshold)) return;
+
+            // streamingResampleStep(risState2, currentReservoir, currentContext, lights, sg2);
+            // Resample previous reservoir.
+            bool usedPrev = streamingResampleStep(risState3, prevReservoir, currentContext, lights, sg2);
+
+            // Compute the unbiased normalization term (instead of using 1/M).
+            const LoadedLightSample lightSample = lights.loadLightSample(risState3.lightSample);
+            float prevPdf = prevContext.evalTargetFunction(lightSample, kUnbiased);
+            float normalization = (usedPrev ? prevPdf : 0.f) / (prevReservoir.M * prevPdf);
+            risState3.weight = risState3.weight > 0.f ? (risState3.weightSum * normalization) / risState3.weight : 0.f;
+
+            var reservoir = risState3.toReservoir();
+
+            float3 Li = float3(0.f);
+            if (reservoir.isValid())
+            {
+                // Evaluate light sample.
+                EvaluatedLightSample evaluatedLightSample = lights.evalLightSample(reservoir.lightSample, currentContext.pos);
+
+                // Evaluate visibility.
+                float visibility = currentContext.evalVisibility(evaluatedLightSample);
+
+                if (visibility > 0.f)
+                {
+                    if (evaluatedLightSample.distance > 0.f)
+                    {
+                        Li = reservoir.weight * evaluatedLightSample.geomFactor * lights.evalEmission(reservoir.lightSample);
+                    }
+                }
+            }
+            temporalLi[pixel] = float4(Li, 1.f);
+        }
+
     }
 };
 
