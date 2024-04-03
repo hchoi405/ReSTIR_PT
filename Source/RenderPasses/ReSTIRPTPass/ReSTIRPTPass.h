@@ -155,12 +155,15 @@ private:
     // params below
     bool                            mEnableTemporalReuse = true;
     bool                            mEnableSpatialReuse = true;
-    SpatialReusePattern             mSpatialReusePattern = SpatialReusePattern::Default;
+    SpatialReusePattern             mSpatialReusePattern = SpatialReusePattern::Tile;
     PathReusePattern                mPathReusePattern = PathReusePattern::NRooksShift;
     uint32_t                        mSmallWindowRestirWindowRadius = 2;
     int                             mSpatialNeighborCount = 3;
     float                           mSpatialReuseRadius = 20.f;
     int                             mNumSpatialRounds = 1;
+
+    uint                            mTileWidth = 4;
+    bool                            mUseTileSeed = true;
 
     bool                            mEnableTemporalReprojection = true;
     bool                            mFeatureBasedRejection = true;
@@ -169,7 +172,7 @@ private:
 
     int                             mReservoirFrameCount = 0; // internal
 
-    bool                            mUseDirectLighting = true;
+    bool                            mUseDirectLighting = false;
 
     int                             mTemporalHistoryLength = 20;
     bool                            mNoResamplingForTemporalReuse = false;

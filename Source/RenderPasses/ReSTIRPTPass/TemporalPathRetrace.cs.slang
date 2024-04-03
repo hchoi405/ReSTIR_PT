@@ -47,6 +47,9 @@ struct PathRetracePass
     uint temporalSeed;
     uint temporalSeedOffset;
 
+    uint gTileWidth;
+    bool useTileSeed;
+
     bool isValidPackedHitInfo(PackedHitInfo packed)
     {
         return packed.x != 0;
@@ -87,8 +90,10 @@ struct PathRetracePass
     */
     void ReSTIR(const uint2 pixel)
     {
+        uint2 tileSeed = pixel % gTileWidth;
+
         // TODO: How to seed efficiently?
-        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : pixel;
+        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : (useTileSeed ? tileSeed : pixel);
         uint temporalSeed2 = fixTemporalSeed ? temporalSeed : (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples;
         var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 

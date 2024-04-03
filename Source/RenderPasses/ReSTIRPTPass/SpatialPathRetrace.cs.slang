@@ -50,6 +50,9 @@ struct PathRetracePass
     uint temporalSeed;
     uint temporalSeedOffset;
 
+    uint gTileWidth;
+    bool useTileSeed;
+
     // for linear growth of M when merging reservoirs
 
     bool gFeatureBasedRejection;
@@ -91,11 +94,16 @@ struct PathRetracePass
         {
             return gNeighborCount;
         }
-        else
+        else if (SpatialReusePattern(gSpatialReusePattern) == SpatialReusePattern::SmallWindow)
         {
             int smallWindowDiameter = 2 * gSmallWindowRadius + 1;
             return smallWindowDiameter * smallWindowDiameter; // count self, but not use self as neighbor
         }
+        else if (SpatialReusePattern(gSpatialReusePattern) == SpatialReusePattern::Tile)
+        {
+            return gNeighborCount;
+        }
+        return 0;
     }
 
     int2 getNextNeighborPixel(const uint startIndex, int2 pixel, int i)
@@ -112,6 +120,14 @@ struct PathRetracePass
             int smallWindowDiameter = 2 * gSmallWindowRadius + 1;
             neighborPixel = pixel + int2(-gSmallWindowRadius + (i % smallWindowDiameter),
                 -gSmallWindowRadius + (i / smallWindowDiameter));
+        }
+        else if (SpatialReusePattern(gSpatialReusePattern) == SpatialReusePattern::Tile)
+        {
+            uint2 tileId = pixel / gTileWidth;
+            uint2 tileOffset = tileId * gTileWidth;
+            uint2 tileDim = min(params.frameDim - tileOffset, gTileWidth);
+            uint neighborIndex = (startIndex + i) & kNeighborOffsetMask;
+            neighborPixel = tileOffset + uint2(abs(neighborOffsets[neighborIndex]) * tileDim);
             if (all(neighborPixel == pixel)) neighborPixel = int2(-1);
         }
 
@@ -125,8 +141,10 @@ struct PathRetracePass
     */
     void ReSTIR(const uint2 pixel)
     {
+        uint2 tileSeed = pixel % gTileWidth;
+
         // TODO: How to seed efficiently?
-        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : pixel;
+        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : (useTileSeed ? tileSeed : pixel);
         uint temporalSeed2 = fixTemporalSeed ? temporalSeed : (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId;
         var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 

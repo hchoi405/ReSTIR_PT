@@ -123,6 +123,7 @@ namespace
     {
         { (uint32_t)SpatialReusePattern::Default, std::string("Default")},
         { (uint32_t)SpatialReusePattern::SmallWindow, std::string("Small Window")},
+        { (uint32_t)SpatialReusePattern::Tile, std::string("Tile")},
     };
 
     const Gui::DropdownList kEmissiveSamplerList =
@@ -1340,6 +1341,9 @@ void ReSTIRPTPass::preparePathTracer(const RenderData& renderData)
     var["fixTemporalSeed"] = mFixTemporalSeed;
     var["temporalSeed"] = mTemporalSeed;
     var["temporalSeedOffset"] = mTemporalSeedOffset;
+
+    var["gTileWidth"] = mTileWidth;
+    var["useTileSeed"] = mUseTileSeed;
 }
 
 void ReSTIRPTPass::resetLighting()
@@ -1778,6 +1782,8 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
         }
     }
 
+    var["gTileWidth"] = mTileWidth;
+    var["useTileSeed"] = mUseTileSeed;
 
     if (!isPathReuseMISWeightComputation)
     {
@@ -1858,7 +1864,13 @@ void ReSTIRPTPass::PathRetracePass(RenderContext* pRenderContext, uint32_t resti
         var["gSmallWindowRadius"] = mSmallWindowRestirWindowRadius;
         var["gSpatialReusePattern"] = mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse ? (uint32_t)mPathReusePattern : (uint32_t)mSpatialReusePattern;
         var["gFeatureBasedRejection"] = mFeatureBasedRejection;
+
+        var["gTileWidth"] = mTileWidth;
+        var["useTileSeed"] = mUseTileSeed;
     }
+
+    var["gTileWidth"] = mTileWidth;
+    var["useTileSeed"] = mUseTileSeed;
 
     var["fixSpatialSeed"] = mFixSpatialSeed;
     var["spatialSeed"] = mSpatialSeed;
@@ -1952,6 +1964,10 @@ Program::DefineList ReSTIRPTPass::StaticParams::getDefines(const ReSTIRPTPass& o
     else if (owner.mSpatialReusePattern == SpatialReusePattern::Default)
     {
         requiredCount = 2 * owner.mSpatialNeighborCount; // center->neighbor and neighbor->center
+    }
+    else if (owner.mSpatialReusePattern == SpatialReusePattern::Tile)
+    {
+        requiredCount = 2 * owner.mSpatialNeighborCount;
     }
     else
     {
