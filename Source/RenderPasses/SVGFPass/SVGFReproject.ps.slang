@@ -56,19 +56,7 @@ cbuffer PerImageCB
 
 float3 demodulate(float3 c, float3 albedo)
 {
-    // Divide c by albedo with min bound 0.001 when albedo is not zero
-    // Otherwise, return c
-    float3 ret;
-    bool3 zeroAlbedo = albedo == 0.0f;
-
-    if (zeroAlbedo.x) ret.x = c.x;
-    else ret.x = c.x / max(albedo.x, 0.001f);
-    if (zeroAlbedo.y) ret.y = c.y;
-    else ret.y = c.y / max(albedo.y, 0.001f);
-    if (zeroAlbedo.z) ret.z = c.z;
-    else ret.z = c.z / max(albedo.z, 0.001f);
-
-    return ret;
+    return c / max(albedo, float3(0.001, 0.001, 0.001));
 }
 
 bool isReprjValid(int2 coord, float Z, float Zprev, float fwidthZ, float3 normal, float3 normalPrev, float fwidthNormal)
