@@ -179,6 +179,9 @@ namespace Falcor
             bool fixTemporalSeed = false;
             uint temporalSeed = 0;
             uint temporalSeedOffset = 0;
+
+            uint tileWidth = 4;
+            bool useTileSeed = true;
         };
 
         void setSeed(bool fixSpatialSeed, uint spatialSeed, bool fixTemporalSeed, uint temporalSeed, uint temporalSeedOffset)

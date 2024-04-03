@@ -56,6 +56,9 @@ struct InitialResampling
     uint temporalSeed;
     uint temporalSeedOffset;
 
+    uint gTileWidth;
+    bool useTileSeed;
+
     uint getPixelIndex(uint2 pixel) { return pixel.y * frameDim.x + pixel.x; }
 
     /** Heuristic to determine a max visibility ray length from a PDF wrt. solid angle.
@@ -123,16 +126,17 @@ struct InitialResampling
         // Determine screen tile.
         // Each screen tile uses light samples from a random light tile for improved coherency.
         uint2 screenTile = pixel / kScreenTileSize;
+        uint2 tileSeed = pixel % gTileWidth;
 
         // Determine light tile to use for this screen tile.
-        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : screenTile;
+        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : (useTileSeed ? tileSeed : screenTile);
         uint temporalSeed2 = fixTemporalSeed ? temporalSeed : frameIndex;
         var tileSg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
         uint tileIndex = min(uint(sampleNext1D(tileSg) * kLightTileCount), kLightTileCount - 1);
         uint lightTileOffset = tileIndex * kLightTileSize;
 
         // Determine offset and stride to stratify samples within the light tile.
-        uint2 spatialSeed3 = fixSpatialSeed ? spatialSeed : pixel;
+        uint2 spatialSeed3 = fixSpatialSeed ? spatialSeed : (useTileSeed ? tileSeed : pixel);
         var sg = TinyUniformSampleGenerator(spatialSeed3, temporalSeedOffset + temporalSeed2);
 
         print("Initial Resampling", 1);

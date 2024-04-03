@@ -52,6 +52,9 @@ struct TemporalResampling
     uint temporalSeed;
     uint temporalSeedOffset;
 
+    uint gTileWidth;
+    bool useTileSeed;
+
     uint getPixelIndex(uint2 pixel) { return pixel.y * frameDim.x + pixel.x; }
 
     bool isValidPixel(int2 pixel) { return all(pixel >= 0 && pixel < frameDim); }
@@ -66,7 +69,9 @@ struct TemporalResampling
 
         const uint pixelIndex = getPixelIndex(pixel);
 
-        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : pixel;
+        uint2 tileSeed = pixel % gTileWidth;
+
+        uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : (useTileSeed ? tileSeed : pixel);
         uint temporalSeed2 = fixTemporalSeed ? temporalSeed : frameIndex;
 
         // Setup evaluation context for current pixel.

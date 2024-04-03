@@ -56,14 +56,29 @@ struct SpatialResampling
     uint temporalSeed;
     uint temporalSeedOffset;
 
+    uint gTileWidth;
+    bool useTileSeed;
+
     uint getPixelIndex(uint2 pixel) { return pixel.y * frameDim.x + pixel.x; }
 
     bool isValidPixel(int2 pixel) { return all(pixel >= 0 && pixel < frameDim); }
 
     int2 getNextNeighborPixel(const uint startIndex, int2 pixel, int i)
     {
+        int2 neighborPixel = int2(-1);
         uint neighborIndex = (startIndex + i) & kNeighborOffsetMask;
-        int2 neighborPixel = pixel + int2(neighborOffsets[neighborIndex] * gatherRadius);
+        if (useTileSeed)
+        {
+            uint2 tileId = pixel / gTileWidth;
+            uint2 tileOffset = tileId * gTileWidth;
+            uint2 tileDim = min(frameDim - tileOffset, gTileWidth);
+            neighborPixel = tileOffset + uint2(abs(neighborOffsets[neighborIndex]) * tileDim);
+            if (all(neighborPixel == pixel)) neighborPixel = int2(-1);
+        }
+        else
+        {
+            neighborPixel = pixel + int2(neighborOffsets[neighborIndex] * gatherRadius);
+        }
 
         return neighborPixel;
     }

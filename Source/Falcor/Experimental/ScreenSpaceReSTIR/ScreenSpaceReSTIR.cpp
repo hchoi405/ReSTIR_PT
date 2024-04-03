@@ -864,6 +864,8 @@ namespace Falcor
         var["temporalSeed"] = mOptions->temporalSeed;
         var["temporalSeedOffset"] = mOptions->temporalSeedOffset;
         var["brdfCutoff"] = mOptions->brdfCutoff;
+        var["gTileWidth"] = mOptions->tileWidth;
+        var["useTileSeed"] = mOptions->useTileSeed;
         mCurRISPass++;
 
         mpInitialResampling->execute(pRenderContext, mFrameDim.x, mFrameDim.y, 1);
@@ -906,6 +908,8 @@ namespace Falcor
         var["temporalSeedOffset"] = mOptions->temporalSeedOffset;
         var["normalThreshold"] = mOptions->normalThreshold;
         var["depthThreshold"] = mOptions->depthThreshold;
+        var["gTileWidth"] = mOptions->tileWidth;
+        var["useTileSeed"] = mOptions->useTileSeed;
         mCurRISPass++;
 
         mpTemporalResampling->execute(pRenderContext, mFrameDim.x, mFrameDim.y, 1);
@@ -935,6 +939,8 @@ namespace Falcor
         var["depthThreshold"] = mOptions->depthThreshold;
         var["neighborCount"] = mOptions->spatialNeighborCount;
         var["gatherRadius"] = (float)mOptions->spatialGatherRadius;
+        var["gTileWidth"] = mOptions->tileWidth;
+        var["useTileSeed"] = mOptions->useTileSeed;
 
         for (uint32_t iteration = 0; iteration < mOptions->spatialIterations; ++iteration)
         {
