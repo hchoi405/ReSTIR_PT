@@ -187,9 +187,10 @@ def build(args):
         ret = subprocess.run(['C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe', "Falcor.sln", "/p:Configuration=ReleaseD3D12", "/m:24", "/v:m"], capture_output=True, text=True)
         if ret.returncode != 0:
             print(ret.stdout)
-            sys.exit(1)
+            sys.exit(-1)
         print('Done.')
         if args.buildonly:
+            print(ret.stdout)
             sys.exit(0)
     else:
         print('Skipped.')
