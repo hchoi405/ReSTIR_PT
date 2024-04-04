@@ -44,6 +44,8 @@ namespace
     const std::string kOutputDebug = "debug";
     const std::string kOutputTime = "time";
     const std::string kOutputTemporal = "temporalColor";
+    const std::string kOutputIndirect = "indirect";
+
     const std::string kOutputNRDDiffuseRadianceHitDist = "nrdDiffuseRadianceHitDist";
     const std::string kOutputNRDSpecularRadianceHitDist = "nrdSpecularRadianceHitDist";
     const std::string kOutputNRDResidualRadianceHitDist = "nrdResidualRadianceHitDist";
@@ -63,6 +65,7 @@ namespace
         { kOutputDebug,                 "",                             "Debug output", true /* optional */, ResourceFormat::RGBA32Float },
         { kOutputTime,                  "",                             "Per-pixel time", true /* optional */, ResourceFormat::R32Uint },
         { kOutputTemporal,              "",                             "Output temporally reused color, without spatial reuse", true /* optional */ },
+        { kOutputIndirect,              "",                             "", true /* optional */ },
         { kOutputSpecularAlbedo,                "gOutputSpecularAlbedo",                "Output specular albedo (linear)", true /* optional */, ResourceFormat::RGBA8Unorm },
         { kOutputIndirectAlbedo,                "gOutputIndirectAlbedo",                "Output indirect albedo (linear)", true /* optional */, ResourceFormat::RGBA8Unorm },
         { kOutputReflectionPosW,                "gOutputReflectionPosW",                "Output reflection pos (world space)", true /* optional */, ResourceFormat::RGBA32Float },
@@ -1480,7 +1483,8 @@ void ReSTIRPTPass::setShaderData(const ShaderVar& var, const RenderData& renderD
     var["params"].setBlob(mParams);
     var["vbuffer"] = renderData[kInputVBuffer]->asTexture();
     var["outputColor"] = renderData[kOutputColor]->asTexture();
-
+    if (isPathGenerator)
+        var["outputIndirect"] = renderData[kOutputIndirect]->asTexture();
 
 
     if (mOutputNRDData && isPathTracer)
@@ -1544,6 +1548,9 @@ bool ReSTIRPTPass::beginFrame(RenderContext* pRenderContext, const RenderData& r
 
     const auto& pOutputTemporal = renderData[kOutputTemporal]->asTexture();
     if (pOutputTemporal) pRenderContext->clearUAV(pOutputTemporal->getUAV().get(), float4(0.f));
+
+    const auto& pOutputIndirect = renderData[kOutputIndirect]->asTexture();
+    if (pOutputIndirect) pRenderContext->clearUAV(pOutputIndirect->getUAV().get(), float4(0.f));
 
     // Clear envLight
     if (renderData[kOutputEnvLight] != nullptr)
@@ -1780,6 +1787,8 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
             var["primaryHitEmission"] = renderData[kOutputNRDEmission]->asTexture();
             var["gSppId"] = restir_i;
         }
+
+        var["outputIndirect"] = renderData[kOutputIndirect]->asTexture();
     }
 
     var["gTileWidth"] = mTileWidth;

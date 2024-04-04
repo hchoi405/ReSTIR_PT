@@ -33,6 +33,7 @@ struct PathReusePass
     ByteAddressBuffer nRooksPattern;
 
     RWTexture2D<float4> outputColor;                      ///< Output resolved color.
+    RWTexture2D<float4> outputIndirect;                      ///< Output resolved color.
     StructuredBuffer<PathReservoir> outputReservoirs;     // reservoir from previous pass
     RWStructuredBuffer<PathReservoir> temporalReservoirs; // resulting reservoir for next frame
     StructuredBuffer<PixelReconnectionData> reconnectionDataBuffer;
@@ -569,6 +570,8 @@ struct PathReusePass
         if (any(isnan(color) || isinf(color) || color < 0.f)) color = 0.f;
         if (gIsLastRound)
         {
+            outputIndirect[pixel] += float4(color / kSamplesPerPixel, 1.f);
+
             if (useDirectLighting)
             {
                 color += directLighting[pixel].rgb;

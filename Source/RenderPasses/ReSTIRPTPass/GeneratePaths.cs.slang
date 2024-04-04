@@ -84,6 +84,7 @@ struct PathGenerator
     Texture2D<PackedHitInfo> vbuffer;               ///< Fullscreen V-buffer for the primary hits.
 
     RWTexture2D<float4> outputColor; ///< Output color buffer if kSamplesPerPixel == 1.
+    RWTexture2D<float4> outputIndirect;
     RWTexture2D<float4> outputEnvLight;
 
 
@@ -167,6 +168,7 @@ struct PathGenerator
             // Set zero to prevent garbage data from previous frame in the output buffer.
             outputColor[pixel] = float4(0, 0, 0, 1.f);
             outputEnvLight[pixel] = float4(envLight, 1.f);
+            outputIndirect[pixel] = float4(0, 0, 0, 1.f);
         }
     }
 };
