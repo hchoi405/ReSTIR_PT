@@ -111,132 +111,134 @@ struct SpatialResampling
         }
 
         // Setup resampling.
-        RisState risState = RisState::createEmpty();
-        const uint startIndex = sampleNext1D(sg) * kNeighborOffsetCount;
-        uint validCount = 0;
-
-        if (kUsePairwiseMIS)
         {
-            const Reservoir currentReservoir = Reservoir::createFromPacked(prevReservoirs[pixelIndex]);
-            const LoadedLightSample currentLightSample = lights.loadLightSample(currentReservoir.lightSample);
-            float currentTargetPdf = evalContext.evalTargetFunction(currentLightSample);
+            RisState risState = RisState::createEmpty();
+            const uint startIndex = sampleNext1D(sg) * kNeighborOffsetCount;
+            uint validCount = 0;
 
-            risState.canonicalWeight = 1.f;
-            uint validNeighbors = 1;
-
-            for (uint i = 0; i < neighborCount; ++i)
+            if (kUsePairwiseMIS)
             {
-                // Get neighbor pixel.
-                int2 neighborPixel = getNextNeighborPixel(startIndex, pixel, i);
-                if (!isValidPixel(neighborPixel)) continue;
-                uint neighborPixelIndex = getPixelIndex(neighborPixel);
+                const Reservoir currentReservoir = Reservoir::createFromPacked(prevReservoirs[pixelIndex]);
+                const LoadedLightSample currentLightSample = lights.loadLightSample(currentReservoir.lightSample);
+                float currentTargetPdf = evalContext.evalTargetFunction(currentLightSample);
 
-                // Check for valid neighbor.
-                float4 neighborNormalDepth = unpackNormalDepth(normalDepth[neighborPixel]);
-                if (!evalContext.isValidNeighbor(neighborNormalDepth, normalThreshold, depthThreshold)) continue;
+                risState.canonicalWeight = 1.f;
+                uint validNeighbors = 1;
 
-                const Reservoir neighborReservoir = Reservoir::createFromPacked(prevReservoirs[neighborPixelIndex]);
-                if (neighborReservoir.M == 0) continue;
-
-                // Setup neighbor evalulation context and resample.
-                const EvalContext neighborContext = EvalContext::create(neighborPixel, frameDim, SurfaceData::createFromPacked(surfaceData[neighborPixelIndex]));
-                if (!neighborContext.isValid()) continue;
-
-                ++validNeighbors;
-                ++validCount;
-
-                if (kUnbiased)
-                    streamingResampleStepMisUnbiased(risState, currentReservoir, currentLightSample, currentTargetPdf, evalContext, neighborReservoir, neighborContext, neighborCount, lights, sg);
-                else
-                    streamingResampleStepMis(risState, currentReservoir, currentLightSample, currentTargetPdf, evalContext, neighborReservoir, neighborContext, neighborCount, lights, sg);
-            }
-
-            streamingResampleFinalizeMis(risState, currentReservoir, currentTargetPdf, sg);
-            risState.M = currentReservoir.M;
-            risState.weight = risState.weight > 0.f ? (risState.weightSum / validNeighbors) / risState.weight : 0.f;
-        }
-        else
-        {
-            // Resample current pixel's reservoir.
-            const Reservoir currentReservoir = Reservoir::createFromPacked(prevReservoirs[pixelIndex]);
-
-            streamingResampleStep(risState, currentReservoir, evalContext, lights, sg, true);
-            float currentM = risState.M;
-
-            // Resample neighbor pixel reservoirs.
-            uint validCache = 0;
-            uint selected = -1;
-
-            // Iterate over neighbor pixels.
-            for (uint i = 0; i < neighborCount; ++i)
-            {
-                // Get neighbor pixel.
-                int2 neighborPixel = getNextNeighborPixel(startIndex, pixel, i);
-                if (!isValidPixel(neighborPixel)) continue;
-                uint neighborPixelIndex = getPixelIndex(neighborPixel);
-
-                // Check for valid neighbor.
-                float4 neighborNormalDepth = unpackNormalDepth(normalDepth[neighborPixel]);
-                if (!evalContext.isValidNeighbor(neighborNormalDepth, normalThreshold, depthThreshold)) continue;
-
-                validCache |= (1 << i);
-                ++validCount;
-
-                Reservoir neighborReservoir = Reservoir::createFromPacked(prevReservoirs[neighborPixelIndex]);
-                selected = streamingResampleStep(risState, neighborReservoir, evalContext, lights, sg, false) ? i : selected;
-            }
-
-            const LoadedLightSample lightSample = lights.loadLightSample(risState.lightSample);
-            float centerVisibility = 1.f;
-            if (kUnbiased) centerVisibility = evalContext.evalVisibility(lightSample);
-
-            // Compute the unbiased normalization term (instead of using 1/M).
-            float pi = selected == -1 ? centerVisibility * risState.weight : 0.f;
-            float piSum = centerVisibility * risState.weight * currentM;
-
-            // Iterate over neighbor pixels again.
-            if (centerVisibility)
-            {
-                if (selected == -1)
+                for (uint i = 0; i < neighborCount; ++i)
                 {
-                    for (uint i = 0; i < neighborCount; ++i)
+                    // Get neighbor pixel.
+                    int2 neighborPixel = getNextNeighborPixel(startIndex, pixel, i);
+                    if (!isValidPixel(neighborPixel)) continue;
+                    uint neighborPixelIndex = getPixelIndex(neighborPixel);
+
+                    // Check for valid neighbor.
+                    float4 neighborNormalDepth = unpackNormalDepth(normalDepth[neighborPixel]);
+                    if (!evalContext.isValidNeighbor(neighborNormalDepth, normalThreshold, depthThreshold)) continue;
+
+                    const Reservoir neighborReservoir = Reservoir::createFromPacked(prevReservoirs[neighborPixelIndex]);
+                    if (neighborReservoir.M == 0) continue;
+
+                    // Setup neighbor evalulation context and resample.
+                    const EvalContext neighborContext = EvalContext::create(neighborPixel, frameDim, SurfaceData::createFromPacked(surfaceData[neighborPixelIndex]));
+                    if (!neighborContext.isValid()) continue;
+
+                    ++validNeighbors;
+                    ++validCount;
+
+                    if (kUnbiased)
+                        streamingResampleStepMisUnbiased(risState, currentReservoir, currentLightSample, currentTargetPdf, evalContext, neighborReservoir, neighborContext, neighborCount, lights, sg);
+                    else
+                        streamingResampleStepMis(risState, currentReservoir, currentLightSample, currentTargetPdf, evalContext, neighborReservoir, neighborContext, neighborCount, lights, sg);
+                }
+
+                streamingResampleFinalizeMis(risState, currentReservoir, currentTargetPdf, sg);
+                risState.M = currentReservoir.M;
+                risState.weight = risState.weight > 0.f ? (risState.weightSum / validNeighbors) / risState.weight : 0.f;
+            }
+            else
+            {
+                // Resample current pixel's reservoir.
+                const Reservoir currentReservoir = Reservoir::createFromPacked(prevReservoirs[pixelIndex]);
+
+                streamingResampleStep(risState, currentReservoir, evalContext, lights, sg, true);
+                float currentM = risState.M;
+
+                // Resample neighbor pixel reservoirs.
+                uint validCache = 0;
+                uint selected = -1;
+
+                // Iterate over neighbor pixels.
+                for (uint i = 0; i < neighborCount; ++i)
+                {
+                    // Get neighbor pixel.
+                    int2 neighborPixel = getNextNeighborPixel(startIndex, pixel, i);
+                    if (!isValidPixel(neighborPixel)) continue;
+                    uint neighborPixelIndex = getPixelIndex(neighborPixel);
+
+                    // Check for valid neighbor.
+                    float4 neighborNormalDepth = unpackNormalDepth(normalDepth[neighborPixel]);
+                    if (!evalContext.isValidNeighbor(neighborNormalDepth, normalThreshold, depthThreshold)) continue;
+
+                    validCache |= (1 << i);
+                    ++validCount;
+
+                    Reservoir neighborReservoir = Reservoir::createFromPacked(prevReservoirs[neighborPixelIndex]);
+                    selected = streamingResampleStep(risState, neighborReservoir, evalContext, lights, sg, false) ? i : selected;
+                }
+
+                const LoadedLightSample lightSample = lights.loadLightSample(risState.lightSample);
+                float centerVisibility = 1.f;
+                if (kUnbiased) centerVisibility = evalContext.evalVisibility(lightSample);
+
+                // Compute the unbiased normalization term (instead of using 1/M).
+                float pi = selected == -1 ? centerVisibility * risState.weight : 0.f;
+                float piSum = centerVisibility * risState.weight * currentM;
+
+                // Iterate over neighbor pixels again.
+                if (centerVisibility)
+                {
+                    if (selected == -1)
                     {
-                        // Skip invalid neighbors.
-                        if (!(validCache & (1 << i)))
+                        for (uint i = 0; i < neighborCount; ++i)
                         {
-                            continue;
+                            // Skip invalid neighbors.
+                            if (!(validCache & (1 << i)))
+                            {
+                                continue;
+                            }
+
+                            int2 neighborPixel = getNextNeighborPixel(startIndex, pixel, i);
+                            uint neighborPixelIndex = getPixelIndex(neighborPixel);
+
+                            // Setup evaluation context.
+                            EvalContext neighborEvalContext = EvalContext::create(neighborPixel, frameDim, SurfaceData::createFromPacked(surfaceData[neighborPixelIndex]));
+                            if (!neighborEvalContext.isValid()) continue;
+
+                            const Reservoir neighborReservoir = Reservoir::createFromPacked(prevReservoirs[neighborPixelIndex]);
+                            const EvaluatedLightSample evaluatedLightSample = lightSample.eval(neighborEvalContext.pos);
+                            float ps = neighborEvalContext.evalTargetFunction(evaluatedLightSample);
+
+                            // If valid, shoot a visibility ray from the neighbor
+                            if (kUnbiased && ps > 0.f) ps *= neighborEvalContext.evalVisibility(evaluatedLightSample);
+
+                            pi = selected == i ? ps : pi;
+                            piSum += ps * neighborReservoir.M;
                         }
-
-                        int2 neighborPixel = getNextNeighborPixel(startIndex, pixel, i);
-                        uint neighborPixelIndex = getPixelIndex(neighborPixel);
-
-                        // Setup evaluation context.
-                        EvalContext neighborEvalContext = EvalContext::create(neighborPixel, frameDim, SurfaceData::createFromPacked(surfaceData[neighborPixelIndex]));
-                        if (!neighborEvalContext.isValid()) continue;
-
-                        const Reservoir neighborReservoir = Reservoir::createFromPacked(prevReservoirs[neighborPixelIndex]);
-                        const EvaluatedLightSample evaluatedLightSample = lightSample.eval(neighborEvalContext.pos);
-                        float ps = neighborEvalContext.evalTargetFunction(evaluatedLightSample);
-
-                        // If valid, shoot a visibility ray from the neighbor
-                        if (kUnbiased && ps > 0.f) ps *= neighborEvalContext.evalVisibility(evaluatedLightSample);
-
-                        pi = selected == i ? ps : pi;
-                        piSum += ps * neighborReservoir.M;
                     }
                 }
+
+                float normalization = piSum > 0.f ? pi / piSum : 0.f;
+
+                risState.weight = risState.weight > 0.f ? (risState.weightSum * normalization) / risState.weight : 0.f;
             }
 
-            float normalization = piSum > 0.f ? pi / piSum : 0.f;
+            // Save reservoir.
+            reservoirs[pixelIndex] = risState.toReservoir().pack();
 
-            risState.weight = risState.weight > 0.f ? (risState.weightSum * normalization) / risState.weight : 0.f;
+            // Write debug output.
+            if (kDebugOutput == DebugOutput::SpatialReuse) debugOutput[pixel] = float4(lerp(float3(1.f, 0.f, 0.f), float3(0.f, 1.f, 0.f), float(validCount) / neighborCount), 0.f);
         }
-
-        // Save reservoir.
-        reservoirs[pixelIndex] = risState.toReservoir().pack();
-
-        // Write debug output.
-        if (kDebugOutput == DebugOutput::SpatialReuse) debugOutput[pixel] = float4(lerp(float3(1.f, 0.f, 0.f), float3(0.f, 1.f, 0.f), float(validCount) / neighborCount), 0.f);
     }
 };
 

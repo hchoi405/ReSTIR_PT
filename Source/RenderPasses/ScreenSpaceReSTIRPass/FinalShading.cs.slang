@@ -78,9 +78,6 @@ struct FinalShading
                 specular = specularFactor * Li;
 
                 hitT = distance;
-
-                float3 temporalLi = screenSpaceReSTIR.temporalLi[pixel].rgb;
-                temporal = diffuseFactor * temporalLi + specularFactor * temporalLi;
             }
 
             emission = sd.emissive;
