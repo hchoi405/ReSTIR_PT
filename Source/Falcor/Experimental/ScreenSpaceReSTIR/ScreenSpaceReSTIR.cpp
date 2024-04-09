@@ -112,6 +112,7 @@ namespace Falcor
         var["surfaceData"] = mpSurfaceData;
         var["normalDepth"] = mpNormalDepthTexture;
         var["finalSamples"] = mpFinalSamples;
+        var["finalSamples2"] = mpFinalSamples2;
         var["temporalLi"] = mpTemporalLiTexture;
 
         var["frameDim"] = mFrameDim;
@@ -355,6 +356,7 @@ namespace Falcor
 
             // Swap reservoirs.
             std::swap(mpReservoirs, mpPrevReservoirs);
+            std::swap(mpReservoirs2, mpPrevReservoirs2);
 
             mpPixelDebug->endFrame(pRenderContext);
         }
@@ -470,18 +472,21 @@ namespace Falcor
                 //mpReservoirs = Buffer::createStructured(mpReflectTypes["reservoirs"], elementCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
                 // WARNING: this assumes we use the uint4 packedReservoir by default (Reservoir.slang)
                 mpReservoirs = Buffer::createStructured(16, elementCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
+                mpReservoirs2 = Buffer::createStructured(16, elementCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
             }
             if (!mpPrevReservoirs || mpPrevReservoirs->getElementCount() < elementCount || mRequestReallocate)
             {
                 //mpPrevReservoirs = Buffer::createStructured(mpReflectTypes["reservoirs"], elementCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
                 // WARNING: this assumes we use the uint4 packedReservoir by default (Reservoir.slang)
                 mpPrevReservoirs = Buffer::createStructured(16, elementCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
+                mpPrevReservoirs2 = Buffer::createStructured(16, elementCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
             }
 
             if (!mpFinalSamples || mpFinalSamples->getElementCount() < elementCount || mRequestReallocate)
             {
                 //mpFinalSamples = Buffer::createStructured(mpReflectTypes["finalSamples"], elementCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
                 mpFinalSamples = Buffer::createStructured(32, elementCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
+                mpFinalSamples2 = Buffer::createStructured(32, elementCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
             }
 
             mRequestReallocate = false;
@@ -896,6 +901,8 @@ namespace Falcor
         var["motionVectors"] = pMotionVectors;
         var["reservoirs"] = mpReservoirs;
         var["prevReservoirs"] = mpPrevReservoirs;
+        var["reservoirs2"] = mpReservoirs2;
+        var["prevReservoirs2"] = mpPrevReservoirs2;
         var["debugOutput"] = mpDebugOutputTexture;
         var["temporalLi"] = mpTemporalLiTexture;
         setLightsShaderData(var["lights"]);
@@ -945,8 +952,11 @@ namespace Falcor
         for (uint32_t iteration = 0; iteration < mOptions->spatialIterations; ++iteration)
         {
             std::swap(mpReservoirs, mpPrevReservoirs);
+            std::swap(mpReservoirs2, mpPrevReservoirs2);
             var["reservoirs"] = mpReservoirs;
             var["prevReservoirs"] = mpPrevReservoirs;
+            var["reservoirs2"] = mpReservoirs2;
+            var["prevReservoirs2"] = mpPrevReservoirs2;
             var["frameIndex"] = mTotalRISPasses * mFrameIndex + mCurRISPass;
             var["fixSpatialSeed"] = mOptions->fixSpatialSeed;
             var["spatialSeed"] = mOptions->spatialSeed;
@@ -973,6 +983,8 @@ namespace Falcor
         var["surfaceData"] = mpSurfaceData;
         var["reservoirs"] = mpReservoirs;
         var["finalSamples"] = mpFinalSamples;
+        var["reservoirs2"] = mpReservoirs2;
+        var["finalSamples2"] = mpFinalSamples2;
         var["debugOutput"] = mpDebugOutputTexture;
         setLightsShaderData(var["lights"]);
         var["frameDim"] = mFrameDim;

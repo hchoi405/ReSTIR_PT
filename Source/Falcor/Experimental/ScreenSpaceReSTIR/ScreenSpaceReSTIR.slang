@@ -37,6 +37,7 @@ struct ScreenSpaceReSTIR
 
     // ReSTIR DI resources.
     StructuredBuffer<PackedFinalSample> finalSamples;
+    StructuredBuffer<PackedFinalSample> finalSamples2;
     Texture2D<float4> temporalLi;
 
     // ReSTIR GI resources.
@@ -117,6 +118,15 @@ struct ScreenSpaceReSTIR
     bool getFinalSample(uint2 pixel, out float3 dir, out float distance, out float3 Li, bool useSecond = false)
     {
         FinalSample finalSample = FinalSample::createFromPacked(finalSamples[getPixelIndex(pixel)]);
+        dir = finalSample.dir;
+        distance = finalSample.distance;
+        Li = finalSample.Li;
+        return distance > 0.f;
+    }
+
+    bool getFinalSample2(uint2 pixel, out float3 dir, out float distance, out float3 Li, bool useSecond = false)
+    {
+        FinalSample finalSample = FinalSample::createFromPacked(finalSamples2[getPixelIndex(pixel)]);
         dir = finalSample.dir;
         distance = finalSample.distance;
         Li = finalSample.Li;

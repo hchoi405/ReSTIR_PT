@@ -36,6 +36,8 @@ struct SpatialResampling
     Texture2D<uint> normalDepth;
     RWStructuredBuffer<PackedReservoir> reservoirs;
     StructuredBuffer<PackedReservoir> prevReservoirs;
+    RWStructuredBuffer<PackedReservoir> reservoirs2;
+    StructuredBuffer<PackedReservoir> prevReservoirs2;
     Texture1D<float2> neighborOffsets;
     RWTexture2D<float4> debugOutput;
 
@@ -238,6 +240,57 @@ struct SpatialResampling
 
             // Write debug output.
             if (kDebugOutput == DebugOutput::SpatialReuse) debugOutput[pixel] = float4(lerp(float3(1.f, 0.f, 0.f), float3(0.f, 1.f, 0.f), float(validCount) / neighborCount), 0.f);
+        }
+
+        // Dual buffer
+        {
+            RisState risState2 = RisState::createEmpty();
+            const uint startIndex2 = sampleNext1D(sg) * kNeighborOffsetCount;
+            uint validCount = 0;
+
+            if (kUsePairwiseMIS)
+            {
+                const Reservoir currentReservoir2 = Reservoir::createFromPacked(prevReservoirs2[pixelIndex]);
+                const LoadedLightSample currentLightSample = lights.loadLightSample(currentReservoir2.lightSample);
+                float currentTargetPdf = evalContext.evalTargetFunction(currentLightSample);
+
+                risState2.canonicalWeight = 1.f;
+                uint validNeighbors = 1;
+
+                for (uint i = 0; i < neighborCount; ++i)
+                {
+                    // Get neighbor pixel.
+                    int2 neighborPixel = getNextNeighborPixel(startIndex2, pixel, i);
+                    if (!isValidPixel(neighborPixel)) continue;
+                    uint neighborPixelIndex = getPixelIndex(neighborPixel);
+
+                    // Check for valid neighbor.
+                    float4 neighborNormalDepth = unpackNormalDepth(normalDepth[neighborPixel]);
+                    if (!evalContext.isValidNeighbor(neighborNormalDepth, normalThreshold, depthThreshold)) continue;
+
+                    const Reservoir neighborReservoir = Reservoir::createFromPacked(prevReservoirs2[neighborPixelIndex]);
+                    if (neighborReservoir.M == 0) continue;
+
+                    // Setup neighbor evalulation context and resample.
+                    const EvalContext neighborContext = EvalContext::create(neighborPixel, frameDim, SurfaceData::createFromPacked(surfaceData[neighborPixelIndex]));
+                    if (!neighborContext.isValid()) continue;
+
+                    ++validNeighbors;
+                    ++validCount;
+
+                    if (kUnbiased)
+                        streamingResampleStepMisUnbiased(risState2, currentReservoir2, currentLightSample, currentTargetPdf, evalContext, neighborReservoir, neighborContext, neighborCount, lights, sg);
+                    else
+                        streamingResampleStepMis(risState2, currentReservoir2, currentLightSample, currentTargetPdf, evalContext, neighborReservoir, neighborContext, neighborCount, lights, sg);
+                }
+
+                streamingResampleFinalizeMis(risState2, currentReservoir2, currentTargetPdf, sg);
+                risState2.M = currentReservoir2.M;
+                risState2.weight = risState2.weight > 0.f ? (risState2.weightSum / validNeighbors) / risState2.weight : 0.f;
+            }
+
+            // Save reservoir.
+            reservoirs2[pixelIndex] = risState2.toReservoir().pack();
         }
     }
 };

@@ -35,6 +35,8 @@ struct TemporalResampling
     Texture2D<float2> motionVectors;
     RWStructuredBuffer<PackedReservoir> reservoirs;
     StructuredBuffer<PackedReservoir> prevReservoirs;
+    RWStructuredBuffer<PackedReservoir> reservoirs2;
+    StructuredBuffer<PackedReservoir> prevReservoirs2;
     RWTexture2D<float4> debugOutput;
     RWTexture2D<float4> temporalLi;
 
@@ -129,6 +131,86 @@ struct TemporalResampling
 
                 // Save reservoir.
                 reservoirs[pixelIndex] = risState.toReservoir().pack();
+            }
+
+            // Dual buffer
+            {
+                // Load reservoirs.
+                Reservoir prevReservoir2 = Reservoir::createFromPacked(prevReservoirs2[prevPixelIndex]);
+                prevReservoir2.M = min(prevReservoir2.M, currentReservoir.M * kMaxHistoryLength);
+
+                // Setup resampling.
+                RisState risState2 = RisState::createEmpty();
+
+                if (kUsePairwiseMIS)
+                {
+                    const LoadedLightSample currentLightSample = lights.loadLightSample(currentReservoir.lightSample);
+                    float currentTargetPdf = currentContext.evalTargetFunction(currentLightSample);
+                    streamingResampleStepMis(risState2, currentReservoir, currentLightSample, currentTargetPdf, currentContext, prevReservoir2, prevContext, 1, lights, sg);
+                    streamingResampleFinalizeMis(risState2, currentReservoir, currentTargetPdf, sg);
+                    risState2.weight = risState2.weight > 0.f ? risState2.weightSum / risState2.weight : 0.f;
+                }
+                else
+                {
+                    // Check if previous sample is valid for reuse.
+                    if (!kUnbiased && !currentContext.isValidNeighbor(prevContext, normalThreshold, depthThreshold)) return;
+
+                    // Resample current and previous reservoirs.
+                    streamingResampleStep(risState2, currentReservoir, currentContext, lights, sg);
+                    bool usedPrev = streamingResampleStep(risState2, prevReservoir2, currentContext, lights, sg);
+
+                    // Compute the unbiased normalization term (instead of using 1/M).
+                    const LoadedLightSample lightSample = lights.loadLightSample(risState2.lightSample);
+                    float currentPdf = currentContext.evalTargetFunction(lightSample, kUnbiased);
+                    float prevPdf = prevContext.evalTargetFunction(lightSample, kUnbiased);
+                    float normalization = (usedPrev ? prevPdf : currentPdf) / (currentReservoir.M * currentPdf + prevReservoir2.M * prevPdf);
+                    risState2.weight = risState2.weight > 0.f ? (risState2.weightSum * normalization) / risState2.weight : 0.f;
+                }
+
+                // Save reservoir.
+                reservoirs2[pixelIndex] = risState2.toReservoir().pack();
+            }
+
+            // History (w/o current sample)
+            {
+                // Load reservoirs.
+                Reservoir prevReservoir2 = Reservoir::createFromPacked(prevReservoirs2[prevPixelIndex]);
+
+                // Setup resampling.
+                RisState risState2 = RisState::createEmpty();
+
+                // Constant MIS
+                {
+                    // Check if previous sample is valid for reuse.
+                    if (!kUnbiased && !currentContext.isValidNeighbor(prevContext, normalThreshold, depthThreshold)) return;
+
+                    // Resample current and previous reservoirs.
+                    bool usedPrev = streamingResampleStep(risState2, prevReservoir2, currentContext, lights, sg);
+
+                    // Compute the unbiased normalization term (instead of using 1/M).
+                    const LoadedLightSample lightSample = lights.loadLightSample(risState2.lightSample);
+                    float prevPdf = prevContext.evalTargetFunction(lightSample, kUnbiased);
+                    float normalization = (usedPrev ? prevPdf : 0.f) / (prevReservoir2.M * prevPdf);
+                    risState2.weight = risState2.weight > 0.f ? (risState2.weightSum * normalization) / risState2.weight : 0.f;
+                }
+
+                float3 Li = float3(0.f);
+                var reservoir = risState2.toReservoir();
+                if (reservoir.isValid())
+                {
+                    // Evaluate light sample.
+                    EvaluatedLightSample evaluatedLightSample = lights.evalLightSample(reservoir.lightSample, currentContext.pos);
+                    // Evaluate visibility.
+                    float visibility = currentContext.evalVisibility(evaluatedLightSample);
+                    if (visibility > 0.f)
+                    {
+                        if (evaluatedLightSample.distance > 0.f)
+                        {
+                            Li = reservoir.weight * evaluatedLightSample.geomFactor * lights.evalEmission(reservoir.lightSample);
+                        }
+                    }
+                }
+                temporalLi[pixel] = float4(Li, 1.f);
             }
         }
     }

@@ -359,6 +359,10 @@ namespace Falcor
         Buffer::SharedPtr mpReservoirs;                     ///< Buffer containing the current reservoirs.
         Buffer::SharedPtr mpPrevReservoirs;                 ///< Buffer containing the previous reservoirs.
 
+        Buffer::SharedPtr mpFinalSamples2;                   ///< Buffer with the final samples.
+        Buffer::SharedPtr mpReservoirs2;                     ///< Buffer containing the current reservoirs.
+        Buffer::SharedPtr mpPrevReservoirs2;                 ///< Buffer containing the previous reservoirs.
+
         Texture::SharedPtr mpNeighborOffsets;               ///< 1D texture containing neighbor offsets within a unit circle.
 
         // ReSTIR GI resources.

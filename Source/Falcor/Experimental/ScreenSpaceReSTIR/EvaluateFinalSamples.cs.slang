@@ -30,6 +30,8 @@ struct EvaluateFinalSamples
     [root] StructuredBuffer<PackedSurfaceData> surfaceData;
     RWStructuredBuffer<PackedReservoir> reservoirs;
     RWStructuredBuffer<PackedFinalSample> finalSamples;
+    RWStructuredBuffer<PackedReservoir> reservoirs2;
+    RWStructuredBuffer<PackedFinalSample> finalSamples2;
     RWTexture2D<float4> debugOutput;
 
     Lights lights;
@@ -80,6 +82,39 @@ struct EvaluateFinalSamples
 
         // Write final sample.
         finalSamples[pixelIndex] = finalSample.pack();
+
+        // Dual buffer
+        FinalSample finalSample2 = {};
+        Reservoir reservoir2 = Reservoir::createFromPacked(reservoirs2[pixelIndex]);
+
+        if (reservoir2.isValid())
+        {
+            // Create evaluation context.
+            EvalContext evalContext = EvalContext::create(pixel, frameDim, SurfaceData::createFromPacked(surfaceData[pixelIndex]));
+
+            // Evaluate light sample.
+            EvaluatedLightSample evaluatedLightSample = lights.evalLightSample(reservoir2.lightSample, evalContext.pos);
+
+            // Evaluate visibility.
+            float visibility = 1.f;
+            if (kUseVisibility) visibility = evalContext.evalVisibility(evaluatedLightSample);
+
+            if (visibility > 0.f)
+            {
+                finalSample2.dir = evaluatedLightSample.dir;
+                finalSample2.distance = evaluatedLightSample.distance;
+                finalSample2.Li = reservoir2.weight * evaluatedLightSample.geomFactor * lights.evalEmission(reservoir2.lightSample);
+            }
+            else
+            {
+                if (kReuseVisibility)
+                {
+                    reservoirs2[pixelIndex] = Reservoir::createEmpty().pack();
+                }
+            }
+        }
+
+        finalSamples2[pixelIndex] = finalSample2.pack();
 
         // Write debug output.
         switch (kDebugOutput)

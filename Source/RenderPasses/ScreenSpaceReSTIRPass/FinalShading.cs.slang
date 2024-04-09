@@ -13,6 +13,7 @@ import Rendering.Materials.Microfacet;
 import Experimental.ScreenSpaceReSTIR.ScreenSpaceReSTIR;
 
 RWTexture2D<float4> gColor;
+RWTexture2D<float4> gColor2;
 RWTexture2D<float4> gEmission;
 RWTexture2D<float4> gDiffuseIllumination;
 RWTexture2D<float4> gDiffuseReflectance;
@@ -45,6 +46,7 @@ struct FinalShading
         if (any(pixel >= frameDim)) return;
 
         float3 color = {};
+        float3 color2 = {};
         float3 emission = {};
         float3 diffuseReflectance = {};
         float3 diffuseIllumination = {};
@@ -95,6 +97,27 @@ struct FinalShading
             specularReflectance += approxSpecularIntegralGGX(sd.specular, sd.linearRoughness * sd.linearRoughness, sd.NdotV);
             float3 specularFactor = specularReflectance <= 0.f ? 0.f : 1.f / specularReflectance;
             specularIllumination += specular * specularFactor;
+
+            // Dual buffer
+            bool valid2 = screenSpaceReSTIR.getFinalSample2(pixel, dir, distance, Li);
+            float3 diffuse2 = {};
+            float3 specular2 = {};
+            if (valid2)
+            {
+                sd.setActiveLobes((uint)LobeType::DiffuseReflection);
+                float3 diffuseFactor = standardMaterial.eval(sd, dir);
+                diffuse2 = diffuseFactor * Li;
+
+                sd.setActiveLobes((uint)LobeType::SpecularReflection);
+                float3 specularFactor = standardMaterial.eval(sd, dir);
+                specular2 = specularFactor * Li;
+
+                hitT = distance;
+
+                float3 temporalLi = screenSpaceReSTIR.temporalLi[pixel].rgb;
+                temporal = diffuseFactor * temporalLi + specularFactor * temporalLi;
+            }
+            color2 += diffuse2 + specular2;
         }
         else
         {
@@ -117,6 +140,7 @@ struct FinalShading
             if (is_valid(gSpecularReflectance)) gSpecularReflectance[pixel] = float4(specularReflectance, 1.f) / numReSTIRInstances;
             if (is_valid(gSpecularIllumination)) gSpecularIllumination[pixel] = float4(specularIllumination, hitT) / numReSTIRInstances;
             if (is_valid(gTemporalColor)) gTemporalColor[pixel] = float4(temporal, 1.f) / numReSTIRInstances;
+            if (is_valid(gColor2)) gColor2[pixel] = float4(color2, 1.f) / numReSTIRInstances;
         }
         else
         {
@@ -127,6 +151,7 @@ struct FinalShading
             if (is_valid(gSpecularReflectance)) gSpecularReflectance[pixel] += float4(specularReflectance, 1.f) / numReSTIRInstances;
             if (is_valid(gSpecularIllumination)) gSpecularIllumination[pixel] += float4(specularIllumination, hitT) / numReSTIRInstances;
             if (is_valid(gTemporalColor)) gTemporalColor[pixel] += float4(temporal, 1.f) / numReSTIRInstances;
+            if (is_valid(gColor2)) gColor2[pixel] += float4(color2, 1.f) / numReSTIRInstances;
         }
     }
 };
