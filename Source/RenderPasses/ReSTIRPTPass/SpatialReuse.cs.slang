@@ -74,6 +74,7 @@ struct PathReusePass
     bool useTileSeed;
 
     Texture2D<float4> directLighting;
+    Texture2D<float4> directLighting2;
     bool useDirectLighting;
 
     bool isValidPackedHitInfo(PackedHitInfo packed)
@@ -318,7 +319,7 @@ struct PathReusePass
 
             if (useDirectLighting)
             {
-                color2 += directLighting[pixel].rgb;
+                color2 += directLighting2[pixel].rgb;
                 if (any(isnan(color2) || isinf(color2))) color2 = 0.f;
             }
 

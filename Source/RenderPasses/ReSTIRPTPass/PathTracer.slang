@@ -1881,7 +1881,7 @@ struct PathTracer
         if (itersPerShaderPass == 1)
         {
             float3 L = 0.f;
-            float3 L2 = 0.f;
+            float3 Ldebug = 0.f;
 
             if (useDirectLighting) L += path.LDeltaDirect;
 
@@ -1909,21 +1909,21 @@ struct PathTracer
                 {
                     L += color;
                 }
-                L2 += color;
+                Ldebug += color;
             }
 
             if (useDirectLighting && (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing || isLastRound))
             {
                 L += directLighting[pixel].rgb;
             }
-            // L2 += directLighting[pixel].rgb;
+            // Ldebug += directLighting[pixel].rgb;
 
             if (any(isinf(L) || isnan(L))) L = 0.f;
-            if (any(isinf(L2) || isnan(L2))) L2 = 0.f;
+            if (any(isinf(Ldebug) || isnan(Ldebug))) Ldebug = 0.f;
 
             if (PathSamplingMode(kPathSamplingMode) != PathSamplingMode::PathTracing)
                 L /= kSamplesPerPixel;
-            L2 /= kSamplesPerPixel;
+            Ldebug /= kSamplesPerPixel;
 
             if (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing || kSamplesPerPixel == 1 || gSppId == 0)
             {
@@ -1939,7 +1939,7 @@ struct PathTracer
                 outputReservoirs2[reservoirIdx] = path.pathReservoir; // Copy the same reservoir for dual buffer
             }
 
-            outputDebug[pixel] = float4(L2, 1.f);
+            outputDebug[pixel] = float4(Ldebug, 1.f);
         }
         else
         {

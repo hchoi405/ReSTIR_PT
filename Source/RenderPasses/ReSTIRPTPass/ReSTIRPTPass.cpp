@@ -22,6 +22,7 @@ namespace
     const std::string kInputVBuffer = "vbuffer";
     const std::string kInputMotionVectors = "motionVectors";
     const std::string kInputDirectLighting = "directLighting";
+    const std::string kInputDirectLighting2 = "directLighting2";
     const std::string kInputDirectTemporal = "directTemporal";
 
     const Falcor::ChannelList kInputChannels =
@@ -29,6 +30,7 @@ namespace
         { kInputVBuffer,        "gVBuffer",         "Visibility buffer in packed format", false, ResourceFormat::Unknown },
         { kInputMotionVectors,  "gMotionVectors",   "Motion vector buffer (float format)", true /* optional */, ResourceFormat::RG32Float },
         { kInputDirectLighting,    "gDirectLighting",     "Sample count buffer (integer format)", true /* optional */, ResourceFormat::RGBA32Float },
+        { kInputDirectLighting2,   "gDirectLighting2",    "Sample count buffer (integer format)", true /* optional */, ResourceFormat::RGBA32Float },
         { kInputDirectTemporal,    "gDirectTemporal",     "Sample count buffer (integer format)", true /* optional */, ResourceFormat::RGBA32Float },
     };
 
@@ -1821,6 +1823,7 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
         }
 
         var["outputIndirect"] = renderData[kOutputIndirect]->asTexture();
+        var["directLighting2"] = renderData[kInputDirectLighting2]->asTexture();
     }
 
     var["gTileWidth"] = mTileWidth;
