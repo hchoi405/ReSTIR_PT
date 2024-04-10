@@ -147,43 +147,6 @@ struct PathRetracePass
             Tp2 = traceHybridShiftRays(params, false, centralPrimaryHitPacked, centralPrimarySd, temporalReservoir, dstRcPrevVertexHit2, dstRcPrevVertexWo2);
             reconnectionDataBuffer[centralOffset].data[1] = ReconnectionData(dstRcPrevVertexHit2, dstRcPrevVertexWo2, Tp2);
         }
-
-        //// another reconnection
-        {
-            var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
-
-            if (gEnableTemporalReprojection)
-            {
-                prevPixel = pixel + motionVector * params.frameDim + (sampleNext2D(sg2) * 1.f - 0.f);
-            }
-
-            if (!isValidScreenRegion(prevPixel) || !foundTemporalSurface) return;
-
-            PackedHitInfo temporalPrimaryHitPacked_2;
-            ShadingData temporalPrimarySd_2 = getPixelTemporalShadingData(prevPixel, temporalPrimaryHitPacked_2);
-            if (!isValidPackedHitInfo(temporalPrimaryHitPacked_2)) return;
-
-            PathReservoir temporalReservoir_2 = temporalReservoirs[params.getReservoirOffset(prevPixel)];
-
-            HitInfo dstRcPrevVertexHit_2;
-            HitInfo dstRcPrevVertexHit2_2;
-            float3 dstRcPrevVertexWo_2;
-            float3 dstRcPrevVertexWo2_2;
-            float3 Tp_2;
-            float3 Tp2_2;
-
-            // write to memory
-            if (centralReservoir.pathFlags.rcVertexLength() > 1)
-            {
-                Tp_2 = traceHybridShiftRays(params, true, temporalPrimaryHitPacked_2, temporalPrimarySd_2, centralReservoir, dstRcPrevVertexHit_2, dstRcPrevVertexWo_2);
-                reconnectionDataBuffer[centralOffset].data[2] = ReconnectionData(dstRcPrevVertexHit_2, dstRcPrevVertexWo_2, Tp_2);
-            }
-            if (temporalReservoir_2.pathFlags.rcVertexLength() > 1)
-            {
-                Tp2_2 = traceHybridShiftRays(params, false, centralPrimaryHitPacked, centralPrimarySd, temporalReservoir_2, dstRcPrevVertexHit2_2, dstRcPrevVertexWo2_2);
-                reconnectionDataBuffer[centralOffset].data[3] = ReconnectionData(dstRcPrevVertexHit2_2, dstRcPrevVertexWo2_2, Tp2_2);
-            }
-        }
     }
 
     /** Entry point for merge pass.
