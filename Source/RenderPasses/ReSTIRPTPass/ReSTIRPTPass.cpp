@@ -1571,6 +1571,7 @@ bool ReSTIRPTPass::beginFrame(RenderContext* pRenderContext, const RenderData& r
         return false;
     }
 
+    // Clear every frame
     const auto& pOutputTemporal = renderData[kOutputTemporal]->asTexture();
     if (pOutputTemporal) pRenderContext->clearUAV(pOutputTemporal->getUAV().get(), float4(0.f));
 

@@ -123,7 +123,8 @@ struct PathReusePass
 
         // Reuse path
         PathReservoir outReservoir = centerReservoir;
-        reusePath(outReservoir, centerReservoir, sg, rcData0, rcData1, pixel, centralOffset, motionVector, centralPrimaryHitPacked, centralPrimarySd);
+        float3 temporalColor;
+        reusePath(outReservoir, temporalColor, centerReservoir, sg, rcData0, rcData1, pixel, centralOffset, motionVector, centralPrimaryHitPacked, centralPrimarySd);
         outputReservoirs[centralOffset] = outReservoir;
 
         // Make color
@@ -148,21 +149,23 @@ struct PathReusePass
 
         // Reuse path
         PathReservoir outReservoir2 = centerReservoir2;
-        reusePath(outReservoir2, centerReservoir2, sg2, rcData2_0, rcData2_1, pixel, centralOffset, motionVector, centralPrimaryHitPacked, centralPrimarySd);
+        float3 temporalColor2;
+        reusePath(outReservoir2, temporalColor2, centerReservoir2, sg2, rcData2_0, rcData2_1, pixel, centralOffset, motionVector, centralPrimaryHitPacked, centralPrimarySd);
         outputReservoirs2[centralOffset] = outReservoir2;
 
+        //// Temporal buffer
         // Write temporal color
-        float3 temporalColor = 0.f;
         if (useDirectLighting)
         {
-            temporalColor += directTemporal[pixel].rgb;
-            if (any(isnan(temporalColor) || isinf(temporalColor))) temporalColor = 0.f;
+            temporalColor2 += directTemporal[pixel].rgb;
+            if (any(isnan(temporalColor2) || isinf(temporalColor2))) temporalColor2 = 0.f;
         }
-        outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
+        outputTemporal[pixel] += float4(temporalColor2 / kSamplesPerPixel, 1.f);
     }
 
     void reusePath(
         inout PathReservoir dstReservoir,
+        out float3 temporalColor,
         // Different
         const in PathReservoir centerReservoir,
         inout TinyUniformSampleGenerator sg,
@@ -188,7 +191,8 @@ struct PathReusePass
         ShadingData temporalPrimarySd = getPixelTemporalShadingData(prevPixel, temporalPrimaryHitPacked);
         if (!isValidPackedHitInfo(temporalPrimaryHitPacked)) return;
 
-        PathReservoir temporalReservoir = temporalReservoirs[params.getReservoirOffset(prevPixel)];
+        const PathReservoir originalTemporalReservoir = temporalReservoirs[params.getReservoirOffset(prevPixel)];
+        PathReservoir temporalReservoir = originalTemporalReservoir;
 
         const PathReservoir centralReservoir = dstReservoir;
         float currentM = dstReservoir.M;
@@ -372,6 +376,32 @@ struct PathReusePass
             }
 
             if (dstReservoir.weight < 0.f || isinf(dstReservoir.weight) || isnan(dstReservoir.weight)) dstReservoir.weight = 0.f;
+        }
+
+        // Temporal color: no current sample (biased)
+        {
+            // Empty reservoir excluding the center sample (canonical)
+            PathReservoir tmpDstReservoir;
+            tmpDstReservoir.init();
+
+            ReconnectionData dummyRcData;
+            dummyRcData.Init();
+
+            float dstJacobian;
+            // Shift the neighbor reservoirs (no MIS)
+            {
+                ReconnectionData rcData;
+                if (ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && originalTemporalReservoir.pathFlags.rcVertexLength() > 1)
+                    rcData = rcData1;
+                else
+                    rcData = dummyRcData;
+
+                shiftAndMergeReservoir(params, kTemporalUpdateForDynamicScene, dstJacobian, centralPrimaryHitPacked, centralPrimarySd, tmpDstReservoir,
+                                       temporalPrimarySd, originalTemporalReservoir, rcData, true, sg, false, 1.f, true); // "true" means hypothetically selected as the sample
+            }
+
+            if (tmpDstReservoir.weight < 0.f || isinf(tmpDstReservoir.weight) || isnan(tmpDstReservoir.weight)) tmpDstReservoir.weight = 0.f;
+            temporalColor = tmpDstReservoir.F * tmpDstReservoir.weight;
         }
     }
 
