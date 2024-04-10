@@ -213,6 +213,11 @@ private:
     Buffer::SharedPtr               mReconnectionDataBuffer;
     Buffer::SharedPtr               mPathReuseMISWeightBuffer;
 
+    // Dual buffer
+    Buffer::SharedPtr               mpOutputReservoirs2;
+    std::vector<Buffer::SharedPtr>  mpTemporalReservoirs2;
+    Buffer::SharedPtr               mReconnectionDataBuffer2;
+
     Texture::SharedPtr              mpTemporalVBuffer;
 
     Texture::SharedPtr              mpNeighborOffsets;

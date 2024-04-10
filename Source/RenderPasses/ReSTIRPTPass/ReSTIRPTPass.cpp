@@ -45,6 +45,7 @@ namespace
     const std::string kOutputTime = "time";
     const std::string kOutputTemporal = "temporalColor";
     const std::string kOutputIndirect = "indirect";
+    const std::string kOutputColor2 = "color2";
 
     const std::string kOutputNRDDiffuseRadianceHitDist = "nrdDiffuseRadianceHitDist";
     const std::string kOutputNRDSpecularRadianceHitDist = "nrdSpecularRadianceHitDist";
@@ -66,6 +67,7 @@ namespace
         { kOutputTime,                  "",                             "Per-pixel time", true /* optional */, ResourceFormat::R32Uint },
         { kOutputTemporal,              "",                             "Output temporally reused color, without spatial reuse", true /* optional */ },
         { kOutputIndirect,              "",                             "", true /* optional */ },
+        { kOutputColor2,                "",                             "", true /* optional */ },
         { kOutputSpecularAlbedo,                "gOutputSpecularAlbedo",                "Output specular albedo (linear)", true /* optional */, ResourceFormat::RGBA8Unorm },
         { kOutputIndirectAlbedo,                "gOutputIndirectAlbedo",                "Output indirect albedo (linear)", true /* optional */, ResourceFormat::RGBA8Unorm },
         { kOutputReflectionPosW,                "gOutputReflectionPosW",                "Output reflection pos (world space)", true /* optional */, ResourceFormat::RGBA32Float },
@@ -793,7 +795,10 @@ void ReSTIRPTPass::execute(RenderContext* pRenderContext, const RenderData& rend
             if (mEnableTemporalReuse && mStaticParams.pathSamplingMode == PathSamplingMode::ReSTIR)
             {
                 if ((!mEnableSpatialReuse || mNumSpatialRounds % 2 == 0))
+                {
                     pRenderContext->copyResource(mpTemporalReservoirs[restir_i].get(), mpOutputReservoirs.get());
+                    pRenderContext->copyResource(mpTemporalReservoirs2[restir_i].get(), mpOutputReservoirs2.get());
+                }
                 if (restir_i == numPasses - 1)
                     pRenderContext->copyResource(mpTemporalVBuffer.get(), renderData[kInputVBuffer].get());
             }
@@ -1251,10 +1256,14 @@ void ReSTIRPTPass::prepareResources(RenderContext* pRenderContext, const RenderD
             !mStaticParams.rcDataOfflineMode && mReconnectionDataBuffer->getElementSize() != 256))
         {
             mReconnectionDataBuffer = Buffer::createStructured(var["reconnectionDataBuffer"], reservoirCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
+            mReconnectionDataBuffer2 = Buffer::createStructured(var["reconnectionDataBuffer"], reservoirCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
             //printf("rcDataSize size: %d\n", mReconnectionDataBuffer->getElementSize());
         }
         if (mStaticParams.shiftStrategy != ShiftMapping::Hybrid)
+        {
             mReconnectionDataBuffer = nullptr;
+            mReconnectionDataBuffer2 = nullptr;
+        }
 
         uint32_t baseReservoirSize = 88;
         uint32_t pathTreeReservoirSize = 128;
@@ -1265,13 +1274,18 @@ void ReSTIRPTPass::prepareResources(RenderContext* pRenderContext, const RenderD
                 mpTemporalReservoirs.size() != mStaticParams.samplesPerPixel && mStaticParams.pathSamplingMode != PathSamplingMode::PathReuse))
         {
             mpOutputReservoirs = Buffer::createStructured(var["outputReservoirs"], reservoirCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
+            mpOutputReservoirs2 = Buffer::createStructured(var["outputReservoirs"], reservoirCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
             //printf("reservoir size: %d\n", mpOutputReservoirs->getElementSize());
 
             if (mStaticParams.pathSamplingMode != PathSamplingMode::PathReuse)
             {
                 mpTemporalReservoirs.resize(mStaticParams.samplesPerPixel);
+                mpTemporalReservoirs2.resize(mStaticParams.samplesPerPixel);
                 for (uint32_t i = 0; i < mStaticParams.samplesPerPixel; i++)
+                {
                     mpTemporalReservoirs[i] = Buffer::createStructured(var["outputReservoirs"], reservoirCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
+                    mpTemporalReservoirs2[i] = Buffer::createStructured(var["outputReservoirs"], reservoirCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
+                }
             }
             mVarsChanged = true;
         }
@@ -1291,6 +1305,7 @@ void ReSTIRPTPass::prepareResources(RenderContext* pRenderContext, const RenderD
         if (!mpOutputReservoirs || reservoirCount != mpOutputReservoirs->getElementCount())
         {
             mpOutputReservoirs = Buffer::createStructured(var["outputReservoirs"], reservoirCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
+            mpOutputReservoirs2 = Buffer::createStructured(var["outputReservoirs"], reservoirCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
             //printf("reservoir size: %d\n", mpOutputReservoirs->getElementSize());
 
             if (mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse)
@@ -1300,8 +1315,12 @@ void ReSTIRPTPass::prepareResources(RenderContext* pRenderContext, const RenderD
             else
             {
                 mpTemporalReservoirs.resize(mStaticParams.samplesPerPixel);
+                mpTemporalReservoirs2.resize(mStaticParams.samplesPerPixel);
                 for (uint32_t i = 0; i < mStaticParams.samplesPerPixel; i++)
+                {
                     mpTemporalReservoirs[i] = Buffer::createStructured(var["outputReservoirs"], reservoirCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
+                    mpTemporalReservoirs2[i] = Buffer::createStructured(var["outputReservoirs"], reservoirCount, Resource::BindFlags::ShaderResource | Resource::BindFlags::UnorderedAccess, Buffer::CpuAccess::None, nullptr, false);
+                }
             }
             mVarsChanged = true;
         }
@@ -1336,6 +1355,7 @@ void ReSTIRPTPass::preparePathTracer(const RenderData& renderData)
     auto var = mpPathTracerBlock->getRootVar();
     setShaderData(var, renderData, true, false);
     var["outputReservoirs"] = mpOutputReservoirs;
+    var["outputReservoirs2"] = mpOutputReservoirs2;
     var["directLighting"] = renderData[kInputDirectLighting]->asTexture();
     var["directTemporal"] = renderData[kInputDirectTemporal]->asTexture();
 
@@ -1483,6 +1503,7 @@ void ReSTIRPTPass::setShaderData(const ShaderVar& var, const RenderData& renderD
     var["params"].setBlob(mParams);
     var["vbuffer"] = renderData[kInputVBuffer]->asTexture();
     var["outputColor"] = renderData[kOutputColor]->asTexture();
+    var["outputColor2"] = renderData[kOutputColor2]->asTexture();
     if (isPathGenerator)
         var["outputIndirect"] = renderData[kOutputIndirect]->asTexture();
 
@@ -1542,6 +1563,10 @@ bool ReSTIRPTPass::beginFrame(RenderContext* pRenderContext, const RenderData& r
         const auto& pOutputColor = renderData[kOutputColor]->asTexture();
         assert(pOutputColor);
         pRenderContext->clearUAV(pOutputColor->getUAV().get(), float4(0.f));
+
+        const auto& pOutputColor2 = renderData[kOutputColor2]->asTexture();
+        assert(pOutputColor2);
+        pRenderContext->clearUAV(pOutputColor2->getUAV().get(), float4(0.f));
 
         return false;
     }
@@ -1740,6 +1765,7 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
     setShaderData(var, renderData, false, false);
 
     var["outputReservoirs"] = spatialRoundId % 2 == 1 ? mpTemporalReservoirs[restir_i] : mpOutputReservoirs;
+    var["outputReservoirs2"] = spatialRoundId % 2 == 1 ? mpTemporalReservoirs2[restir_i] : mpOutputReservoirs2;
 
     if (mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse)
     {
@@ -1749,8 +1775,12 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
     if (mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse)
         var["misWeightBuffer"] = mPathReuseMISWeightBuffer;
     else if (!isPathReuseMISWeightComputation)
+    {
         var["temporalReservoirs"] = spatialRoundId % 2 == 0 ? mpTemporalReservoirs[restir_i] : mpOutputReservoirs;
+        var["temporalReservoirs2"] = spatialRoundId % 2 == 0 ? mpTemporalReservoirs2[restir_i] : mpOutputReservoirs2;
+    }
     var["reconnectionDataBuffer"] = mReconnectionDataBuffer;
+    var["reconnectionDataBuffer2"] = mReconnectionDataBuffer2;
 
     var["gNumSpatialRounds"] = mNumSpatialRounds;
 
@@ -1764,6 +1794,7 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
         else var["gTemporalHistoryLength"] = (float)mTemporalHistoryLength;
 
         var["outputTemporal"] = renderData[kOutputTemporal]->asTexture();
+        var["outputColor2"] = renderData[kOutputColor2]->asTexture();
     }
     else
     {
@@ -1845,6 +1876,7 @@ void ReSTIRPTPass::PathRetracePass(RenderContext* pRenderContext, uint32_t resti
     // TODO: refactor arguments
     setShaderData(var, renderData, false, false);
     var["outputReservoirs"] = spatialRoundId % 2 == 1 ? mpTemporalReservoirs[restir_i] : mpOutputReservoirs;
+    var["outputReservoirs2"] = spatialRoundId % 2 == 1 ? mpTemporalReservoirs2[restir_i] : mpOutputReservoirs2;
 
     if (mStaticParams.pathSamplingMode == PathSamplingMode::PathReuse)
     {
@@ -1852,7 +1884,9 @@ void ReSTIRPTPass::PathRetracePass(RenderContext* pRenderContext, uint32_t resti
     }
 
     var["temporalReservoirs"] = spatialRoundId % 2 == 0 ? mpTemporalReservoirs[restir_i] : mpOutputReservoirs;
+    var["temporalReservoirs2"] = spatialRoundId % 2 == 0 ? mpTemporalReservoirs2[restir_i] : mpOutputReservoirs2;
     var["reconnectionDataBuffer"] = mReconnectionDataBuffer;
+    var["reconnectionDataBuffer2"] = mReconnectionDataBuffer2;
     var["gNumSpatialRounds"] = mNumSpatialRounds;
 
     if (temporalReuse)

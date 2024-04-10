@@ -33,11 +33,16 @@ struct PathReusePass
     ByteAddressBuffer nRooksPattern;
 
     RWTexture2D<float4> outputColor;                      ///< Output resolved color.
+    RWTexture2D<float4> outputColor2;                      ///< Output resolved color.
     RWTexture2D<float4> outputIndirect;                      ///< Output resolved color.
     StructuredBuffer<PathReservoir> outputReservoirs;     // reservoir from previous pass
     RWStructuredBuffer<PathReservoir> temporalReservoirs; // resulting reservoir for next frame
     StructuredBuffer<PixelReconnectionData> reconnectionDataBuffer;
     StructuredBuffer<PathReuseMISWeight> misWeightBuffer;
+
+    StructuredBuffer<PathReservoir> outputReservoirs2;     // reservoir from previous pass
+    RWStructuredBuffer<PathReservoir> temporalReservoirs2; // resulting reservoir for next frame
+    StructuredBuffer<PixelReconnectionData> reconnectionDataBuffer2;
 
     RWTexture2D<float4> outputNRDDiffuseRadianceHitDist;    ///< Output resolved diffuse color in .rgb and hit distance in .a for NRD. Only valid if kOutputNRDData == true.
     RWTexture2D<float4> outputNRDSpecularRadianceHitDist;   ///< Output resolved specular color in .rgb and hit distance in .a for NRD. Only valid if kOutputNRDData == true.
@@ -178,7 +183,6 @@ struct PathReusePass
 
         uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : (useTileSeed ? tileSeed : pixel);
         uint temporalSeed2 = fixTemporalSeed ? temporalSeed : (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId;
-        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
@@ -187,7 +191,9 @@ struct PathReusePass
 
         if (!isValidPackedHitInfo(centralPrimaryHitPacked)) return;
 
+        //
         // Reuse the path
+        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
         PathReservoir centerReservoir = outputReservoirs[centralOffset];
         var dstReservoir = reusePath(0, centerReservoir, pixel, centralOffset, sg, centralPrimaryHitPacked, centralPrimarySd);
 
@@ -293,6 +299,30 @@ struct PathReusePass
                     outputNRDResidualRadianceHitDist[pixel] += float4(invSpp * residualRadiance, invSpp * hitDist);
                 }
             }
+        }
+
+        ////
+        // Reuse the path
+        var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
+        PathReservoir centerReservoir2 = outputReservoirs2[centralOffset];
+        var dstReservoir2 = reusePath(1, centerReservoir2, pixel, centralOffset, sg2, centralPrimaryHitPacked, centralPrimarySd);
+
+        // Store the resulting reservoir for the next frame
+        if (PathSamplingMode(kPathSamplingMode) != PathSamplingMode::PathReuse)
+            temporalReservoirs2[centralOffset] = dstReservoir2;
+
+        if (gIsLastRound)
+        {
+            float3 color2 = dstReservoir2.F * dstReservoir2.weight;
+            if (any(isnan(color2) || isinf(color2) || color2 < 0.f)) color2 = 0.f;
+
+            if (useDirectLighting)
+            {
+                color2 += directLighting[pixel].rgb;
+                if (any(isnan(color2) || isinf(color2))) color2 = 0.f;
+            }
+
+            outputColor2[pixel] += float4(color2 / kSamplesPerPixel, 1.f);
         }
     }
 
@@ -418,6 +448,8 @@ struct PathReusePass
         {
         case 0:
             return outputReservoirs[offset];
+        case 1:
+            return outputReservoirs2[offset];
         }
         PathReservoir emptyReservoir;
         return emptyReservoir;
@@ -429,6 +461,8 @@ struct PathReusePass
         {
         case 0:
             return reconnectionDataBuffer[offset].data[i];
+        case 1:
+            return reconnectionDataBuffer2[offset].data[i];
         }
         ReconnectionData emptyRcData;
         return emptyRcData;

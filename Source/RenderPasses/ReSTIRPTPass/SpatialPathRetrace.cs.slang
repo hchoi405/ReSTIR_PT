@@ -31,9 +31,14 @@ struct PathRetracePass
     ByteAddressBuffer nRooksPattern;
 
     RWTexture2D<float4> outputColor;                      ///< Output resolved color.
+    RWTexture2D<float4> outputColor2;                      ///< Output resolved color.
     RWStructuredBuffer<PathReservoir> outputReservoirs;                  ///< New per-pixel paths.
     RWStructuredBuffer<PathReservoir> temporalReservoirs;
     RWStructuredBuffer<PixelReconnectionData> reconnectionDataBuffer;
+
+    RWStructuredBuffer<PathReservoir> outputReservoirs2;
+    RWStructuredBuffer<PathReservoir> temporalReservoirs2;
+    RWStructuredBuffer<PixelReconnectionData> reconnectionDataBuffer2;
 
     int gSpatialRoundId;
     int  gNumSpatialRounds;
@@ -146,7 +151,6 @@ struct PathRetracePass
         // TODO: How to seed efficiently?
         uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : (useTileSeed ? tileSeed : pixel);
         uint temporalSeed2 = fixTemporalSeed ? temporalSeed : (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples + 1 + gSpatialRoundId;
-        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
@@ -154,9 +158,15 @@ struct PathRetracePass
         ShadingData centralPrimarySd = getPixelShadingData(pixel, centralPrimaryHitPacked);
         if (!isValidPackedHitInfo(centralPrimaryHitPacked)) return;
 
-        // Retrace path
+        //// Buffer 1
+        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
         PathReservoir centralReservoir = outputReservoirs[centralOffset];
         retracePath(0, centralReservoir, pixel, centralOffset, sg, centralPrimaryHitPacked, centralPrimarySd);
+
+        //// Buffer 2
+        var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
+        PathReservoir centralReservoir2 = outputReservoirs2[centralOffset];
+        retracePath(1, centralReservoir2, pixel, centralOffset, sg2, centralPrimaryHitPacked, centralPrimarySd);
     }
 
     void retracePath(const uint id,
@@ -211,6 +221,7 @@ struct PathRetracePass
         switch (id)
         {
         case 0: return outputReservoirs[params.getReservoirOffset(pixel)];
+        case 1: return outputReservoirs2[params.getReservoirOffset(pixel)];
         }
         PathReservoir dummy;
         return dummy;
@@ -222,6 +233,9 @@ struct PathRetracePass
         {
         case 0:
             reconnectionDataBuffer[offset].data[i] = data;
+            break;
+        case 1:
+            reconnectionDataBuffer2[offset].data[i] = data;
             break;
         }
     }

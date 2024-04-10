@@ -31,9 +31,14 @@ struct PathRetracePass
     ByteAddressBuffer nRooksPattern;
 
     RWTexture2D<float4> outputColor;                      ///< Output resolved color.
+    RWTexture2D<float4> outputColor2;                      ///< Output resolved color.
     RWStructuredBuffer<PathReservoir> outputReservoirs;
     RWStructuredBuffer<PathReservoir> temporalReservoirs;
     RWStructuredBuffer<PixelReconnectionData> reconnectionDataBuffer;
+
+    RWStructuredBuffer<PathReservoir> outputReservoirs2; // nouse
+    RWStructuredBuffer<PathReservoir> temporalReservoirs2;
+    RWStructuredBuffer<PixelReconnectionData> reconnectionDataBuffer2;
 
     int  gNumSpatialRounds;
     bool gEnableTemporalReprojection;
@@ -95,7 +100,6 @@ struct PathRetracePass
         // TODO: How to seed efficiently?
         uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : (useTileSeed ? tileSeed : pixel);
         uint temporalSeed2 = fixTemporalSeed ? temporalSeed : (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples;
-        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
@@ -107,6 +111,25 @@ struct PathRetracePass
 
         // fetch temporal reservoir
         float2 motionVector = motionVectors[pixel];
+
+        // retrace path
+        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
+        PathReservoir centralReservoir = outputReservoirs[centralOffset];
+        retracePath(0, centralReservoir, sg, pixel, centralOffset,  motionVector, centralPrimaryHitPacked, centralPrimarySd);
+
+        // retrace path
+        var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
+        PathReservoir centralReservoir2 = outputReservoirs2[centralOffset];
+        retracePath(1, centralReservoir2, sg2, pixel, centralOffset, motionVector, centralPrimaryHitPacked, centralPrimarySd);
+    }
+
+    void retracePath(const uint id,
+                    //
+                     const in PathReservoir centralReservoir, inout TinyUniformSampleGenerator sg,
+                     //
+                     const uint2 pixel, const uint centralOffset,  const float2 motionVector,
+                     const PackedHitInfo centralPrimaryHitPacked, const ShadingData centralPrimarySd)
+    {
         int2 prevPixel = pixel;
 
         bool foundTemporalSurface = true;
@@ -123,19 +146,8 @@ struct PathRetracePass
         if (!isValidPackedHitInfo(temporalPrimaryHitPacked)) return;
 
         const uint temporalOffset = params.getReservoirOffset(prevPixel);
-
-        // retrace path
-        PathReservoir centralReservoir = outputReservoirs[centralOffset];
         PathReservoir temporalReservoir = temporalReservoirs[temporalOffset];
-        retracePath(0, centralReservoir, temporalReservoir, centralOffset, centralPrimaryHitPacked, centralPrimarySd, temporalPrimaryHitPacked, temporalPrimarySd);
-    }
 
-    void retracePath(const uint id,
-                     const in PathReservoir centralReservoir, const in PathReservoir temporalReservoir,
-                     const uint centralOffset,
-                     const PackedHitInfo centralPrimaryHitPacked, const ShadingData centralPrimarySd,
-                     const PackedHitInfo temporalPrimaryHitPacked, const ShadingData temporalPrimarySd)
-    {
         // talbot MIS
         // compute mis weight for current pixel
 
@@ -165,6 +177,9 @@ struct PathRetracePass
         {
             case 0:
                 reconnectionDataBuffer[offset].data[i] = data;
+                break;
+            case 1:
+                reconnectionDataBuffer2[offset].data[i] = data;
                 break;
         }
     }

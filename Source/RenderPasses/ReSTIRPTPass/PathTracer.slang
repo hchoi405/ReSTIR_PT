@@ -57,11 +57,13 @@ struct PathTracer
     RWTexture2D<float4> outputDebug;                ///< Output debug data. Valid if OUTPUT_DEBUG is nonzero.
     RWTexture2D<uint> outputTime;                   ///< Output timing data. Valid if OUTPUT_TIME is nonzero.
     RWTexture2D<float4> outputAlbedo;
+    RWTexture2D<float4> outputColor2;                ///< Output color buffer if kSamplesPerPixel == 1.
 
     Texture2D<float4> directLighting;                   ///< Output offset into per-sample buffers. Only valid when kSamplesPerPixel == 0.
     Texture2D<float4> directTemporal;                   ///< Output offset into per-sample buffers. Only valid when kSamplesPerPixel == 0.
 
     RWStructuredBuffer<PathReservoir> outputReservoirs;            ///< Output paths from the path tracing pass.
+    RWStructuredBuffer<PathReservoir> outputReservoirs2;            ///< Output paths from the path tracing pass.
     bool isLastRound;
     bool useDirectLighting;
     int  gSppId;
@@ -1923,13 +1925,19 @@ struct PathTracer
                 L /= kSamplesPerPixel;
             L2 /= kSamplesPerPixel;
 
-            if (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing || kSamplesPerPixel == 1 || gSppId == 0 )
+            if (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing || kSamplesPerPixel == 1 || gSppId == 0)
+            {
                 outputColor[pixel] = float4(L, 1.f);
+                outputColor2[pixel] = float4(L, 1.f); // Reset the color buffer, forgetting the previous samples
+            }
             else
                 outputColor[pixel] += float4(L, 1.f);
 
             if (PathSamplingMode(kPathSamplingMode) != PathSamplingMode::PathTracing)
+            {
                 outputReservoirs[reservoirIdx] = path.pathReservoir;
+                outputReservoirs2[reservoirIdx] = path.pathReservoir; // Copy the same reservoir for dual buffer
+            }
 
             outputDebug[pixel] = float4(L2, 1.f);
         }

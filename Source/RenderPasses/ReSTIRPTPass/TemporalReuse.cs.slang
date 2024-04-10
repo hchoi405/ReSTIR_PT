@@ -34,6 +34,11 @@ struct PathReusePass
     RWStructuredBuffer<PathReservoir> temporalReservoirs;  // reservoir from previous frame
     StructuredBuffer<PixelReconnectionData> reconnectionDataBuffer;
 
+    RWTexture2D<float4> outputColor2;
+    RWStructuredBuffer<PathReservoir> outputReservoirs2;
+    RWStructuredBuffer<PathReservoir> temporalReservoirs2;
+    StructuredBuffer<PixelReconnectionData> reconnectionDataBuffer2;
+
     Texture2D<float4> directLighting;
     bool useDirectLighting;
     Texture2D<float4> directTemporal;
@@ -99,41 +104,26 @@ struct PathReusePass
 
         uint2 spatialSeed2 = fixSpatialSeed ? spatialSeed : (useTileSeed ? tileSeed : pixel);
         uint temporalSeed2 = fixTemporalSeed ? temporalSeed : (kCandidateSamples + 1 + gNumSpatialRounds) * params.seed + kCandidateSamples;
-        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
 
-        // current
         PackedHitInfo centralPrimaryHitPacked;
         ShadingData centralPrimarySd = getPixelShadingData(pixel, centralPrimaryHitPacked);
         if (!isValidPackedHitInfo(centralPrimaryHitPacked)) return;
 
-        // temporal
         float2 motionVector = motionVectors[pixel];
-        int2 prevPixel = pixel;
 
-        bool foundTemporalSurface = true;
-
-        if (gEnableTemporalReprojection)
-        {
-            prevPixel = pixel + motionVector * params.frameDim + (sampleNext2D(sg) * 1.f - 0.f);
-        }
-
-        if (!isValidScreenRegion(prevPixel) || !foundTemporalSurface) return;
-
-        PackedHitInfo temporalPrimaryHitPacked;
-        ShadingData temporalPrimarySd = getPixelTemporalShadingData(prevPixel, temporalPrimaryHitPacked);
-        if (!isValidPackedHitInfo(temporalPrimaryHitPacked)) return;
-
+        //// Buffer 1
         // Fetch data from buffers
         PathReservoir centerReservoir = outputReservoirs[centralOffset];
-        PathReservoir temporalReservoir = temporalReservoirs[params.getReservoirOffset(prevPixel)];
         ReconnectionData rcData0 = reconnectionDataBuffer[centralOffset].data[0];
         ReconnectionData rcData1 = reconnectionDataBuffer[centralOffset].data[1];
+        var sg = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2);
 
         // Reuse path
-        var outReservoir = reusePath(centerReservoir, temporalReservoir, rcData0, rcData1, pixel, centralOffset, sg, centralPrimaryHitPacked, centralPrimarySd, temporalPrimaryHitPacked, temporalPrimarySd);
+        PathReservoir outReservoir = centerReservoir;
+        reusePath(outReservoir, centerReservoir, sg, rcData0, rcData1, pixel, centralOffset, motionVector, centralPrimaryHitPacked, centralPrimarySd);
         outputReservoirs[centralOffset] = outReservoir;
 
         // Make color
@@ -149,6 +139,18 @@ struct PathReusePass
             outputColor[pixel] += float4(color / kSamplesPerPixel, 1.f);
         }
 
+        //// Buffer 2
+        // Fetch data from buffers
+        PathReservoir centerReservoir2 = outputReservoirs2[centralOffset];
+        ReconnectionData rcData2_0 = reconnectionDataBuffer2[centralOffset].data[0];
+        ReconnectionData rcData2_1 = reconnectionDataBuffer2[centralOffset].data[1];
+        var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
+
+        // Reuse path
+        PathReservoir outReservoir2 = centerReservoir2;
+        reusePath(outReservoir2, centerReservoir2, sg2, rcData2_0, rcData2_1, pixel, centralOffset, motionVector, centralPrimaryHitPacked, centralPrimarySd);
+        outputReservoirs2[centralOffset] = outReservoir2;
+
         // Write temporal color
         float3 temporalColor = 0.f;
         if (useDirectLighting)
@@ -159,17 +161,35 @@ struct PathReusePass
         outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
     }
 
-    PathReservoir reusePath(
+    void reusePath(
+        inout PathReservoir dstReservoir,
         // Different
-        const in PathReservoir centerReservoir, in PathReservoir temporalReservoir,
+        const in PathReservoir centerReservoir,
+        inout TinyUniformSampleGenerator sg,
         const in ReconnectionData rcData0, const in ReconnectionData rcData1,
         // Shared
-        const uint2 pixel, const uint centralOffset, inout TinyUniformSampleGenerator sg,
-        const in PackedHitInfo centralPrimaryHitPacked, const in ShadingData centralPrimarySd,
-        const in PackedHitInfo temporalPrimaryHitPacked, const in ShadingData temporalPrimarySd)
+        const uint2 pixel, const uint centralOffset,  const float2 motionVector,
+        const in PackedHitInfo centralPrimaryHitPacked, const in ShadingData centralPrimarySd)
     {
+        const PathReservoir dummy;
 
-        PathReservoir dstReservoir = centerReservoir;
+        int2 prevPixel = pixel;
+
+        bool foundTemporalSurface = true;
+
+        if (gEnableTemporalReprojection)
+        {
+            prevPixel = pixel + motionVector * params.frameDim + (sampleNext2D(sg) * 1.f - 0.f);
+        }
+
+        if (!isValidScreenRegion(prevPixel) || !foundTemporalSurface) return;
+
+        PackedHitInfo temporalPrimaryHitPacked;
+        ShadingData temporalPrimarySd = getPixelTemporalShadingData(prevPixel, temporalPrimaryHitPacked);
+        if (!isValidPackedHitInfo(temporalPrimaryHitPacked)) return;
+
+        PathReservoir temporalReservoir = temporalReservoirs[params.getReservoirOffset(prevPixel)];
+
         const PathReservoir centralReservoir = dstReservoir;
         float currentM = dstReservoir.M;
 
@@ -352,8 +372,6 @@ struct PathReusePass
             }
 
             if (dstReservoir.weight < 0.f || isinf(dstReservoir.weight) || isnan(dstReservoir.weight)) dstReservoir.weight = 0.f;
-
-            return dstReservoir;
         }
     }
 
