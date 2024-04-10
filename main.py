@@ -243,10 +243,11 @@ def render_input(start, end):
     pairs = {
         ## PathTracer
         'current': f"{path}.color",
-        'indirect': f"{path}.indirect",
-        'indirect1spp': f"{path}.debug",
+        'current2': f"{path}.color2",
+        'temporal': f"{path}.temporalColor",
+        # 'indirect': f"{path}.indirect",
+        # 'indirect1spp': f"{path}.debug",
         'albedo': f"{path}.albedo",
-        # 'temporal': f"{path}.temporalColor",
         # 'viewAlbedo': f"{path}.specularAlbedo",
 
         ## GBufferRaster
@@ -261,6 +262,8 @@ def render_input(start, end):
     }
     if ENABLE_RESTIR:
         pairs['direct'] = f"{ss_restir}.color"
+        pairs['direct2'] = f"{ss_restir}.color2"
+        pairs['directTemporal'] = f"{ss_restir}.temporalColor"
         pass
     opts = {
         'captureCameraMat': False
