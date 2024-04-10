@@ -99,8 +99,6 @@ struct PathRetracePass
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
-        PathReservoir centralReservoir = outputReservoirs[centralOffset];
-
         PackedHitInfo centralPrimaryHitPacked;
         ShadingData centralPrimarySd = getPixelShadingData(pixel, centralPrimaryHitPacked);
         if (!isValidPackedHitInfo(centralPrimaryHitPacked)) return;
@@ -124,8 +122,20 @@ struct PathRetracePass
         ShadingData temporalPrimarySd = getPixelTemporalShadingData(prevPixel, temporalPrimaryHitPacked);
         if (!isValidPackedHitInfo(temporalPrimaryHitPacked)) return;
 
-        PathReservoir temporalReservoir = temporalReservoirs[params.getReservoirOffset(prevPixel)];
+        const uint temporalOffset = params.getReservoirOffset(prevPixel);
 
+        // retrace path
+        PathReservoir centralReservoir = outputReservoirs[centralOffset];
+        PathReservoir temporalReservoir = temporalReservoirs[temporalOffset];
+        retracePath(0, centralReservoir, temporalReservoir, centralOffset, centralPrimaryHitPacked, centralPrimarySd, temporalPrimaryHitPacked, temporalPrimarySd);
+    }
+
+    void retracePath(const uint id,
+                     const in PathReservoir centralReservoir, const in PathReservoir temporalReservoir,
+                     const uint centralOffset,
+                     const PackedHitInfo centralPrimaryHitPacked, const ShadingData centralPrimarySd,
+                     const PackedHitInfo temporalPrimaryHitPacked, const ShadingData temporalPrimarySd)
+    {
         // talbot MIS
         // compute mis weight for current pixel
 
@@ -140,12 +150,22 @@ struct PathRetracePass
         if (centralReservoir.pathFlags.rcVertexLength() > 1)
         {
             Tp = traceHybridShiftRays(params, true, temporalPrimaryHitPacked, temporalPrimarySd, centralReservoir, dstRcPrevVertexHit, dstRcPrevVertexWo);
-            reconnectionDataBuffer[centralOffset].data[0] = ReconnectionData(dstRcPrevVertexHit, dstRcPrevVertexWo, Tp);
+            setReconnectionData(id, centralOffset, 0, ReconnectionData(dstRcPrevVertexHit, dstRcPrevVertexWo, Tp));
         }
         if (temporalReservoir.pathFlags.rcVertexLength() > 1)
         {
             Tp2 = traceHybridShiftRays(params, false, centralPrimaryHitPacked, centralPrimarySd, temporalReservoir, dstRcPrevVertexHit2, dstRcPrevVertexWo2);
-            reconnectionDataBuffer[centralOffset].data[1] = ReconnectionData(dstRcPrevVertexHit2, dstRcPrevVertexWo2, Tp2);
+            setReconnectionData(id, centralOffset, 1, ReconnectionData(dstRcPrevVertexHit2, dstRcPrevVertexWo2, Tp2));
+        }
+    }
+
+    void setReconnectionData(const uint id, const uint offset, const uint i, const in ReconnectionData data)
+    {
+        switch(id)
+        {
+            case 0:
+                reconnectionDataBuffer[offset].data[i] = data;
+                break;
         }
     }
 

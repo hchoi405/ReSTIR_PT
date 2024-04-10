@@ -103,10 +103,75 @@ struct PathReusePass
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
-        PathReservoir dstReservoir = outputReservoirs[centralOffset];
+
+        // current
+        PackedHitInfo centralPrimaryHitPacked;
+        ShadingData centralPrimarySd = getPixelShadingData(pixel, centralPrimaryHitPacked);
+        if (!isValidPackedHitInfo(centralPrimaryHitPacked)) return;
+
+        // temporal
+        float2 motionVector = motionVectors[pixel];
+        int2 prevPixel = pixel;
+
+        bool foundTemporalSurface = true;
+
+        if (gEnableTemporalReprojection)
+        {
+            prevPixel = pixel + motionVector * params.frameDim + (sampleNext2D(sg) * 1.f - 0.f);
+        }
+
+        if (!isValidScreenRegion(prevPixel) || !foundTemporalSurface) return;
+
+        PackedHitInfo temporalPrimaryHitPacked;
+        ShadingData temporalPrimarySd = getPixelTemporalShadingData(prevPixel, temporalPrimaryHitPacked);
+        if (!isValidPackedHitInfo(temporalPrimaryHitPacked)) return;
+
+        // Fetch data from buffers
+        PathReservoir centerReservoir = outputReservoirs[centralOffset];
+        PathReservoir temporalReservoir = temporalReservoirs[params.getReservoirOffset(prevPixel)];
+        ReconnectionData rcData0 = reconnectionDataBuffer[centralOffset].data[0];
+        ReconnectionData rcData1 = reconnectionDataBuffer[centralOffset].data[1];
+
+        // Reuse path
+        var outReservoir = reusePath(centerReservoir, temporalReservoir, rcData0, rcData1, pixel, centralOffset, sg, centralPrimaryHitPacked, centralPrimarySd, temporalPrimaryHitPacked, temporalPrimarySd);
+        outputReservoirs[centralOffset] = outReservoir;
+
+        // Make color
+        float3 color = outReservoir.F * outReservoir.weight;
+        if (gIsLastRound)
+        {
+            if (useDirectLighting)
+            {
+                color += directLighting[pixel].rgb;
+                if (any(isnan(color) || isinf(color))) color = 0.f;
+            }
+
+            outputColor[pixel] += float4(color / kSamplesPerPixel, 1.f);
+        }
+
+        // Write temporal color
+        float3 temporalColor = 0.f;
+        if (useDirectLighting)
+        {
+            temporalColor += directTemporal[pixel].rgb;
+            if (any(isnan(temporalColor) || isinf(temporalColor))) temporalColor = 0.f;
+        }
+        outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
+    }
+
+    PathReservoir reusePath(
+        // Different
+        const in PathReservoir centerReservoir, in PathReservoir temporalReservoir,
+        const in ReconnectionData rcData0, const in ReconnectionData rcData1,
+        // Shared
+        const uint2 pixel, const uint centralOffset, inout TinyUniformSampleGenerator sg,
+        const in PackedHitInfo centralPrimaryHitPacked, const in ShadingData centralPrimarySd,
+        const in PackedHitInfo temporalPrimaryHitPacked, const in ShadingData temporalPrimarySd)
+    {
+
+        PathReservoir dstReservoir = centerReservoir;
         const PathReservoir centralReservoir = dstReservoir;
         float currentM = dstReservoir.M;
-        float3 initialColor = dstReservoir.F * dstReservoir.weight;
 
         if (ReSTIRMISKind(kTemporalReSTIRMISKind) == ReSTIRMISKind::Talbot)
         {
@@ -117,9 +182,7 @@ struct PathReusePass
             dstReservoir.prepareMerging();
         }
 
-        PackedHitInfo centralPrimaryHitPacked;
-        ShadingData centralPrimarySd = getPixelShadingData(pixel, centralPrimaryHitPacked);
-        if (!isValidPackedHitInfo(centralPrimaryHitPacked)) return;
+        bool doTemporalUpdateForDynamicScene = kTemporalUpdateForDynamicScene;
 
         float3 color = 0.f;
         ReconnectionData dummyRcData;
@@ -129,28 +192,6 @@ struct PathReusePass
             bool chooseCurrent = true;
 
             // color averaging test
-
-            // fetch temporal reservoir
-            float2 motionVector = motionVectors[pixel];
-            int2 prevPixel = pixel;
-
-            bool foundTemporalSurface = true;
-
-            if (gEnableTemporalReprojection)
-            {
-                prevPixel = pixel + motionVector * params.frameDim + (sampleNext2D(sg) * 1.f - 0.f);
-            }
-
-            if (!isValidScreenRegion(prevPixel) || !foundTemporalSurface) return;
-
-            PackedHitInfo temporalPrimaryHitPacked;
-            ShadingData temporalPrimarySd = getPixelTemporalShadingData(prevPixel, temporalPrimaryHitPacked);
-            if (!isValidPackedHitInfo(temporalPrimaryHitPacked)) return;
-
-            bool doTemporalUpdateForDynamicScene = kTemporalUpdateForDynamicScene;
-
-            PathReservoir temporalReservoir = temporalReservoirs[params.getReservoirOffset(prevPixel)];
-
             temporalReservoir.M = min(gTemporalHistoryLength * currentM, temporalReservoir.M);
 
             float dstJacobian;
@@ -174,7 +215,7 @@ struct PathReusePass
 
                     if (i == curSampleId)
                     {
-                        tempDstReservoir = outputReservoirs[centralOffset];
+                        tempDstReservoir = centerReservoir;
                         dstJacobian = 1.f;
                         possibleToBeSelected = tempDstReservoir.weight > 0;
                     }
@@ -182,7 +223,7 @@ struct PathReusePass
                     {
                         ReconnectionData rcData;
                         if (ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && temporalReservoir.pathFlags.rcVertexLength() > 1)
-                            rcData = reconnectionDataBuffer[centralOffset].data[1];
+                            rcData = rcData1;
                         else
                             rcData = dummyRcData;
 
@@ -214,7 +255,7 @@ struct PathReusePass
 
                                 ReconnectionData rcData;
                                 if (ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && tempDstReservoir.pathFlags.rcVertexLength() > 1)
-                                    rcData = reconnectionDataBuffer[centralOffset].data[0];
+                                    rcData = rcData0;
                                 else
                                     rcData = dummyRcData;
 
@@ -311,29 +352,9 @@ struct PathReusePass
             }
 
             if (dstReservoir.weight < 0.f || isinf(dstReservoir.weight) || isnan(dstReservoir.weight)) dstReservoir.weight = 0.f;
-            outputReservoirs[centralOffset] = dstReservoir;
-            color = dstReservoir.F * dstReservoir.weight;
 
-            if (gIsLastRound)
-            {
-                if (useDirectLighting)
-                {
-                    color += directLighting[pixel].rgb;
-                    if (any(isnan(color) || isinf(color))) color = 0.f;
-                }
-
-                outputColor[pixel] += float4(color / kSamplesPerPixel, 1.f);
-            }
+            return dstReservoir;
         }
-
-        // Write temporal color
-        float3 temporalColor = 0.f;
-        if (useDirectLighting)
-        {
-            temporalColor += directTemporal[pixel].rgb;
-            if (any(isnan(temporalColor) || isinf(temporalColor))) temporalColor = 0.f;
-        }
-        outputTemporal[pixel] += float4(temporalColor / kSamplesPerPixel, 1.f);
     }
 
     /** Entry point for merge pass.

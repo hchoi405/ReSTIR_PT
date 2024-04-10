@@ -182,116 +182,21 @@ struct PathReusePass
 
         // Compute offset into per-sample buffers. All samples are stored consecutively at this offset.
         const uint centralOffset = params.getReservoirOffset(pixel);
-        PathReservoir dstReservoir = outputReservoirs[centralOffset];
-        PathReservoir centralReservoir = dstReservoir;
-
-        float3 initialColor = dstReservoir.F * dstReservoir.weight;
-
-        float centralM = dstReservoir.M;
         PackedHitInfo centralPrimaryHitPacked;
         ShadingData centralPrimarySd = getPixelShadingData(pixel, centralPrimaryHitPacked);
 
         if (!isValidPackedHitInfo(centralPrimaryHitPacked)) return;
 
-        if (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathReuse ||
-            (ReSTIRMISKind(kSpatialReSTIRMISKind) == ReSTIRMISKind::Talbot || ReSTIRMISKind(kSpatialReSTIRMISKind) == ReSTIRMISKind::Pairwise))
-        {
-            dstReservoir.init();
-        }
-        else
-        {
-            dstReservoir.prepareMerging();
-        }
+        // Reuse the path
+        PathReservoir centerReservoir = outputReservoirs[centralOffset];
+        var dstReservoir = reusePath(0, centerReservoir, pixel, centralOffset, sg, centralPrimaryHitPacked, centralPrimarySd);
 
-        float3 color = 0.f;
-        ReconnectionData dummyRcData;
-        dummyRcData.Init();
-
-        int neighborCount = getNeighborCount();
-        const uint startIndex = sampleNext1D(sg) * kNeighborOffsetCount;
-
-        /////////////////////
-        /// PAIRWISE RMIS ///
-        /////////////////////
-        if (ReSTIRMISKind(kSpatialReSTIRMISKind) == ReSTIRMISKind::Pairwise)
-        {
-            int validNeighborCount = 0;
-            float canonicalWeight = 1;
-
-            for (int i = 0; i < neighborCount; ++i)
-            {
-                int2 neighborPixel = getNextNeighborPixel(startIndex, pixel, i);
-
-                if (!isValidScreenRegion(neighborPixel)) continue;
-
-                PackedHitInfo neighborPrimaryHitPacked;
-                ShadingData neighborPrimarySd = getPixelShadingData(neighborPixel, neighborPrimaryHitPacked);
-                if (!isValidPackedHitInfo(neighborPrimaryHitPacked)) continue;
-                if (!isValidGeometry(centralPrimarySd, neighborPrimarySd)) continue;
-
-                PathReservoir neighborReservoir = outputReservoirs[params.getReservoirOffset(neighborPixel)];
-
-                float dstJacobian;
-
-                validNeighborCount++;
-
-                float prefix_approxPdf = 0.f;
-
-                float prefixJacobian;
-
-                ReconnectionData rcData;
-                if (ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && centralReservoir.pathFlags.rcVertexLength() > 1)
-                    rcData = reconnectionDataBuffer[centralOffset].data[2 * i];
-                else
-                    rcData = dummyRcData;
-
-                float3 prefixIntegrand = computeShiftedIntegrand(params, prefixJacobian, neighborPrimaryHitPacked, neighborPrimarySd,
-                    centralPrimarySd, centralReservoir, rcData, true);
-
-                prefix_approxPdf = PathReservoir::computeWeight(prefixIntegrand) * prefixJacobian;
-
-                canonicalWeight += 1;
-                if (prefix_approxPdf > 0.f)
-                    canonicalWeight -= prefix_approxPdf * neighborReservoir.M / (prefix_approxPdf * neighborReservoir.M + centralReservoir.M * PathReservoir::computeWeight(centralReservoir.F) / (neighborCount));
-
-                PathReservoir tempDstReservoir = dstReservoir;
-
-                if (ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && neighborReservoir.pathFlags.rcVertexLength() > 1)
-                    rcData = reconnectionDataBuffer[centralOffset].data[2 * i + 1];
-                else
-                    rcData = dummyRcData;
-
-                bool possibleToBeSelected = shiftAndMergeReservoir(params, false, dstJacobian, centralPrimaryHitPacked, centralPrimarySd, tempDstReservoir,
-                    neighborPrimarySd, neighborReservoir, rcData, true, sg, true, 1.f, true); // "true" means hypothetically selected as the sample
-
-                float neighborWeight = 0.f;
-
-                if (possibleToBeSelected)
-                {
-                    neighborWeight = PathReservoir::computeWeight(neighborReservoir.F) / dstJacobian * neighborReservoir.M
-                        / ((PathReservoir::computeWeight(neighborReservoir.F) / dstJacobian) * neighborReservoir.M + PathReservoir::computeWeight(tempDstReservoir.F) * centralReservoir.M / (neighborCount));
-                    if (isnan(neighborWeight) || isinf(neighborWeight)) neighborWeight = 0.f;
-                }
-
-                mergeReservoirWithResamplingMIS(params, tempDstReservoir.F, dstJacobian, dstReservoir, tempDstReservoir, neighborReservoir, sg, true, neighborWeight);
-            }
-
-            mergeReservoirWithResamplingMIS(params, centralReservoir.F, 1.f, dstReservoir, centralReservoir, centralReservoir, sg, true, canonicalWeight);
-
-            if (dstReservoir.weight > 0)
-            {
-                dstReservoir.finalizeGRIS();
-                dstReservoir.weight /= (validNeighborCount + 1); // compensate for the fact that pairwise resampling MIS was not divided by (k+1)
-            }
-            color = dstReservoir.F * dstReservoir.weight;
-        }
-
-        if (dstReservoir.weight < 0.f) dstReservoir.weight = 0.f;
-        if (isnan(dstReservoir.weight) || isinf(dstReservoir.weight)) dstReservoir.weight = 0.f;
-
+        // Store the resulting reservoir for the next frame
         if (PathSamplingMode(kPathSamplingMode) != PathSamplingMode::PathReuse)
             temporalReservoirs[centralOffset] = dstReservoir;
 
+        // Calculate color
+        float3 color = dstReservoir.F * dstReservoir.weight;
         if (any(isnan(color) || isinf(color) || color < 0.f)) color = 0.f;
         if (gIsLastRound)
         {
@@ -318,7 +223,7 @@ struct PathReusePass
 
                 //
                 if (ShiftMapping(kShiftStrategy) == ShiftMapping::Reconnection ||
-                    ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && dstReservoir.pathFlags.rcVertexLength() == 1)  //rcVertexHit must exists
+                    ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && dstReservoir.pathFlags.rcVertexLength() == 1) // rcVertexHit must exists
                 {
                     if (dstReservoir.rcVertexHit.instanceID == 0xffffffff)
                     {
@@ -347,14 +252,13 @@ struct PathReusePass
                     Ray ray = Ray(gScene.camera.getPosition(), -centralPrimarySd.V, 0, kRayTMax);
 
                     traceDenoiserData(params, centralPrimaryHitPacked, centralPrimarySd,
-                        dstReservoir.pathFlags, dstReservoir.initRandomSeed, hitDist, pathType, reflectance);
+                                      dstReservoir.pathFlags, dstReservoir.initRandomSeed, hitDist, pathType, reflectance);
 
                     radiance = dstReservoir.F * dstReservoir.weight;
                 }
 
                 if (useDirectLighting)
                     radiance += directLighting[pixel].rgb;
-
 
                 reflectance = max(0.04f, reflectance);
                 float3 emission = primaryHitEmission[pixel].rgb;
@@ -390,7 +294,144 @@ struct PathReusePass
                 }
             }
         }
+    }
 
+    PathReservoir reusePath(
+        //
+        const uint id,
+        const in PathReservoir centralReservoir,
+        //
+        const uint2 pixel, const uint centralOffset,
+        inout TinyUniformSampleGenerator sg,
+        PackedHitInfo centralPrimaryHitPacked, ShadingData centralPrimarySd)
+    {
+        PathReservoir dstReservoir = centralReservoir;
+
+        float3 initialColor = dstReservoir.F * dstReservoir.weight;
+
+        float centralM = dstReservoir.M;
+
+        if (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathReuse ||
+            (ReSTIRMISKind(kSpatialReSTIRMISKind) == ReSTIRMISKind::Talbot || ReSTIRMISKind(kSpatialReSTIRMISKind) == ReSTIRMISKind::Pairwise))
+        {
+            dstReservoir.init();
+        }
+        else
+        {
+            dstReservoir.prepareMerging();
+        }
+
+        ReconnectionData dummyRcData;
+        dummyRcData.Init();
+
+        int neighborCount = getNeighborCount();
+        const uint startIndex = sampleNext1D(sg) * kNeighborOffsetCount;
+
+        /////////////////////
+        /// PAIRWISE RMIS ///
+        /////////////////////
+        if (ReSTIRMISKind(kSpatialReSTIRMISKind) == ReSTIRMISKind::Pairwise)
+        {
+            int validNeighborCount = 0;
+            float canonicalWeight = 1;
+
+            for (int i = 0; i < neighborCount; ++i)
+            {
+                int2 neighborPixel = getNextNeighborPixel(startIndex, pixel, i);
+
+                if (!isValidScreenRegion(neighborPixel)) continue;
+
+                PackedHitInfo neighborPrimaryHitPacked;
+                ShadingData neighborPrimarySd = getPixelShadingData(neighborPixel, neighborPrimaryHitPacked);
+                if (!isValidPackedHitInfo(neighborPrimaryHitPacked)) continue;
+                if (!isValidGeometry(centralPrimarySd, neighborPrimarySd)) continue;
+
+                PathReservoir neighborReservoir = getOutputReservoir(id, params.getReservoirOffset(neighborPixel));
+
+                float dstJacobian;
+
+                validNeighborCount++;
+
+                float prefix_approxPdf = 0.f;
+
+                float prefixJacobian;
+
+                ReconnectionData rcData;
+                if (ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && centralReservoir.pathFlags.rcVertexLength() > 1)
+                {
+                    rcData = getReconnectionData(id, centralOffset, 2 * i);
+                }
+                else
+                    rcData = dummyRcData;
+
+                float3 prefixIntegrand = computeShiftedIntegrand(params, prefixJacobian, neighborPrimaryHitPacked, neighborPrimarySd,
+                    centralPrimarySd, centralReservoir, rcData, true);
+
+                prefix_approxPdf = PathReservoir::computeWeight(prefixIntegrand) * prefixJacobian;
+
+                canonicalWeight += 1;
+                if (prefix_approxPdf > 0.f)
+                    canonicalWeight -= prefix_approxPdf * neighborReservoir.M / (prefix_approxPdf * neighborReservoir.M + centralReservoir.M * PathReservoir::computeWeight(centralReservoir.F) / (neighborCount));
+
+                PathReservoir tempDstReservoir = dstReservoir;
+
+                if (ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && neighborReservoir.pathFlags.rcVertexLength() > 1)
+                {
+                    rcData = getReconnectionData(id, centralOffset, 2 * i + 1);
+                }
+                else
+                    rcData = dummyRcData;
+
+                bool possibleToBeSelected = shiftAndMergeReservoir(params, false, dstJacobian, centralPrimaryHitPacked, centralPrimarySd, tempDstReservoir,
+                    neighborPrimarySd, neighborReservoir, rcData, true, sg, true, 1.f, true); // "true" means hypothetically selected as the sample
+
+                float neighborWeight = 0.f;
+
+                if (possibleToBeSelected)
+                {
+                    neighborWeight = PathReservoir::computeWeight(neighborReservoir.F) / dstJacobian * neighborReservoir.M
+                        / ((PathReservoir::computeWeight(neighborReservoir.F) / dstJacobian) * neighborReservoir.M + PathReservoir::computeWeight(tempDstReservoir.F) * centralReservoir.M / (neighborCount));
+                    if (isnan(neighborWeight) || isinf(neighborWeight)) neighborWeight = 0.f;
+                }
+
+                mergeReservoirWithResamplingMIS(params, tempDstReservoir.F, dstJacobian, dstReservoir, tempDstReservoir, neighborReservoir, sg, true, neighborWeight);
+            }
+
+            mergeReservoirWithResamplingMIS(params, centralReservoir.F, 1.f, dstReservoir, centralReservoir, centralReservoir, sg, true, canonicalWeight);
+
+            if (dstReservoir.weight > 0)
+            {
+                dstReservoir.finalizeGRIS();
+                dstReservoir.weight /= (validNeighborCount + 1); // compensate for the fact that pairwise resampling MIS was not divided by (k+1)
+            }
+        }
+
+        if (dstReservoir.weight < 0.f) dstReservoir.weight = 0.f;
+        if (isnan(dstReservoir.weight) || isinf(dstReservoir.weight)) dstReservoir.weight = 0.f;
+
+        return dstReservoir;
+    }
+
+    PathReservoir getOutputReservoir(const uint id, const uint offset)
+    {
+        switch (id)
+        {
+        case 0:
+            return outputReservoirs[offset];
+        }
+        PathReservoir emptyReservoir;
+        return emptyReservoir;
+    }
+
+    ReconnectionData getReconnectionData(const uint id, const uint offset, const uint i)
+    {
+        switch (id)
+        {
+        case 0:
+            return reconnectionDataBuffer[offset].data[i];
+        }
+        ReconnectionData emptyRcData;
+        return emptyRcData;
     }
 
     /** Entry point for merge pass.
