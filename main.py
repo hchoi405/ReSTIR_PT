@@ -90,7 +90,8 @@ def add_path(g, gbuf, enable_restir=True, crn=False):
 def add_gbuffer(g, pattern, init_seed=1):
     dicts = {
         'samplePattern': pattern,
-        # sampleCount becomes a seed when used for [Uniform, UniformRandom CRN] patterns
+        # sampleCount becomes a seed when used for [Uniform, UniformRandom, CRN] patterns
+        # Uniform is for GBufferRaster, UniformRandom is only for GBufferRT (do not use for GBufferRaster)
         'sampleCount': init_seed,
         'useAlphaTest': True,
     }
@@ -201,7 +202,7 @@ def add_capture(g, pairs, start, end, opts=None):
 def render_ref(start, end):
     g = RenderGraph("PathGraph")
 
-    gbuf = add_gbuffer(g, pattern=SamplePattern.UniformRandom)
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform)
     path, _ = add_path(g, gbuf, False)
 
     AccumulatePass1 = createPass("AccumulatePass", {'enabled': True})

@@ -219,11 +219,14 @@ def monitor_log_file(log_file, stop_signal):
         except KeyboardInterrupt:
             print("\nStopped monitoring the log file.")
 
-def run(local=True):
+def run(local=True, noscript=False):
     if local:
         # Call Mogwai
         binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
-        binary_args = ["--script=main.py"]
+        if noscript:
+            binary_args = []
+        else:
+            binary_args = ["--script=main.py"]
         script_dir = os.path.abspath(os.path.dirname(__file__))
         binary_abs_path = os.path.join(script_dir, binary_path)
         subprocess.run([binary_abs_path] + binary_args)
@@ -268,11 +271,16 @@ if __name__ == "__main__":
     parser.add_argument('--nobuild', action='store_true', default=False)
     parser.add_argument('--buildonly', action='store_true', default=False)
     parser.add_argument('--nopostprocessing', action='store_true', default=False)
-    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'svgf_optix'], required=True)
+    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'svgf_optix', 'nrd'], required=False)
     parser.add_argument('--nas', action='store_true', default=False)
     parser.add_argument('--interactive', action='store_true', default=False)
     parser.add_argument('--dir', default='dataset')
+    parser.add_argument('--mogwai', action='store_true', default=False)
     args = parser.parse_args()
+
+    if args.mogwai:
+        run(local=True, noscript=True)
+        exit()
 
     # Update HOME_DIR
     HOME_DIR = os.path.abspath('../').replace('\\', '/')
