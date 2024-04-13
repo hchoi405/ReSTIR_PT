@@ -12,6 +12,7 @@ ANIM = [0, 100]
 METHOD = "input"
 REF_COUNT = 8192
 ENABLE_RESTIR = True
+MULTIGBUF_COUNT = 4
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -254,7 +255,7 @@ def render_input(start, end):
         ## GBufferRaster
         'emissive': f"{gbuf}.emissive",
         'normal': f"{gbuf}.normW",
-        'depth': f"{gbuf}.linearZ",
+        'linearZ': f"{gbuf}.linearZ",
         'position': f"{gbuf}.posW",
         'mvec': f"{gbuf}.mvec",
         'pnFwidth': f"{gbuf}.pnFwidth",
@@ -336,6 +337,40 @@ def render_svgf_optix(start, end):
     return g
 
 
+def render_multigbuf(start, end):
+    g = RenderGraph("MutlipleGraph")
+
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Halton, init_seed=MULTIGBUF_COUNT)
+
+    # Connect input/output
+    pairs = {
+        'emissive_multi': f"{gbuf}.emissive",
+        'normal_multi': f"{gbuf}.normW",
+        'position_multi': f"{gbuf}.posW",
+        'albedo_multi': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
+        'specRough_multi': f"{gbuf}.specRough",
+        'diffuseOpacity_multi': f"{gbuf}.diffuseOpacity",
+        'linearZ_multi': f"{gbuf}.linearZ",
+        # 'pnFwidth': f"{gbuf}.pnFwidth",
+        # 'mvec': f"{gbuf}.mvec",
+    }
+
+    capture_pairs = {}
+    for i, (key, value) in enumerate(pairs.items()):
+        AccumulatePass = createPass("AccumulatePass", {'enabled': True})
+        g.addPass(AccumulatePass, f"AccumulatePass{i}")
+        g.addEdge(value, f"AccumulatePass{i}.input")
+
+        capture_pairs[key] = f"AccumulatePass{i}.output"
+
+    add_capture(g, capture_pairs, start, end, {'accumulate': True, 'accumulateCount': MULTIGBUF_COUNT})
+
+    # Add output
+    g.markOutput(f"{gbuf}.diffuseOpacity")
+
+    return g
+
+
 if 'Dining-room-dynamic-static' == NAME:
     start = -0.5
     end = -0.5
@@ -371,6 +406,8 @@ elif METHOD == 'ref':
     graph = render_ref(*ANIM)
 elif METHOD == 'svgf_optix':
     graph = render_svgf_optix(*ANIM)
+elif METHOD == 'multigbuf':
+    graph = render_multigbuf(*ANIM)
 
 m.addGraph(graph)
 m.loadScene(FILE)
@@ -410,6 +447,9 @@ else:
             #     m.profiler.startCapture()
             if METHOD == 'ref':
                 for i in range(REF_COUNT):
+                    m.renderFrame()
+            elif METHOD == 'multigbuf':
+                for i in range(MULTIGBUF_COUNT):
                     m.renderFrame()
             else:
                 m.renderFrame()

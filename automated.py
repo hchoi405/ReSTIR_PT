@@ -80,12 +80,8 @@ def change_method(new_method):
     else:
         print('Could not find METHOD variable in file.')
 
-def process(src_dir, dest_dir, frame, scene_name):
-    # # Copy path to current
-    # shutil.copy(os.path.join(src_dir, f'path_{frame:04d}.exr'), os.path.join(dest_dir, f'current_{frame:04d}.exr'))
-
-    # LinearZ -> Depth
-    shutil.move(os.path.join(src_dir, f'depth_{frame:04d}.exr'), os.path.join(dest_dir, f'linearZ_{frame:04d}.exr'))
+def process_input(src_dir, dest_dir, frame):
+    # Extract depth from LinearZ
     linearz_img = exr.read_all(os.path.join(src_dir, f'linearZ_{frame:04d}.exr'))['default']
     depth_img = linearz_img[:,:,0:1]
     exr.write(os.path.join(dest_dir, f'depth_{frame:04d}.exr'), depth_img, compression=exr.ZIP_COMPRESSION)
@@ -112,31 +108,17 @@ def process(src_dir, dest_dir, frame, scene_name):
     exr.write(os.path.join(dest_dir, f'opacity_{frame:04d}.exr'), opacity_img, compression=exr.ZIP_COMPRESSION)
     os.remove(os.path.join(src_dir, f'diffuseOpacity_{frame:04d}.exr'))
 
-    # # Rename nrdDeltaReflectionReflectance to albedo
-    # if os.path.exists(os.path.join(src_dir, f'nrdDeltaReflectionReflectance_{frame:04d}.exr')):
-    #     shutil.move(os.path.join(src_dir, f'nrdDeltaReflectionReflectance_{frame:04d}.exr'), os.path.join(dest_dir, f'albedo_{frame:04d}.exr'))
-
-def postprocess_input(src_dir, scene_name):
+def postprocess_input(src_dir, scene_name, frames):
     print('Post-processing the input...', end=' ', flush=True)
 
-    # Find frames
-    exr_list = os.listdir(src_dir)
-    exr_list = [f for f in exr_list if f.endswith('.exr')]
-    if len(exr_list) == 0:
-        print('No exr files found. Skip.')
-        return
-
-    # Collect frames from files
-    frames = sorted(list(set([int(f.split('.')[0].split('_')[-1]) for f in exr_list])))
-    num_frames = scene.defs[scene_name]['anim'][1] - scene.defs[scene_name]['anim'][0] + 1
-
     # Process multiprocessing
-    num_workers = min(60, mp.cpu_count()) # maximum for Windows
+    num_workers = min(60, mp.cpu_count()) # 60 is maximum for Windows
     with mp.Pool(processes=num_workers) as pool:
-        pool.starmap(process, [(src_dir, src_dir, frame, scene_name) for frame in frames])
+        pool.starmap(process_input, [(src_dir, src_dir, frame) for frame in frames])
     pool.close()
 
     # Remove last frames, if does not exist, ignore it
+    num_frames = scene.defs[scene_name]['anim'][1] - scene.defs[scene_name]['anim'][0] + 1
     if scene_name != "Dining-room-dynamic":
         for frame in range(frames[0] + num_frames, frames[0] + num_frames + 10):
             for f in os.listdir(src_dir):
@@ -144,18 +126,27 @@ def postprocess_input(src_dir, scene_name):
                     if os.path.exists(os.path.join(src_dir, f)):
                         os.remove(os.path.join(src_dir, f))
 
-    print('Done.')
+    print('Done')
 
-def process_ref(src_dir, dest_dir, frame):
-    # Change RGB visibility to Z
-    # viz = exr.read_all(os.path.join(src_dir, f'ref_visibility_{frame:04d}.exr'))['default']
-    # viz = viz[:,:,0:1]
-    # exr.write(os.path.join(dest_dir, f'ref_visibility_{frame:04d}.exr'), viz, compression=exr.ZIP_COMPRESSION)
+def postprocess_ref(src_dir, scene_name, frames):
     pass
 
-def postprocess_ref(src_dir, scene_name):
-    print('Post-processing the ref...', end=' ', flush=True)
+def process_multigbuf(src_dir, frame):
+    img = exr.read_all(os.path.join(src_dir, f'normal_multi_{frame:04d}.exr'))['default']
+    factor = np.linalg.norm(img, axis=2, keepdims=True)
+    factor[factor == 0] = 1
+    img /= factor
+    exr.write(os.path.join(src_dir, f'normal_multi_{frame:04d}.exr'), img, compression=exr.ZIP_COMPRESSION)
 
+def postprocess_multigbuf(src_dir, scene_name, frames):
+    # Normalize normal_multi
+    num_workers = min(60, mp.cpu_count()) # 60 is maximum for Windows
+    with mp.Pool(processes=num_workers) as pool:
+        pool.starmap(process_multigbuf, [(src_dir, frame) for frame in frames])
+    pass
+
+def postprocess(method, scene_name):
+    src_dir = f'{OUT_DIR}/'
     # Find frames
     exr_list = os.listdir(src_dir)
     exr_list = [f for f in exr_list if f.endswith('.exr')]
@@ -163,22 +154,13 @@ def postprocess_ref(src_dir, scene_name):
         print('No exr files found. Skip.')
         return
     frames = sorted(list(set([int(f.split('.')[0].split('_')[-1]) for f in exr_list])))
-    num_frames = scene.defs[scene_name]['anim'][1] - scene.defs[scene_name]['anim'][0] + 1
 
-    num_workers = min(60, mp.cpu_count()) # maximum for Windows
-    with mp.Pool(processes=num_workers) as pool:
-        pool.starmap(process_ref, [(src_dir, src_dir, frame) for frame in frames])
-    pool.close()
-
-def process_exposure(input_list, exposure, frame):
-    for input in input_list:
-        input_path = os.path.join('./output/', f'{input}_{frame:04d}.exr')
-        if os.path.exists(input_path):
-            img = exr.read_all(input_path)['default']
-            img = scale_exposure(img, exposure)
-            exr.write(input_path, img, compression=exr.ZIP_COMPRESSION)
-        else:
-            print(f'{input_path} not found')
+    if  method == 'input':
+        postprocess_input(src_dir, scene_name, frames)
+    elif method == 'ref':
+        postprocess_ref(src_dir, scene_name, frames)
+    elif method == 'multigbuf':
+        postprocess_multigbuf(src_dir, scene_name, frames)
 
 def build(args):
     print('Building..', end=' ')
@@ -271,7 +253,7 @@ if __name__ == "__main__":
     parser.add_argument('--nobuild', action='store_true', default=False)
     parser.add_argument('--buildonly', action='store_true', default=False)
     parser.add_argument('--nopostprocessing', action='store_true', default=False)
-    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'svgf_optix', 'nrd'], required=False)
+    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'svgf_optix', 'multigbuf'], required=False)
     parser.add_argument('--nas', action='store_true', default=False)
     parser.add_argument('--interactive', action='store_true', default=False)
     parser.add_argument('--dir', default='dataset')
@@ -336,15 +318,8 @@ if __name__ == "__main__":
             if args.interactive:
                 exit()
 
-            if args.nopostprocessing:
-                continue
-
-            if  method == 'input':
-                # Modulate
-                postprocess_input(f'{OUT_DIR}/', scene_name)
-                pass
-            elif method == 'ref':
-                postprocess_ref(f'{OUT_DIR}/', scene_name)
+            if not args.nopostprocessing:
+                postprocess(method, scene_name)
 
         # Move data directory
         if os.path.exists(OUT_DIR):

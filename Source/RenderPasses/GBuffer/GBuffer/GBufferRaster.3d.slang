@@ -32,6 +32,7 @@ import Scene.HitInfo;
 import Utils.Math.MathHelpers;
 import GBufferHelpers;
 import Rendering.Materials.TexLODHelpers;
+import Rendering.Materials.Microfacet;
 
 // UAV output channels
 RasterizerOrderedTexture2D<PackedHitInfo> gVBuffer;
@@ -89,11 +90,23 @@ GBufferPSOut psMain(VSOut vsOut, uint triangleIndex : SV_PrimitiveID, float3 bar
 
     GBuffer gbuf = storeGBufferOutput(sd, v);
 
+    float3 diffuseReflectionAlbedo = (1.f - sd.diffuseTransmission) * (1.f - sd.specularTransmission) * sd.diffuse;
+    const float NdotV = saturate(dot(sd.N, sd.V));
+    const float ggxAlpha = sd.linearRoughness * sd.linearRoughness;
+    float3 specularReflectionAlbedo = (1.f - sd.specularTransmission) * sd.specular;
+    const float3 specularReflectance = approxSpecularIntegralGGX(specularReflectionAlbedo, ggxAlpha, NdotV);
+    float3 albedo = diffuseReflectionAlbedo + specularReflectance;
+    // Detect perfect glass material (roughness=0, diffuse=1)
+    if (sd.linearRoughness == 0.f && all(sd.diffuse == float3(1.f)))
+    {
+        albedo = float3(1.f);
+    }
+
     // Store render target outputs.
     psOut.posW           = gbuf.posW;
     psOut.normW          = gbuf.normW;
     psOut.tangentW       = gbuf.tangentW;
-    psOut.texC           = gbuf.texC;
+    psOut.texC           = float4(albedo, 1.f);
     psOut.diffuseOpacity = gbuf.diffuseOpacity;
     psOut.specRough      = gbuf.specRough;
     psOut.emissive       = gbuf.emissive;
