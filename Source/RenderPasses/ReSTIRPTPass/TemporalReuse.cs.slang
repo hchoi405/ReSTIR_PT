@@ -158,7 +158,7 @@ struct PathReusePass
         if (useDirectLighting)
         {
             temporalColor2 += directTemporal[pixel].rgb;
-            if (any(isnan(temporalColor2) || isinf(temporalColor2))) temporalColor2 = 0.f;
+            if (any(temporalColor2 < 0.f || isnan(temporalColor2) || isinf(temporalColor2))) temporalColor2 = 0.f;
         }
         outputTemporal[pixel] += float4(temporalColor2 / kSamplesPerPixel, 1.f);
     }
