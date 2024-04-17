@@ -1881,6 +1881,7 @@ struct PathTracer
         if (itersPerShaderPass == 1)
         {
             float3 L = 0.f;
+            // This store the path traced sample (1 spp) w/o reused
             float3 Ldebug = 0.f;
 
             if (useDirectLighting) L += path.LDeltaDirect;
@@ -1909,8 +1910,8 @@ struct PathTracer
                 {
                     L += color;
                 }
-                Ldebug += color;
             }
+            Ldebug += path.L;
 
             if (useDirectLighting && (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing || isLastRound))
             {
