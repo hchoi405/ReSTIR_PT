@@ -13,6 +13,7 @@ METHOD = "input"
 REF_COUNT = 8192
 ENABLE_RESTIR = True
 MULTIGBUF_COUNT = 4
+PATH_SEED_OFFSET = 0
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -44,13 +45,13 @@ def add_path(g, gbuf, enable_restir=True, crn=False):
             'samplesPerPixel': 1,
             # 'syncSeedSSReSTIR': True if crn else False,
             'fixSpatialSeed': True if crn else False,
-            'temporalSeedOffset': 1000000 if crn else 0,
+            'temporalSeedOffset': (1000000 if crn else 0) + PATH_SEED_OFFSET,
         })
         path = "ReSTIRPT"
         ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass", {
             'options':ScreenSpaceReSTIROptions(
                 fixSpatialSeed=True if crn else False,
-                temporalSeedOffset=1000000 if crn else 0
+                temporalSeedOffset=(1000000 if crn else 0) + PATH_SEED_OFFSET
             )
         })
         screenReSTIR = "ScreenSpaceReSTIR"
@@ -250,6 +251,7 @@ def render_input(start, end):
         # 'indirect1spp': f"{path}.debug",
         'albedo': f"{path}.albedo",
         # 'viewAlbedo': f"{path}.specularAlbedo",
+        'envLight': f"{path}.envLight",
 
         ## GBufferRaster
         'emissive': f"{gbuf}.emissive",

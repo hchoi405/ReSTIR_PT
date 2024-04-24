@@ -211,7 +211,12 @@ def run(local=True, noscript=False):
             binary_args = ["--script=main.py"]
         script_dir = os.path.abspath(os.path.dirname(__file__))
         binary_abs_path = os.path.join(script_dir, binary_path)
-        subprocess.run([binary_abs_path] + binary_args)
+        print(f"Running {binary_abs_path} {' '.join(binary_args)}...", end=" ", flush=True)
+        ret = subprocess.run([binary_abs_path] + binary_args, capture_output=True, text=True)
+        if ret.returncode != 0:
+            print(ret.stdout)
+            sys.exit(-1)
+        print('Done.')
     else:
         script_file = "main.py"
         binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
