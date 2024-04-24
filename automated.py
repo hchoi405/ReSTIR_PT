@@ -145,7 +145,46 @@ def postprocess_multigbuf(src_dir, scene_name, frames):
         pool.starmap(process_multigbuf, [(src_dir, frame) for frame in frames])
     pass
 
-def postprocess(method, scene_name):
+
+# Average each frame
+def process_restirref_frame(name, frame, n, src_dir, tmp_dir):
+    try:
+        tmp_path = os.path.join(tmp_dir, f'{name}_{frame:04d}_{n:04d}.exr')
+        ref_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}.exr')
+        if n == 0:
+            shutil.move(tmp_path, ref_path)
+        else:
+            img_avg = exr.read_all(ref_path)['default']
+            img = exr.read_all(tmp_path)['default']
+            new_avg = (n * img_avg + img) / (n + 1)
+            exr.write(ref_path, new_avg, compression=exr.ZIP_COMPRESSION)
+            os.remove(tmp_path)
+    except Exception as e:
+        print(f"Error processing frame {frame}: {str(e)}")
+
+def postprocess_refrestir(src_dir, scene_name, frames, idx):
+    tmp_dir = os.path.join(src_dir, 'tmp')
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    # Move the images in src_dir to the tmp_dir with appending the index
+    reflist = ['current', 'envLight', 'emissive']
+    exr_list = os.listdir(src_dir)
+    exr_list = [f for f in exr_list if f.endswith('.exr')]
+    exr_list = [f for f in exr_list if any([f.startswith(f'{name}_') for name in reflist])]
+    if len(exr_list) == 0:
+        print('ERROR2: No exr files found.')
+        return
+    for f in exr_list:
+        shutil.move(os.path.join(src_dir, f), os.path.join(tmp_dir, f'{f.split(".")[0]}_{idx:04d}.exr'))
+
+    # Process multiprocessing
+    num_workers = min(60, mp.cpu_count()) # 60 is maximum for Windows
+    with mp.Pool(processes=num_workers) as pool:
+        for name in reflist:
+            pool.starmap(partial(process_restirref_frame, name), [(frame, idx, src_dir, tmp_dir) for frame in frames])
+
+
+def postprocess(method, scene_name, idx=0):
     src_dir = f'{OUT_DIR}/'
     # Find frames
     exr_list = os.listdir(src_dir)
@@ -161,6 +200,10 @@ def postprocess(method, scene_name):
         postprocess_ref(src_dir, scene_name, frames)
     elif method == 'multigbuf':
         postprocess_multigbuf(src_dir, scene_name, frames)
+    elif method == 'ref_restir':
+        postprocess_refrestir(src_dir, scene_name, frames, idx)
+    else:
+        print(f'Post-processing for {method} is not implemented.')
 
 def build(args):
     print('Building..', end=' ')
@@ -258,7 +301,7 @@ if __name__ == "__main__":
     parser.add_argument('--nobuild', action='store_true', default=False)
     parser.add_argument('--buildonly', action='store_true', default=False)
     parser.add_argument('--nopostprocessing', action='store_true', default=False)
-    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'svgf_optix', 'multigbuf'], required=False)
+    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'svgf_optix', 'multigbuf', 'ref_restir'], required=False)
     parser.add_argument('--nas', action='store_true', default=False)
     parser.add_argument('--interactive', action='store_true', default=False)
     parser.add_argument('--dir', default='dataset')
@@ -317,14 +360,27 @@ if __name__ == "__main__":
         for method in args.methods:
             change_method(method)
 
-            # Launch Mogwai
-            run()
+            if method == 'ref_restir':
+                # Clear tmp directory
+                tmp_dir = os.path.join(OUT_DIR, 'tmp')
+                if os.path.exists(tmp_dir):
+                    shutil.rmtree(tmp_dir)
 
-            if args.interactive:
-                exit()
+                for i in range(8192):
+                    update_pyvariable("main.py", "PATH_SEED_OFFSET", i)
+                    print(f'Sample idx {i}:', end=' ')
+                    run()
+                    postprocess(method, scene_name, i)
 
-            if not args.nopostprocessing:
-                postprocess(method, scene_name)
+            else:
+                # Launch Mogwai
+                run()
+
+                if args.interactive:
+                    exit()
+
+                if not args.nopostprocessing:
+                    postprocess(method, scene_name)
 
         # Move data directory
         if os.path.exists(OUT_DIR):

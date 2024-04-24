@@ -93,7 +93,7 @@ def add_gbuffer(g, pattern, init_seed=1):
     dicts = {
         'samplePattern': pattern,
         # sampleCount becomes a seed when used for [Uniform, UniformRandom, CRN] patterns
-        # Uniform is for GBufferRaster, UniformRandom is only for GBufferRT (do not use for GBufferRaster)
+        # Uniform is for GBufferRaster, UniformRandom is only for GBufferRT (do not use UniformRandom for GBufferRaster)
         'sampleCount': init_seed,
         'useAlphaTest': True,
     }
@@ -372,6 +372,33 @@ def render_multigbuf(start, end):
     return g
 
 
+def render_ref_restir(start, end):
+    g = RenderGraph("MutlipleGraph")
+
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=PATH_SEED_OFFSET)
+    path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False)
+
+    # Connect input/output
+    pairs = {
+        ## PathTracer
+        'current': f"{path}.color",
+        'envLight': f"{path}.envLight",
+
+        ## GBufferRaster
+        'emissive': f"{gbuf}.emissive",
+    }
+    opts = {
+        'captureCameraMat': False
+    }
+    if not INTERACTIVE:
+        add_capture(g, pairs, start, end, opts)
+
+    # Add output
+    g.markOutput(f"{path}.color")
+
+    return g
+
+
 if 'Dining-room-dynamic-static' == NAME:
     start = -0.5
     end = -0.5
@@ -409,6 +436,8 @@ elif METHOD == 'svgf_optix':
     graph = render_svgf_optix(*ANIM)
 elif METHOD == 'multigbuf':
     graph = render_multigbuf(*ANIM)
+elif METHOD == 'ref_restir':
+    graph = render_ref_restir(*ANIM)
 
 m.addGraph(graph)
 m.loadScene(FILE)
