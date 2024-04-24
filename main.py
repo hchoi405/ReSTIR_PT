@@ -245,7 +245,6 @@ def render_input(start, end):
     pairs = {
         ## PathTracer
         'current': f"{path}.color",
-        'current2': f"{path}.color2",
         'temporal': f"{path}.temporalColor",
         # 'indirect': f"{path}.indirect",
         # 'indirect1spp': f"{path}.debug",
