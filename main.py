@@ -247,11 +247,8 @@ def render_input(start, end):
         ## PathTracer
         'current': f"{path}.color",
         'temporal': f"{path}.temporalColor",
-        # 'indirect': f"{path}.indirect",
-        # 'indirect1spp': f"{path}.debug",
-        'albedo': f"{path}.albedo",
-        # 'viewAlbedo': f"{path}.specularAlbedo",
         'envLight': f"{path}.envLight",
+        'albedo': f"{path}.albedo",
 
         ## GBufferRaster
         'emissive': f"{gbuf}.emissive",

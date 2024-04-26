@@ -35,6 +35,8 @@ enum class PathFlags
 
     specularPrimaryHit      = 0x1000,   ///< Primary hit was sampled from the specular BSDF lobe.
 
+    deltaPrimaryHit         = 0x2000,   ///< Primary hit was sampled from the delta BSDF lobe.
+
     // Bits 11-15 are still unused.
 };
 
@@ -105,7 +107,7 @@ struct PathState
     bool     randomReplayIsNEE; // daqi: indicate the base path is a NEE path, therefore the random replay should also terminates as a NEE path
     bool     randomReplayIsEscaped; // daqi: indicate the base path is a escaped path, therefore the random replay should also terminates as a escaped path
     int      randomReplayLength; // daqi: the length of the random replay (same as the path length of the base path)
-    bool     useHybridShift; 
+    bool     useHybridShift;
     // this is used for hybrid shift or hybrid shift is being MIS'ed with (at both initial candidate generation and resampling)
     bool     isReplayForHybridShift; // daqi: indicate that a random number replay is done with the hybrid shift in mind (invalidated if invertibility is violated)
     bool     isLastVertexClassifiedAsRough; // daqi: remembers if last vertex is classified as a diffuse vertex (used for specularskip in hybrid shift)
@@ -128,6 +130,7 @@ struct PathState
     bool isLightSampledLower() { return hasFlag(PathFlags::lightSampledLower); }
     bool isDiffusePrimaryHit() { return hasFlag(PathFlags::diffusePrimaryHit); }
     bool isSpecularPrimaryHit() { return hasFlag(PathFlags::specularPrimaryHit); }
+    bool isDeltaPrimaryHit() { return hasFlag(PathFlags::deltaPrimaryHit); }
     bool isFreePath() { return hasFlag(PathFlags::freePath); }
 
     // Check if the scatter event is samplable by the light sampling technique.
@@ -148,6 +151,7 @@ struct PathState
     [mutating] void setLightSampled(bool upper, bool lower) { setFlag(PathFlags::lightSampledUpper, upper); setFlag(PathFlags::lightSampledLower, lower); }
     [mutating] void setDiffusePrimaryHit(bool value = true) { setFlag(PathFlags::diffusePrimaryHit, value); }
     [mutating] void setSpecularPrimaryHit(bool value = true) { setFlag(PathFlags::specularPrimaryHit, value); }
+    [mutating] void setDeltaPrimaryHit(bool value = true) { setFlag(PathFlags::deltaPrimaryHit, value); }
 
     [mutating] void setFreePath(bool value = true) { setFlag(PathFlags::freePath, value); }
 

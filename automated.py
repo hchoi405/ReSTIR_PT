@@ -339,6 +339,9 @@ if __name__ == "__main__":
         # Create output directory
         os.makedirs(OUT_DIR, exist_ok=True)
 
+    # Reset
+    update_pyvariable("main.py", "PATH_SEED_OFFSET", 0)
+
     #########################################################
     # Call build in silent mode and check if it was successful
     build(args)

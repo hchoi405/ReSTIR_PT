@@ -331,6 +331,7 @@ struct PathTracer
         {
             path.setDiffusePrimaryHit(result.isLobe(LobeType::Diffuse));
             path.setSpecularPrimaryHit(result.isLobe(LobeType::Specular));
+            path.setDeltaPrimaryHit(result.isLobe(LobeType::Delta));
         }
 
         if (valid)
