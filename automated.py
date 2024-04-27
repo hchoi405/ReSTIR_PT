@@ -366,7 +366,7 @@ if __name__ == "__main__":
                 if os.path.exists(tmp_dir):
                     shutil.rmtree(tmp_dir)
 
-                for i in range(8192):
+                for i in range(2048):
                     update_pyvariable("main.py", "PATH_SEED_OFFSET", i)
                     print(f'Sample idx {i}:', end=' ')
                     run()
