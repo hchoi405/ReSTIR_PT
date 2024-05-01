@@ -277,6 +277,35 @@ def render_input(start, end):
     return g
 
 
+def render_secondinput(start, end):
+    g = RenderGraph("MutlipleGraph")
+
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Center)
+    path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False)
+
+    # Connect input/output
+    pairs = {
+        ## PathTracer
+        'current2': f"{path}.color",
+        'temporal2': f"{path}.temporalColor",
+    }
+    if ENABLE_RESTIR:
+        pairs['direct2'] = f"{ss_restir}.color"
+        # pairs['direct2'] = f"{ss_restir}.color2"
+        # pairs['directTemporal'] = f"{ss_restir}.temporalColor"
+        pass
+    opts = {
+        'captureCameraMat': False
+    }
+    if not INTERACTIVE:
+        add_capture(g, pairs, start, end, opts)
+
+    # Add output
+    g.markOutput(f"{path}.color")
+
+    return g
+
+
 def render_crn(start, end):
     g = RenderGraph("MutlipleGraph")
 
@@ -425,6 +454,8 @@ loadRenderPassLibrary("AccumulatePass.dll")
 print("ANIM = ", ANIM)
 if METHOD == 'input':
     graph = render_input(*ANIM)
+if METHOD == 'secondinput':
+    graph = render_secondinput(*ANIM)
 elif METHOD == 'crn':
     graph = render_crn(*ANIM)
 elif METHOD == 'ref':

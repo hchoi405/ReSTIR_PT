@@ -301,7 +301,7 @@ if __name__ == "__main__":
     parser.add_argument('--nobuild', action='store_true', default=False)
     parser.add_argument('--buildonly', action='store_true', default=False)
     parser.add_argument('--nopostprocessing', action='store_true', default=False)
-    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'svgf_optix', 'multigbuf', 'ref_restir'], required=False)
+    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'svgf_optix', 'multigbuf', 'ref_restir', 'secondinput'], required=False)
     parser.add_argument('--nas', action='store_true', default=False)
     parser.add_argument('--interactive', action='store_true', default=False)
     parser.add_argument('--dir', default='dataset')
@@ -359,6 +359,11 @@ if __name__ == "__main__":
 
         for method in args.methods:
             change_method(method)
+
+            if method == 'secondinput':
+                update_pyvariable("main.py", "PATH_SEED_OFFSET", 1000000)
+            else:
+                update_pyvariable("main.py", "PATH_SEED_OFFSET", 0)
 
             if method == 'ref_restir':
                 # Clear tmp directory
