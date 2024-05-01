@@ -104,7 +104,6 @@ def add_gbuffer(g, pattern, init_seed=1):
 
 
 def add_fileload(g):
-
     # key:value = filename:channelName
     channels = {
         'current': 'color',
@@ -290,7 +289,7 @@ def render_secondinput(start, end):
         'temporal2': f"{path}.temporalColor",
     }
     if ENABLE_RESTIR:
-        pairs['direct2'] = f"{ss_restir}.color"
+        # pairs['direct2'] = f"{ss_restir}.color"
         # pairs['direct2'] = f"{ss_restir}.color2"
         # pairs['directTemporal'] = f"{ss_restir}.temporalColor"
         pass

@@ -132,11 +132,14 @@ def postprocess_ref(src_dir, scene_name, frames):
     pass
 
 def process_multigbuf(src_dir, frame):
-    img = exr.read_all(os.path.join(src_dir, f'normal_multi_{frame:04d}.exr'))['default']
+    normal_path = os.path.join(src_dir, f'normal_multi_{frame:04d}.exr')
+    if not os.path.exists(normal_path):
+        return
+    img = exr.read_all(normal_path)['default']
     factor = np.linalg.norm(img, axis=2, keepdims=True)
     factor[factor == 0] = 1
     img /= factor
-    exr.write(os.path.join(src_dir, f'normal_multi_{frame:04d}.exr'), img, compression=exr.ZIP_COMPRESSION)
+    exr.write(normal_path, img, compression=exr.ZIP_COMPRESSION)
 
 def postprocess_multigbuf(src_dir, scene_name, frames):
     # Normalize normal_multi
