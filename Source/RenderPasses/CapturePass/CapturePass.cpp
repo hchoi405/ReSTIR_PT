@@ -266,7 +266,8 @@ void CapturePass::execute(RenderContext *pRenderContext, const RenderData &rende
         // Make matrices string
         for (size_t k = 0; k < numFrames; ++k)
         {
-            const auto &mat = mCameraMatrices[k];
+            auto mat = mCameraMatrices[k];
+            mat = glm::transpose(mat);
             matStr.append(fmt::format("    {{ // frame {}\n", k));
             for (int i = 0; i < 4; ++i)
             {
