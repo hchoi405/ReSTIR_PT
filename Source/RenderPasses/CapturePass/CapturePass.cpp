@@ -43,6 +43,7 @@ namespace
     const char kWriteStart[] = "writeStart";
     const char kWriteEnd[] = "writeEnd";
     const char kCaptureCameraMat[] = "captureCameraMat";
+    const char kCaptureCameraMatOnly[] = "captureCameraMatOnly";
     const char kIncludeAlpha[] = "includeAlpha";
 }
 
@@ -127,6 +128,11 @@ void CapturePass::parseDictionary(const Dictionary &dict)
             bool tmp = value;
             mCaptureCameraMat = tmp;
         }
+        else if (key == kCaptureCameraMatOnly)
+        {
+            bool tmp = value;
+            mCaptureCameraMatOnly = tmp;
+        }
         else if (key == kIncludeAlpha)
         {
             std::vector<std::string> includeAlpha = value;
@@ -146,6 +152,7 @@ Dictionary CapturePass::getScriptingDictionary()
     dict[kWriteStart] = mWriteStart;
     dict[kWriteEnd] = mWriteEnd;
     dict[kCaptureCameraMat] = mCaptureCameraMat;
+    dict[kCaptureCameraMatOnly] = mCaptureCameraMatOnly;
     dict[kIncludeAlpha] = mIncludeAlpha;
     return dict;
 }
@@ -209,7 +216,8 @@ void CapturePass::execute(RenderContext *pRenderContext, const RenderData &rende
                 {
                     if (frameCount >= mWriteStart && frameCount <= mWriteEnd)
                     {
-                        storeTexture(pRenderContext, mCaptureCount, mChannels[i], pTex);
+                        if (!mCaptureCameraMatOnly)
+                            storeTexture(pRenderContext, mCaptureCount, mChannels[i], pTex);
                         if (i == mChannels.size() - 1)
                             mCaptureCount++;
                     }
@@ -228,7 +236,8 @@ void CapturePass::execute(RenderContext *pRenderContext, const RenderData &rende
                 {
                     if (frameCount == writeTarget)
                     {
-                        storeTexture(pRenderContext, mCaptureCount, mChannels[i], pTex);
+                        if (!mCaptureCameraMatOnly)
+                            storeTexture(pRenderContext, mCaptureCount, mChannels[i], pTex);
                         if (i == mChannels.size() - 1)
                             mCaptureCount++;
                         break;

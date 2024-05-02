@@ -265,7 +265,8 @@ def render_input(start, end):
         pairs['directTemporal'] = f"{ss_restir}.temporalColor"
         pass
     opts = {
-        'captureCameraMat': False
+        'captureCameraMat': True,
+        'captureCameraMatOnly': False
     }
     if not INTERACTIVE:
         add_capture(g, pairs, start, end, opts)

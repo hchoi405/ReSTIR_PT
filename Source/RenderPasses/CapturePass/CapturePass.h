@@ -79,6 +79,7 @@ private:
 
     // Camera matrix
     bool mCaptureCameraMat = false;
+    bool mCaptureCameraMatOnly = false;
     std::vector<glm::mat4> mCameraMatrices;
     std::string mCameraMatTemplate;
 };
