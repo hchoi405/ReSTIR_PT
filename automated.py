@@ -260,9 +260,10 @@ def run(local=True, noscript=False):
         print(f"Running {binary_abs_path} {' '.join(binary_args)}...", end=" ", flush=True)
         ret = subprocess.run([binary_abs_path] + binary_args, capture_output=True, text=True)
         if ret.returncode != 0:
-            print(ret.stdout)
-            sys.exit(-1)
+            print('Unsucessful, retry')
+            return -1
         print('Done.')
+        return 0
     else:
         script_file = "main.py"
         binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
@@ -374,11 +375,16 @@ if __name__ == "__main__":
                 if os.path.exists(tmp_dir):
                     shutil.rmtree(tmp_dir)
 
-                for i in range(2048):
+                i = 0
+                while i < 2048:
                     update_pyvariable("main.py", "PATH_SEED_OFFSET", i)
                     print(f'Sample idx {i}:', end=' ')
-                    run()
-                    postprocess(method, scene_name, i)
+                    ret = run()
+                    if ret != 0:
+                        continue
+                    else:
+                        postprocess(method, scene_name, i)
+                        i += 1
 
             else:
                 # Launch Mogwai
