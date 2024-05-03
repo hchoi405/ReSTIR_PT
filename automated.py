@@ -128,6 +128,20 @@ def postprocess_input(src_dir, scene_name, frames):
 
     print('Done')
 
+def postprocess_secondinput(src_dir, scene_name, frames):
+    print('Post-processing the secondinput...', end=' ', flush=True)
+
+    # Remove last frames, if does not exist, ignore it
+    num_frames = scene.defs[scene_name]['anim'][1] - scene.defs[scene_name]['anim'][0] + 1
+    if scene_name != "Dining-room-dynamic":
+        for frame in range(frames[0] + num_frames, frames[0] + num_frames + 10):
+            for f in os.listdir(src_dir):
+                if f.endswith(f'{frame:04d}.exr'):
+                    if os.path.exists(os.path.join(src_dir, f)):
+                        os.remove(os.path.join(src_dir, f))
+
+    print('Done')
+
 def postprocess_ref(src_dir, scene_name, frames):
     pass
 
@@ -197,8 +211,10 @@ def postprocess(method, scene_name, idx=0):
         return
     frames = sorted(list(set([int(f.split('.')[0].split('_')[-1]) for f in exr_list])))
 
-    if  method == 'input':
+    if method == 'input':
         postprocess_input(src_dir, scene_name, frames)
+    if method == 'secondinput':
+        postprocess_secondinput(src_dir, scene_name, frames)
     elif method == 'ref':
         postprocess_ref(src_dir, scene_name, frames)
     elif method == 'multigbuf':
