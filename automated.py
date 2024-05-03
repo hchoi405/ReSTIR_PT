@@ -167,19 +167,24 @@ def postprocess_multigbuf(src_dir, scene_name, frames):
 def process_restirref_frame(name, frame, n, src_dir, tmp_dir):
     try:
         tmp_path = os.path.join(tmp_dir, f'{name}_{frame:04d}_{n:04d}.exr')
-        ref_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}.exr')
+        last_n = max(0, n - 1)
+        prev_ref_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}_{last_n:04d}.exr')
+        new_ref_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}_{n:04d}.exr')
         if n == 0:
-            shutil.move(tmp_path, ref_path)
+            shutil.move(tmp_path, new_ref_path)
         else:
-            img_avg = exr.read_all(ref_path)['default']
+            img_avg = exr.read_all(prev_ref_path)['default']
             img = exr.read_all(tmp_path)['default']
             new_avg = (n * img_avg + img) / (n + 1)
-            exr.write(ref_path, new_avg, compression=exr.ZIP_COMPRESSION)
+            exr.write(new_ref_path, new_avg, compression=exr.ZIP_COMPRESSION)
             os.remove(tmp_path)
+            os.remove(prev_ref_path)
+
     except Exception as e:
         print(f"Error processing frame {frame}: {str(e)}")
 
 def postprocess_refrestir(src_dir, scene_name, frames, idx):
+    # Create tmp directory
     tmp_dir = os.path.join(src_dir, 'tmp')
     os.makedirs(tmp_dir, exist_ok=True)
 
@@ -391,16 +396,23 @@ if __name__ == "__main__":
                 if os.path.exists(tmp_dir):
                     shutil.rmtree(tmp_dir)
 
-                i = 0
-                while i < 2048:
-                    update_pyvariable("main.py", "PATH_SEED_OFFSET", i)
-                    print(f'Sample idx {i}:', end=' ')
+                idx = 0
+                # Adjust the idx if ref_current exists
+                files = os.listdir(OUT_DIR)
+                reffiles = [f for f in files if f.startswith('ref_current')]
+                if len(reffiles) > 0:
+                    last_idx = max([int(f.split('_')[-1].split('.')[0]) for f in reffiles])
+                    idx = last_idx + 1
+
+                while idx < 2048:
+                    update_pyvariable("main.py", "PATH_SEED_OFFSET", idx)
+                    print(f'Sample idx {idx}:', end=' ')
                     ret = run()
                     if ret != 0:
                         continue
                     else:
-                        postprocess(method, scene_name, i)
-                        i += 1
+                        postprocess(method, scene_name, idx)
+                        idx += 1
 
             else:
                 # Launch Mogwai
