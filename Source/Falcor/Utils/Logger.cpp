@@ -34,7 +34,7 @@ namespace Falcor
     {
         std::string sLogFilePath;
         bool sLogToConsole = false;
-        bool sShowBoxOnError = true;
+        bool sShowBoxOnError = false;
         Logger::Level sVerbosity = Logger::Level::Info;
 
 #if _LOG_ENABLED
