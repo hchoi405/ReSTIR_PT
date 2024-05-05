@@ -42,6 +42,7 @@ namespace Falcor
             ExportAlpha = 1u << 0,  //< Save alpha channel as well
             Lossy = 1u << 1,        //< Try to store in a lossy format
             Uncompressed = 1u << 2, //< Prefer faster load to a more compact file size
+            Lossless = 1u << 3,     //< Try to store in a lossless format
         };
 
         enum class FileFormat
