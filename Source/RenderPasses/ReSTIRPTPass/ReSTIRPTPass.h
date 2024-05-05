@@ -94,8 +94,8 @@ private:
         uint32_t    maxTransmissionRefractionDepth = 0;         ///< Maximum transmission depth at which to sample specular refraction (after that, IoR is set to 1).
         bool        disableCaustics = false;                    ///< Disable sampling of caustics.
         bool        disableDirectIllumination = true;          ///< Disable all direct illumination.
-        TexLODMode  primaryLodMode = TexLODMode::Mip0;          ///< Use filtered texture lookups at the primary hit.
-        ColorFormat colorFormat = ColorFormat::LogLuvHDR;       ///< Color format used for internal per-sample color and denoiser buffers.
+        TexLODMode  primaryLodMode = TexLODMode::RayDiffs;          ///< Use filtered texture lookups at the primary hit.
+        ColorFormat colorFormat = ColorFormat::RGBA32F;       ///< Color format used for internal per-sample color and denoiser buffers.
         MISHeuristic misHeuristic = MISHeuristic::Balance;      ///< MIS heuristic.
         float       misPowerExponent = 2.f;                     ///< MIS exponent for the power heuristic. This is only used when 'PowerExp' is chosen.
         EmissiveLightSamplerType emissiveSampler = EmissiveLightSamplerType::Power;  ///< Emissive light sampler to use for NEE.
