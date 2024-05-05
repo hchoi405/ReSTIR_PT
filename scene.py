@@ -6,16 +6,19 @@ ORCA_PATH = f"{HOME_DIR}/ORCA/"
 FBX_PATH = f"{FALCOR_DIR}/fbxscenes/"
 
 defs = {
-    # "BistroExterior2": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[1400, 2000]},
-    "SunTemple2" : {'file': ORCA_PATH + "SunTemple/SunTemple.pyscene", 'anim':[1600, 2200]},
+    "BistroExterior2": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[1400, 2000]},
+    "BistroExteriorDynamic": {'file': ORCA_PATH + "BistroExterior_dynamic_camera_flipped/BistroExterior_dynamic.pyscene", 'anim':[0, 600]},
     "classroom" : {'file': FBX_PATH + "classroom/classroom.pyscene", 'anim':[0, 600]},
+    "EmeraldSquare2" : {'file': ORCA_PATH + "EmeraldSquare/EmeraldSquare_Day.pyscene", 'anim':[1700, 2300]},
+    "staircase" : {'file': FBX_PATH + "staircase/staircase.pyscene", 'anim':[0, 600]},
 
-    # "BistroExteriorDynamic": {'file': ORCA_PATH + "BistroExterior_dynamic_camera_flipped/BistroExterior_dynamic.pyscene", 'anim':[0, 600]},
-    # "EmeraldSquare1" : {'file': ORCA_PATH + "EmeraldSquare/EmeraldSquare_Day.pyscene", 'anim':[0, 600]},
-    # "EmeraldSquare2" : {'file': ORCA_PATH + "EmeraldSquare/EmeraldSquare_Day.pyscene", 'anim':[1700, 2300]},
-    # "SunTemple1" : {'file': ORCA_PATH + "SunTemple/SunTemple.pyscene", 'anim':[300, 900]},
     # "BistroExterior1": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[0, 600]},
     # "BistroExterior3": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[3600, 4200]},
+    # "SunTemple2" : {'file': ORCA_PATH + "SunTemple/SunTemple.pyscene", 'anim':[1600, 2200]},
+    # "EmeraldSquare1" : {'file': ORCA_PATH + "EmeraldSquare/EmeraldSquare_Day.pyscene", 'anim':[0, 600]},
+    # "whiteroom" : {'file': FBX_PATH + "whiteroom/whiteroom.pyscene", 'anim':[0, 600]},
+    # "SunTemple1" : {'file': ORCA_PATH + "SunTemple/SunTemple.pyscene", 'anim':[300, 900]},
+    # "breakfastroom" : {'file': FBX_PATH + "the-breakfast-room/breakfastroom.pyscene", 'anim':[0, 600]},
 }
 
 considered = {
