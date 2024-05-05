@@ -81,6 +81,16 @@ def change_method(new_method):
         print('Could not find METHOD variable in file.')
 
 def process_input(src_dir, dest_dir, frame):
+    # Normalize normal (multi sample)
+    normal_path = os.path.join(src_dir, f'normal_{frame:04d}.exr')
+    if not os.path.exists(normal_path):
+        return
+    img = exr.read_all(normal_path)['default']
+    factor = np.linalg.norm(img, axis=2, keepdims=True)
+    factor[factor == 0] = 1
+    img /= factor
+    exr.write(normal_path, img, compression=exr.ZIP_COMPRESSION)
+
     # Extract depth from LinearZ
     linearz_img = exr.read_all(os.path.join(src_dir, f'linearZ_{frame:04d}.exr'))['default']
     depth_img = linearz_img[:,:,0:1]
@@ -145,24 +155,6 @@ def postprocess_secondinput(src_dir, scene_name, frames):
 def postprocess_ref(src_dir, scene_name, frames):
     pass
 
-def process_multigbuf(src_dir, frame):
-    normal_path = os.path.join(src_dir, f'normal_multi_{frame:04d}.exr')
-    if not os.path.exists(normal_path):
-        return
-    img = exr.read_all(normal_path)['default']
-    factor = np.linalg.norm(img, axis=2, keepdims=True)
-    factor[factor == 0] = 1
-    img /= factor
-    exr.write(normal_path, img, compression=exr.ZIP_COMPRESSION)
-
-def postprocess_multigbuf(src_dir, scene_name, frames):
-    # Normalize normal_multi
-    num_workers = min(60, mp.cpu_count()) # 60 is maximum for Windows
-    with mp.Pool(processes=num_workers) as pool:
-        pool.starmap(process_multigbuf, [(src_dir, frame) for frame in frames])
-    pass
-
-
 # Average each frame
 def process_restirref_frame(name, frame, n, src_dir, tmp_dir):
     try:
@@ -222,8 +214,6 @@ def postprocess(method, scene_name, idx=0):
         postprocess_secondinput(src_dir, scene_name, frames)
     elif method == 'ref':
         postprocess_ref(src_dir, scene_name, frames)
-    elif method == 'multigbuf':
-        postprocess_multigbuf(src_dir, scene_name, frames)
     elif method == 'ref_restir':
         postprocess_refrestir(src_dir, scene_name, frames, idx)
     else:
@@ -273,65 +263,31 @@ def monitor_log_file(log_file, stop_signal):
         except KeyboardInterrupt:
             print("\nStopped monitoring the log file.")
 
-def run(local=True, noscript=False):
-    if local:
-        # Call Mogwai
-        binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
-        if noscript:
-            binary_args = []
-        else:
-            binary_args = ["--script=main.py"]
-        script_dir = os.path.abspath(os.path.dirname(__file__))
-        binary_abs_path = os.path.join(script_dir, binary_path)
-        print(f"Running {binary_abs_path} {' '.join(binary_args)}...", end=" ", flush=True)
-        ret = subprocess.run([binary_abs_path] + binary_args, capture_output=True, text=True)
-        if ret.returncode != 0:
-            print('Unsucessful, retry')
-            return -1
-        print('Done.')
-        return 0
+def run(noscript=False):
+    # Call Mogwai
+    binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
+    if noscript:
+        binary_args = []
     else:
-        script_file = "main.py"
-        binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
+        binary_args = ["--script=main.py"]
+    script_dir = os.path.abspath(os.path.dirname(__file__))
+    binary_abs_path = os.path.join(script_dir, binary_path)
+    print(f"Running {binary_abs_path} {' '.join(binary_args)}...", end=" ", flush=True)
+    # ret = subprocess.run([binary_abs_path] + binary_args, capture_output=True, text=True)
+    ret = subprocess.run([binary_abs_path] + binary_args)
+    if ret.returncode != 0:
+        print('Unsucessful, retry')
+        return -1
+    print('Done.')
+    return 0
 
-        cwd = os.path.abspath(os.path.dirname(__file__))
-        binary_args_path = os.path.join(cwd, script_file)
-        binary_abs_path = os.path.join(cwd, binary_path)
-
-        binary_command = f"psexec -i 1 {binary_abs_path} --script={binary_args_path}"
-
-        ## Log monitoring
-
-        log_directory = './Bin/x64/Release/'
-        log_pattern = r'Mogwai.exe.*.log'
-
-        # Determine the latest log file before starting the subprocess
-        existing_latest_log = get_latest_log_file(log_directory, log_pattern)
-
-        # Start the subprocess
-        proc = subprocess.Popen(binary_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        # Determine the new log file created by this subprocess run
-        new_log_file = get_latest_log_file(log_directory, log_pattern, baseline=existing_latest_log)
-
-        stop_thread = threading.Event()
-        # Start monitoring the new log file
-        log_thread = threading.Thread(target=monitor_log_file, args=(new_log_file, stop_thread))
-        log_thread.start()
-
-        # Wait for the subprocess to complete
-        proc.wait()
-
-        # Signal the monitoring thread to stop
-        stop_thread.set()
-        log_thread.join()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Automated script for Mogwai')
     parser.add_argument('--nobuild', action='store_true', default=False)
     parser.add_argument('--buildonly', action='store_true', default=False)
     parser.add_argument('--nopostprocessing', action='store_true', default=False)
-    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'svgf_optix', 'multigbuf', 'ref_restir', 'secondinput'], required=False)
+    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'ref_restir', 'secondinput'], required=False)
     parser.add_argument('--nas', action='store_true', default=False)
     parser.add_argument('--interactive', action='store_true', default=False)
     parser.add_argument('--dir', default='dataset')
@@ -339,7 +295,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.mogwai:
-        run(local=True, noscript=True)
+        run(noscript=True)
         exit()
 
     # Update HOME_DIR
@@ -362,10 +318,12 @@ if __name__ == "__main__":
         args.nopostprocessing = True
         update_pyvariable("main.py", "INTERACTIVE", True)
         update_pyvariable("main.py", "REF_COUNT", 65536)
+        update_pyvariable("main.py", "SAMPLES_PER_PIXEL", 1)
     else:
         update_pyvariable("main.py", "INTERACTIVE", False)
         update_pyvariable("main.py", "OUT_DIR", OUT_DIR)
         update_pyvariable("main.py", "REF_COUNT", 8192)
+        update_pyvariable("main.py", "SAMPLES_PER_PIXEL", 2)
         # Create output directory
         os.makedirs(OUT_DIR, exist_ok=True)
 

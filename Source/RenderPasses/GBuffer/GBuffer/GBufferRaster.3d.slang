@@ -90,6 +90,7 @@ GBufferPSOut psMain(VSOut vsOut, uint triangleIndex : SV_PrimitiveID, float3 bar
 
     GBuffer gbuf = storeGBufferOutput(sd, v);
 
+    // Albedo calculation
     float3 diffuseReflectionAlbedo = (1.f - sd.diffuseTransmission) * (1.f - sd.specularTransmission) * sd.diffuse;
     const float NdotV = saturate(dot(sd.N, sd.V));
     const float ggxAlpha = sd.linearRoughness * sd.linearRoughness;

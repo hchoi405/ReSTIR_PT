@@ -12,8 +12,8 @@ ANIM = [0, 100]
 METHOD = "input"
 REF_COUNT = 8192
 ENABLE_RESTIR = True
-MULTIGBUF_COUNT = 4
 PATH_SEED_OFFSET = 0
+SAMPLES_PER_PIXEL = 0
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -42,13 +42,14 @@ def add_path(g, gbuf, enable_restir=True, crn=False):
     # Toggle between ReSTIRPT and MegakernelPathTracer
     if enable_restir:
         PathTracer = createPass("ReSTIRPTPass", {
-            'samplesPerPixel': 1,
+            'samplesPerPixel': SAMPLES_PER_PIXEL,
             # 'syncSeedSSReSTIR': True if crn else False,
             'fixSpatialSeed': True if crn else False,
             'temporalSeedOffset': (1000000 if crn else 0) + PATH_SEED_OFFSET,
         })
         path = "ReSTIRPT"
         ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass", {
+            'NumReSTIRInstances': SAMPLES_PER_PIXEL,
             'options':ScreenSpaceReSTIROptions(
                 fixSpatialSeed=True if crn else False,
                 temporalSeedOffset=(1000000 if crn else 0) + PATH_SEED_OFFSET
@@ -238,22 +239,23 @@ def render_ref(start, end):
 def render_input(start, end):
     g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Center)
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=0)
     path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False)
 
     # Connect input/output
     pairs = {
         ## PathTracer
-        'current': f"{path}.color",
+        f'current': f"{path}.color",
         'temporal': f"{path}.temporalColor",
         'envLight': f"{path}.envLight",
-        'albedo': f"{path}.albedo",
+        # f'albedo': f"{path}.albedo",
 
-        ## GBufferRaster
+        # ## GBufferRaster
+        f'albedo': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
+        f'normal': f"{gbuf}.normW",
+        f'position': f"{gbuf}.posW",
         'emissive': f"{gbuf}.emissive",
-        'normal': f"{gbuf}.normW",
         'linearZ': f"{gbuf}.linearZ",
-        'position': f"{gbuf}.posW",
         'mvec': f"{gbuf}.mvec",
         'pnFwidth': f"{gbuf}.pnFwidth",
         'specRough': f"{gbuf}.specRough",
@@ -261,15 +263,29 @@ def render_input(start, end):
     }
     if ENABLE_RESTIR:
         pairs['direct'] = f"{ss_restir}.color"
-        pairs['direct2'] = f"{ss_restir}.color2"
         pairs['directTemporal'] = f"{ss_restir}.temporalColor"
         pass
+
+    exclude_accum = ['mvec']
+    capture_pairs = {}
+    for i, (key, value) in enumerate(pairs.items()):
+        if key in exclude_accum:
+            capture_pairs[key] = value
+            continue
+        AccumulatePass = createPass("AccumulatePass", {'enabled': True})
+        g.addPass(AccumulatePass, f"AccumulatePass{i}")
+        g.addEdge(value, f"AccumulatePass{i}.input")
+        capture_pairs[key] = f"AccumulatePass{i}.output"
+
     opts = {
+        'accumulate': True,
+        'accumulateCount': SAMPLES_PER_PIXEL,
         'captureCameraMat': True,
         'captureCameraMatOnly': False
     }
+
     if not INTERACTIVE:
-        add_capture(g, pairs, start, end, opts)
+        add_capture(g, capture_pairs, start, end, opts)
 
     # Add output
     g.markOutput(f"{path}.color")
@@ -280,7 +296,7 @@ def render_input(start, end):
 def render_secondinput(start, end):
     g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Center)
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=1000000)
     path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False)
 
     # Connect input/output
@@ -288,17 +304,42 @@ def render_secondinput(start, end):
         ## PathTracer
         'current2': f"{path}.color",
         'temporal2': f"{path}.temporalColor",
+        'envLight2': f"{path}.envLight",
+
+        f'albedo2': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
+        f'normal2': f"{gbuf}.normW",
+        f'position2': f"{gbuf}.posW",
+        'emissive2': f"{gbuf}.emissive",
+        'linearZ2': f"{gbuf}.linearZ",
+        'mvec2': f"{gbuf}.mvec",
+        'pnFwidth2': f"{gbuf}.pnFwidth",
+        'specRough2': f"{gbuf}.specRough",
+        'diffuseOpacity2': f"{gbuf}.diffuseOpacity",
     }
     if ENABLE_RESTIR:
-        # pairs['direct2'] = f"{ss_restir}.color"
-        # pairs['direct2'] = f"{ss_restir}.color2"
-        # pairs['directTemporal'] = f"{ss_restir}.temporalColor"
+        pairs['direct2'] = f"{ss_restir}.color"
+        pairs['directTemporal2'] = f"{ss_restir}.temporalColor"
         pass
+
+    exclude_accum = ['mvec']
+    capture_pairs = {}
+    for i, (key, value) in enumerate(pairs.items()):
+        if key in exclude_accum:
+            capture_pairs[key] = value
+            continue
+        AccumulatePass = createPass("AccumulatePass", {'enabled': True})
+        g.addPass(AccumulatePass, f"AccumulatePass{i}")
+        g.addEdge(value, f"AccumulatePass{i}.input")
+        capture_pairs[key] = f"AccumulatePass{i}.output"
+
     opts = {
-        'captureCameraMat': False
+        'accumulate': True,
+        'accumulateCount': SAMPLES_PER_PIXEL,
+        'captureCameraMat': False,
     }
+
     if not INTERACTIVE:
-        add_capture(g, pairs, start, end, opts)
+        add_capture(g, capture_pairs, start, end, opts)
 
     # Add output
     g.markOutput(f"{path}.color")
@@ -360,40 +401,6 @@ def render_svgf_optix(start, end):
     # # Add output
     # g.markOutput(f"{optix}.output")
     # g.markOutput(f"{svgf}.Filtered image")
-
-    return g
-
-
-def render_multigbuf(start, end):
-    g = RenderGraph("MutlipleGraph")
-
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Halton, init_seed=MULTIGBUF_COUNT)
-
-    # Connect input/output
-    pairs = {
-        'emissive_multi': f"{gbuf}.emissive",
-        'normal_multi': f"{gbuf}.normW",
-        'position_multi': f"{gbuf}.posW",
-        'albedo_multi': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
-        'specRough_multi': f"{gbuf}.specRough",
-        'diffuseOpacity_multi': f"{gbuf}.diffuseOpacity",
-        'linearZ_multi': f"{gbuf}.linearZ",
-        # 'pnFwidth': f"{gbuf}.pnFwidth",
-        # 'mvec': f"{gbuf}.mvec",
-    }
-
-    capture_pairs = {}
-    for i, (key, value) in enumerate(pairs.items()):
-        AccumulatePass = createPass("AccumulatePass", {'enabled': True})
-        g.addPass(AccumulatePass, f"AccumulatePass{i}")
-        g.addEdge(value, f"AccumulatePass{i}.input")
-
-        capture_pairs[key] = f"AccumulatePass{i}.output"
-
-    add_capture(g, capture_pairs, start, end, {'accumulate': True, 'accumulateCount': MULTIGBUF_COUNT})
-
-    # Add output
-    g.markOutput(f"{gbuf}.diffuseOpacity")
 
     return g
 
@@ -462,8 +469,6 @@ elif METHOD == 'ref':
     graph = render_ref(*ANIM)
 elif METHOD == 'svgf_optix':
     graph = render_svgf_optix(*ANIM)
-elif METHOD == 'multigbuf':
-    graph = render_multigbuf(*ANIM)
 elif METHOD == 'ref_restir':
     graph = render_ref_restir(*ANIM)
 
@@ -506,11 +511,9 @@ else:
             if METHOD == 'ref':
                 for i in range(REF_COUNT):
                     m.renderFrame()
-            elif METHOD == 'multigbuf':
-                for i in range(MULTIGBUF_COUNT):
-                    m.renderFrame()
             else:
-                m.renderFrame()
+                for i in range(SAMPLES_PER_PIXEL):
+                    m.renderFrame()
 
     # capture = m.profiler.endCapture()
     # m.profiler.enabled = False
