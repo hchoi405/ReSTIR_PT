@@ -427,7 +427,6 @@ bool ReSTIRPTPass::parseDictionary(const Dictionary& dict)
         else if (key == kNearFieldDistance) mParams.nearFieldDistance = value;
         else if (key == kTemporalHistoryLength) mTemporalHistoryLength = value;
         else if (key == kUseMaxHistory) mUseMaxHistory = value;
-        else if (key == kSeedOffset) mTemporalSeedOffset = value;
         else if (key == kEnableTemporalReuse) mEnableTemporalReuse = value;
         else if (key == kEnableSpatialReuse) mEnableSpatialReuse = value;
         else if (key == kNumSpatialRounds) mNumSpatialRounds = value;
@@ -583,7 +582,6 @@ Dictionary ReSTIRPTPass::getScriptingDictionary()
     d[kNearFieldDistance] = mParams.nearFieldDistance;
     d[kTemporalHistoryLength] = mTemporalHistoryLength;
     d[kUseMaxHistory] = mUseMaxHistory;
-    d[kSeedOffset] = mTemporalSeedOffset;
     d[kEnableTemporalReuse] = mEnableSpatialReuse;
     d[kEnableSpatialReuse] = mEnableTemporalReuse;
     d[kNumSpatialRounds] = mNumSpatialRounds;
@@ -1164,18 +1162,18 @@ bool ReSTIRPTPass::renderDebugUI(Gui::Widgets& widget)
         dirty |= group.checkbox("Fixed spatial seed", mFixSpatialSeed);
         if (mFixSpatialSeed)
         {
-            dirty |= group.var("Spatial Seed", mSpatialSeed, 0u, 1000000u);
+            dirty |= group.var("Spatial Seed", mSpatialSeed, 0u, 2000000u);
         }
         else
         {
             mSpatialSeed = 0;
         }
 
-        dirty |= group.var("Temporal seed offset", mTemporalSeedOffset, 0u, 1000000u);
+        dirty |= group.var("Temporal seed offset", mTemporalSeedOffset, 0u, 2000000u);
         dirty |= group.checkbox("Fixed temporal seed", mFixTemporalSeed);
         if (mFixTemporalSeed)
         {
-            dirty |= group.var("Temporal Seed", mTemporalSeed, 0u, 1000000u);
+            dirty |= group.var("Temporal Seed", mTemporalSeed, 0u, 2000000u);
         }
         else
         {

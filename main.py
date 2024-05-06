@@ -2,18 +2,17 @@ from falcor import *
 
 import random
 
-OUT_DIR = ""
+OUT_DIR = "C:/Users/hchoi/repositories/ReSTIR_PT/output"
 
 INTERACTIVE = False
 
-NAME = "VeachAjar"
-FILE = "VeachAjar/VeachAjar.pyscene"
-ANIM = [0, 100]
-METHOD = "input"
+NAME = "staircase"
+FILE = "C:/Users/hchoi/repositories/ReSTIR_PT/fbxscenes/staircase/staircase.pyscene"
+ANIM = [0, 2]
+METHOD = "secondinput"
 REF_COUNT = 8192
 ENABLE_RESTIR = True
-PATH_SEED_OFFSET = 0
-SAMPLES_PER_PIXEL = 0
+SEED_OFFSET = 0
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -37,22 +36,21 @@ def frange(start, stop=None, step=None):
         count += 1
 
 
-def add_path(g, gbuf, enable_restir=True, crn=False):
-
+def add_path(g, gbuf, enable_restir=True, crn=False, path_seed_offset=0):
     # Toggle between ReSTIRPT and MegakernelPathTracer
     if enable_restir:
         PathTracer = createPass("ReSTIRPTPass", {
-            'samplesPerPixel': SAMPLES_PER_PIXEL,
+            'samplesPerPixel': 1,
             # 'syncSeedSSReSTIR': True if crn else False,
             'fixSpatialSeed': True if crn else False,
-            'temporalSeedOffset': (1000000 if crn else 0) + PATH_SEED_OFFSET,
+            'temporalSeedOffset': (1000000 if crn else 0) + path_seed_offset,
         })
         path = "ReSTIRPT"
         ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass", {
-            'NumReSTIRInstances': SAMPLES_PER_PIXEL,
+            'NumReSTIRInstances': 1,
             'options':ScreenSpaceReSTIROptions(
                 fixSpatialSeed=True if crn else False,
-                temporalSeedOffset=(1000000 if crn else 0) + PATH_SEED_OFFSET
+                temporalSeedOffset=(1000000 if crn else 0) + path_seed_offset
             )
         })
         screenReSTIR = "ScreenSpaceReSTIR"
@@ -236,110 +234,43 @@ def render_ref(start, end):
     return g
 
 
-def render_input(start, end):
+def render_input(start, end, gbufseed=0, pathseed=0):
     g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=0)
-    path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False)
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=gbufseed)
+    path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False, path_seed_offset=pathseed)
 
     # Connect input/output
     pairs = {
         ## PathTracer
         f'current': f"{path}.color",
-        'temporal': f"{path}.temporalColor",
-        'envLight': f"{path}.envLight",
+        f'temporal': f"{path}.temporalColor",
+        f'envLight': f"{path}.envLight",
         # f'albedo': f"{path}.albedo",
 
-        # ## GBufferRaster
+        ## GBufferRaster
         f'albedo': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
         f'normal': f"{gbuf}.normW",
         f'position': f"{gbuf}.posW",
-        'emissive': f"{gbuf}.emissive",
-        'linearZ': f"{gbuf}.linearZ",
-        'mvec': f"{gbuf}.mvec",
-        'pnFwidth': f"{gbuf}.pnFwidth",
-        'specRough': f"{gbuf}.specRough",
-        'diffuseOpacity': f"{gbuf}.diffuseOpacity",
+        f'emissive': f"{gbuf}.emissive",
+        f'linearZ': f"{gbuf}.linearZ",
+        f'mvec': f"{gbuf}.mvec",
+        f'pnFwidth': f"{gbuf}.pnFwidth",
+        f'specRough': f"{gbuf}.specRough",
+        f'diffuseOpacity': f"{gbuf}.diffuseOpacity",
     }
     if ENABLE_RESTIR:
-        pairs['direct'] = f"{ss_restir}.color"
-        pairs['directTemporal'] = f"{ss_restir}.temporalColor"
+        pairs[f'direct'] = f"{ss_restir}.color"
+        pairs[f'directTemporal'] = f"{ss_restir}.temporalColor"
         pass
 
-    exclude_accum = ['mvec']
-    capture_pairs = {}
-    for i, (key, value) in enumerate(pairs.items()):
-        if key in exclude_accum:
-            capture_pairs[key] = value
-            continue
-        AccumulatePass = createPass("AccumulatePass", {'enabled': True})
-        g.addPass(AccumulatePass, f"AccumulatePass{i}")
-        g.addEdge(value, f"AccumulatePass{i}.input")
-        capture_pairs[key] = f"AccumulatePass{i}.output"
-
     opts = {
-        'accumulate': True,
-        'accumulateCount': SAMPLES_PER_PIXEL,
         'captureCameraMat': True,
         'captureCameraMatOnly': False
     }
 
     if not INTERACTIVE:
-        add_capture(g, capture_pairs, start, end, opts)
-
-    # Add output
-    g.markOutput(f"{path}.color")
-
-    return g
-
-
-def render_secondinput(start, end):
-    g = RenderGraph("MutlipleGraph")
-
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=1000000)
-    path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False)
-
-    # Connect input/output
-    pairs = {
-        ## PathTracer
-        'current2': f"{path}.color",
-        'temporal2': f"{path}.temporalColor",
-        'envLight2': f"{path}.envLight",
-
-        f'albedo2': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
-        f'normal2': f"{gbuf}.normW",
-        f'position2': f"{gbuf}.posW",
-        'emissive2': f"{gbuf}.emissive",
-        'linearZ2': f"{gbuf}.linearZ",
-        'mvec2': f"{gbuf}.mvec",
-        'pnFwidth2': f"{gbuf}.pnFwidth",
-        'specRough2': f"{gbuf}.specRough",
-        'diffuseOpacity2': f"{gbuf}.diffuseOpacity",
-    }
-    if ENABLE_RESTIR:
-        pairs['direct2'] = f"{ss_restir}.color"
-        pairs['directTemporal2'] = f"{ss_restir}.temporalColor"
-        pass
-
-    exclude_accum = ['mvec']
-    capture_pairs = {}
-    for i, (key, value) in enumerate(pairs.items()):
-        if key in exclude_accum:
-            capture_pairs[key] = value
-            continue
-        AccumulatePass = createPass("AccumulatePass", {'enabled': True})
-        g.addPass(AccumulatePass, f"AccumulatePass{i}")
-        g.addEdge(value, f"AccumulatePass{i}.input")
-        capture_pairs[key] = f"AccumulatePass{i}.output"
-
-    opts = {
-        'accumulate': True,
-        'accumulateCount': SAMPLES_PER_PIXEL,
-        'captureCameraMat': False,
-    }
-
-    if not INTERACTIVE:
-        add_capture(g, capture_pairs, start, end, opts)
+        add_capture(g, pairs, start, end, opts)
 
     # Add output
     g.markOutput(f"{path}.color")
@@ -408,8 +339,8 @@ def render_svgf_optix(start, end):
 def render_ref_restir(start, end):
     g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=PATH_SEED_OFFSET)
-    path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False)
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=SEED_OFFSET)
+    path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False, path_seed_offset=SEED_OFFSET)
 
     # Connect input/output
     pairs = {
@@ -459,10 +390,8 @@ loadRenderPassLibrary("CapturePass.dll")
 loadRenderPassLibrary("AccumulatePass.dll")
 
 print("ANIM = ", ANIM)
-if METHOD == 'input':
-    graph = render_input(*ANIM)
-if METHOD == 'secondinput':
-    graph = render_secondinput(*ANIM)
+if METHOD == 'input' or METHOD == 'secondinput':
+    graph = render_input(*ANIM, gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
 elif METHOD == 'crn':
     graph = render_crn(*ANIM)
 elif METHOD == 'ref':
@@ -473,7 +402,8 @@ elif METHOD == 'ref_restir':
     graph = render_ref_restir(*ANIM)
 
 m.addGraph(graph)
-m.loadScene(FILE)
+m.loadScene(FILE, buildFlags=SceneBuilderFlags.UseCache)
+# m.loadScene(FILE, buildFlags=SceneBuilderFlags.RebuildCache)
 # Call this after scene loading
 m.scene.camera.nearPlane = 0.15 # Increase near plane to prevent Z-fighting
 
@@ -512,8 +442,7 @@ else:
                 for i in range(REF_COUNT):
                     m.renderFrame()
             else:
-                for i in range(SAMPLES_PER_PIXEL):
-                    m.renderFrame()
+                m.renderFrame()
 
     # capture = m.profiler.endCapture()
     # m.profiler.enabled = False

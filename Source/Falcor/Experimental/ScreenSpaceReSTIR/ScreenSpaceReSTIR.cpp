@@ -261,18 +261,18 @@ namespace Falcor
             mRecompile |= widget.checkbox("Fixed spatial seed", mOptions->fixSpatialSeed);
             if (mOptions->fixSpatialSeed)
             {
-                mRecompile |= widget.var("Spatial seed", mOptions->spatialSeed, 0u, 1000000u);
+                mRecompile |= widget.var("Spatial seed", mOptions->spatialSeed, 0u, 2000000u);
             }
             else
             {
                 mOptions->spatialSeed = 0;
             }
 
-            mRecompile |= widget.var("Temporal seed offset", mOptions->temporalSeedOffset, 0u, 1000000u);
+            mRecompile |= widget.var("Temporal seed offset", mOptions->temporalSeedOffset, 0u, 2000000u);
             mRecompile |= widget.checkbox("Fixed temporal seed", mOptions->fixTemporalSeed);
             if (mOptions->fixTemporalSeed)
             {
-                mRecompile |= widget.var("Temporal seed", mOptions->temporalSeed, 0u, 1000000u);
+                mRecompile |= widget.var("Temporal seed", mOptions->temporalSeed, 0u, 2000000u);
             }
             else
             {
