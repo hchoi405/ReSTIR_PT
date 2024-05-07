@@ -354,7 +354,7 @@
     <ClInclude Include="Utils\SampleGenerators\UniformSamplePattern.h">
       <Filter>Utils\SampleGenerators</Filter>
     </ClInclude>
-    <ClInclude Include="Utils\SampleGenerators\UniformSymmetricSamplePattern.h">
+    <ClInclude Include="Utils\SampleGenerators\CenterUniformSamplePattern.h">
       <Filter>Utils\SampleGenerators</Filter>
     </ClInclude>
     <ClInclude Include="Scene\Scene.h">
@@ -1184,7 +1184,7 @@
     <ClCompile Include="Utils\SampleGenerators\UniformSamplePattern.cpp">
       <Filter>Utils\SampleGenerators</Filter>
     </ClCompile>
-    <ClCompile Include="Utils\SampleGenerators\UniformSymmetricSamplePattern.cpp">
+    <ClCompile Include="Utils\SampleGenerators\CenterUniformSamplePattern.cpp">
       <Filter>Utils\SampleGenerators</Filter>
     </ClCompile>
     <ClCompile Include="Scene\Scene.cpp">

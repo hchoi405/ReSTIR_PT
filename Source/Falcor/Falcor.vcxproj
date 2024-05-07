@@ -350,7 +350,7 @@
     <ClInclude Include="Utils\SampleGenerators\HaltonSamplePattern.h" />
     <ClInclude Include="Utils\SampleGenerators\StratifiedSamplePattern.h" />
     <ClInclude Include="Utils\SampleGenerators\UniformSamplePattern.h" />
-    <ClInclude Include="Utils\SampleGenerators\UniformSymmetricSamplePattern.h" />
+    <ClInclude Include="Utils\SampleGenerators\CenterUniformSamplePattern.h" />
     <ClInclude Include="Utils\Sampling\AliasTable.h" />
     <ClInclude Include="Utils\Sampling\SampleGenerator.h" />
     <ShaderSource Include="Utils\Geometry\GeometryHelpers.slang" />
@@ -774,7 +774,7 @@
     <ClCompile Include="Utils\SampleGenerators\HaltonSamplePattern.cpp" />
     <ClCompile Include="Utils\SampleGenerators\StratifiedSamplePattern.cpp" />
     <ClCompile Include="Utils\SampleGenerators\UniformSamplePattern.cpp" />
-    <ClCompile Include="Utils\SampleGenerators\UniformSymmetricSamplePattern.cpp" />
+    <ClCompile Include="Utils\SampleGenerators\CenterUniformSamplePattern.cpp" />
     <ClCompile Include="Utils\Sampling\AliasTable.cpp" />
     <ClCompile Include="Utils\Sampling\SampleGenerator.cpp" />
     <ClCompile Include="Utils\Scripting\Console.cpp" />

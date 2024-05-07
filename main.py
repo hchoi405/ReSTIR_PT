@@ -236,38 +236,55 @@ def render_ref(start, end):
     return g
 
 
-def render_input(start, end, gbufseed=0, pathseed=0):
+def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=gbufseed)
+    ## GBufferRaster
+    if sample_pattern == 'Uniform':
+        gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=gbufseed)
+    elif sample_pattern == 'CenterUniform':
+        gbuf = add_gbuffer(g, pattern=SamplePattern.CenterUniform, init_seed=gbufseed)
+    elif sample_pattern == 'Center':
+        gbuf = add_gbuffer(g, pattern=SamplePattern.Center, init_seed=gbufseed)
+
+    ## PathTracer
     path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False, path_seed_offset=pathseed)
 
     # Connect input/output
     pairs = {
         ## PathTracer
         f'current': f"{path}.color",
-        f'temporal': f"{path}.temporalColor",
+        # f'temporal': f"{path}.temporalColor",
         f'envLight': f"{path}.envLight",
         # f'albedo': f"{path}.albedo",
-
-        ## GBufferRaster
-        f'albedo': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
-        f'normal': f"{gbuf}.normW",
-        f'position': f"{gbuf}.posW",
-        f'emissive': f"{gbuf}.emissive",
-        f'linearZ': f"{gbuf}.linearZ",
-        # f'mvec': f"{gbuf}.mvec", # Do not generate motion vector here, it'll be generated in centergbuf
-        f'pnFwidth': f"{gbuf}.pnFwidth",
-        f'specRough': f"{gbuf}.specRough",
-        f'diffuseOpacity': f"{gbuf}.diffuseOpacity",
     }
+
+    ## Save G-buffer only for input, not secondinput
+    # if METHOD == 'input':
+    ## Save G-buffer for all methods
+    if True:
+        pairs.update({
+            ## GBufferRaster
+            f'albedo': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
+            f'normal': f"{gbuf}.normW",
+            f'position': f"{gbuf}.posW",
+            f'emissive': f"{gbuf}.emissive",
+            f'linearZ': f"{gbuf}.linearZ",
+            # f'mvec': f"{gbuf}.mvec", # Do not generate motion vector here, it'll be generated in centergbuf
+            # f'pnFwidth': f"{gbuf}.pnFwidth",
+            f'specRough': f"{gbuf}.specRough",
+            f'diffuseOpacity': f"{gbuf}.diffuseOpacity",
+        })
+
     if ENABLE_RESTIR:
-        pairs[f'direct'] = f"{ss_restir}.color"
-        pairs[f'directTemporal'] = f"{ss_restir}.temporalColor"
+        pairs.update({
+            'direct': f"{ss_restir}.color",
+            # 'directTemporal': f"{ss_restir}.temporalColor",
+        })
         pass
 
     opts = {
-        'captureCameraMat': True,
+        'captureCameraMat': True if METHOD == 'input' else False,
         'captureCameraMatOnly': False
     }
 
@@ -392,8 +409,10 @@ loadRenderPassLibrary("CapturePass.dll")
 loadRenderPassLibrary("AccumulatePass.dll")
 
 print("ANIM = ", ANIM)
-if METHOD == 'input' or METHOD == 'secondinput':
-    graph = render_input(*ANIM, gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
+if METHOD == 'input':
+    graph = render_input(*ANIM, sample_pattern='CenterUniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
+elif METHOD == 'secondinput':
+    graph = render_input(*ANIM, sample_pattern='Uniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
 elif METHOD == 'crn':
     graph = render_crn(*ANIM)
 elif METHOD == 'ref':

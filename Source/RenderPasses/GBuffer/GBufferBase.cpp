@@ -55,7 +55,7 @@ void GBufferBase::registerBindings(pybind11::module& m)
     samplePattern.value("Halton", GBufferBase::SamplePattern::Halton);
     samplePattern.value("Stratified", GBufferBase::SamplePattern::Stratified);
     samplePattern.value("Uniform", GBufferBase::SamplePattern::Uniform);
-    samplePattern.value("UniformSymmetric", GBufferBase::SamplePattern::UniformSymmetric);
+    samplePattern.value("CenterUniform", GBufferBase::SamplePattern::CenterUniform);
     samplePattern.value("UniformRandom", GBufferBase::SamplePattern::UniformRandom);
     samplePattern.value("CRN", GBufferBase::SamplePattern::CRN);
 }
@@ -84,7 +84,7 @@ namespace
         { (uint32_t)GBufferBase::SamplePattern::Halton, "Halton" },
         { (uint32_t)GBufferBase::SamplePattern::Stratified, "Stratified" },
         { (uint32_t)GBufferBase::SamplePattern::Uniform, "Uniform" },
-        { (uint32_t)GBufferBase::SamplePattern::UniformSymmetric, "UniformSymmetric" },
+        { (uint32_t)GBufferBase::SamplePattern::CenterUniform, "CenterUniform" },
         { (uint32_t)GBufferBase::SamplePattern::UniformRandom, "UniformRandom" },
         { (uint32_t)GBufferBase::SamplePattern::CRN, "CRN" },
     };
@@ -232,8 +232,8 @@ static CPUSampleGenerator::SharedPtr createSamplePattern(GBufferBase::SamplePatt
         return StratifiedSamplePattern::create(sampleCount);
     case GBufferBase::SamplePattern::Uniform:
         return UniformSamplePattern::create(sampleCount);
-    case GBufferBase::SamplePattern::UniformSymmetric:
-        return UniformSymmetricSamplePattern::create(sampleCount, sampleIndex); // sampleCount becomes seed
+    case GBufferBase::SamplePattern::CenterUniform:
+        return CenterUniformSamplePattern::create(sampleCount, sampleIndex); // sampleCount becomes seed
     case GBufferBase::SamplePattern::UniformRandom:
     case GBufferBase::SamplePattern::CRN:
         return nullptr;

@@ -6,12 +6,12 @@ namespace Falcor
 {
     /** Uniform random sample pattern generator.
      */
-    class dlldecl UniformSymmetricSamplePattern : public CPUSampleGenerator
+    class dlldecl CenterUniformSamplePattern : public CPUSampleGenerator
     {
     public:
-        using SharedPtr = std::shared_ptr<UniformSymmetricSamplePattern>;
+        using SharedPtr = std::shared_ptr<CenterUniformSamplePattern>;
 
-        virtual ~UniformSymmetricSamplePattern() = default;
+        virtual ~CenterUniformSamplePattern() = default;
 
         static SharedPtr create(uint32_t seed = 0u, uint32_t sampleIndex = 0u);
 
@@ -20,7 +20,7 @@ namespace Falcor
         virtual float2 next() override;
 
     protected:
-        UniformSymmetricSamplePattern(uint32_t seed, uint32_t sampleIndex);
+        CenterUniformSamplePattern(uint32_t seed, uint32_t sampleIndex);
 
         std::mt19937 mRng;
         uint32_t mSampleIndex = 0u;

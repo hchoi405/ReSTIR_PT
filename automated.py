@@ -151,12 +151,7 @@ def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
 
         # Handle suffix
         if suffix is None:
-            rendered_files2 = rendered_files.copy()
-            rendered_files.clear()
-            for f in rendered_files2:
-                basename = f.split('_')[0]
-                if basename[-1] != suffix:
-                    rendered_files.append(f)
+            pass
         else:
             for f in rendered_files:
                 basename = f.split('_')[0]

@@ -44,7 +44,7 @@ public:
         Halton,
         Stratified,
         Uniform,
-        UniformSymmetric,
+        CenterUniform,
         UniformRandom,
         CRN,
     };
