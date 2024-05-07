@@ -202,20 +202,24 @@ def postprocess_input(src_dir, scene_name, frames, sample_idx, suffix=None):
 def postprocess_ref(src_dir, scene_name, frames):
     pass
 
-def process_restirref_frame(name, frame, n, src_dir, tmp_dir):
+def process_restirref_frame(name, frame, idx, src_dir, tmp_dir):
     try:
-        tmp_path = os.path.join(tmp_dir, f'{name}_{frame:04d}_{n:04d}.exr')
-        last_n = max(0, n - 1)
-        prev_ref_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}_{last_n:04d}.exr')
-        new_ref_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}_{n:04d}.exr')
-        if n == 0:
-            shutil.move(tmp_path, new_ref_path)
+        last_idx = max(config.REF_START_SAMPLE_INDEX, idx - 1)
+
+        rendered_path = os.path.join(tmp_dir, f'{name}_{frame:04d}_{idx:04d}.exr')
+        prev_ref_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}_{last_idx:04d}.exr')
+        new_ref_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}_{idx:04d}.exr')
+
+        if idx == config.REF_START_SAMPLE_INDEX:
+            shutil.move(rendered_path, new_ref_path)
         else:
-            img_avg = exr.read_all(prev_ref_path)['default']
-            img = exr.read_all(tmp_path)['default']
-            new_avg = (n * img_avg + img) / (n + 1)
+            num_prev = last_idx - config.REF_START_SAMPLE_INDEX + 1
+            img_prev = exr.read_all(prev_ref_path)['default']
+            img = exr.read_all(rendered_path)['default']
+            new_avg = (num_prev * img_prev + img) / (num_prev + 1)
             exr.write(new_ref_path, new_avg, compression=exr.ZIP_COMPRESSION)
-            os.remove(tmp_path)
+            # Remove
+            os.remove(rendered_path)
             os.remove(prev_ref_path)
 
     except Exception as e:
@@ -404,7 +408,7 @@ if __name__ == "__main__":
                 if os.path.exists(tmp_dir):
                     shutil.rmtree(tmp_dir)
 
-                sample_idx = 0
+                sample_idx = config.REF_START_SAMPLE_INDEX
                 # Adjust the sample_idx if ref_current exists
                 files = os.listdir(OUT_DIR)
                 reffiles = [f for f in files if f.startswith('ref_current')]
@@ -412,7 +416,7 @@ if __name__ == "__main__":
                     last_idx = max([int(f.split('_')[-1].split('.')[0]) for f in reffiles])
                     sample_idx = last_idx + 1
 
-                while sample_idx < 2048:
+                while sample_idx < config.REF_SAMPLES_PER_PIXEL:
                     update_pyvariable("main.py", "SEED_OFFSET", sample_idx)
                     print(f'Sample idx {sample_idx}:', end=' ')
                     retcode, stdout = run()
