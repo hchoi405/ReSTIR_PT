@@ -269,7 +269,7 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
             f'normal': f"{gbuf}.normW",
             f'position': f"{gbuf}.posW",
             f'emissive': f"{gbuf}.emissive",
-            f'linearZ': f"{gbuf}.linearZ",
+            # f'linearZ': f"{gbuf}.linearZ", # Do not save linearZ, it's not used
             # f'mvec': f"{gbuf}.mvec", # Do not generate motion vector here, it'll be generated in centergbuf
             # f'pnFwidth': f"{gbuf}.pnFwidth",
             f'specRough': f"{gbuf}.specRough",
@@ -381,6 +381,25 @@ def render_ref_restir(start, end):
 
     return g
 
+def render_centergbuf(start, end):
+    g = RenderGraph("MutlipleGraph")
+
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Center)
+
+    # Connect input/output
+    pairs = {
+        ## GBufferRaster
+        'mvec': f"{gbuf}.mvec",
+        'pnFwidth': f"{gbuf}.pnFwidth",
+        'linearZ': f"{gbuf}.linearZ",
+    }
+    if not INTERACTIVE:
+        add_capture(g, pairs, start, end, {'captureCameraMat': False})
+
+    # Add output
+    g.markOutput(f"{gbuf}.linearZ")
+
+    return g
 
 if 'Dining-room-dynamic-static' == NAME:
     start = -0.5
@@ -421,6 +440,8 @@ elif METHOD == 'svgf_optix':
     graph = render_svgf_optix(*ANIM)
 elif METHOD == 'ref_restir':
     graph = render_ref_restir(*ANIM)
+elif METHOD == 'centergbuf':
+    graph = render_centergbuf(*ANIM)
 
 m.addGraph(graph)
 m.loadScene(FILE, buildFlags=SceneBuilderFlags.UseCache)

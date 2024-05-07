@@ -101,15 +101,6 @@ def starts_with_number(filename):
 def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
     try:
         ### Post-process the indivisual images
-        # Extract depth from LinearZ
-        linearz_path = os.path.join(src_dir, f'linearZ_{frame:04d}.exr')
-        if os.path.exists(linearz_path):
-            linearz_img = exr.read_all(linearz_path)['default']
-            depth_img = linearz_img[:,:,0:1]
-            exr.write(os.path.join(dest_dir, f'depth_{frame:04d}.exr'), depth_img, compression=exr.ZIP_COMPRESSION)
-        else:
-            print(f'WARN: {linearz_path} not found.')
-
         # # RGB to Z
         # names = ["visibility"]
         # for name in names:
@@ -246,6 +237,29 @@ def postprocess_refrestir(src_dir, scene_name, frames, idx):
     with mp.Pool(processes=num_workers) as pool:
         for name in reflist:
             pool.starmap(partial(process_restirref_frame, name), [(frame, idx, src_dir, tmp_dir) for frame in frames])
+def process_centergbuf_frame(frame, src_dir, dest_dir):
+    # Extract depth from LinearZ
+    try:
+        linearz_path = os.path.join(src_dir, f'linearZ_{frame:04d}.exr')
+        if os.path.exists(linearz_path):
+            linearz_img = exr.read_all(linearz_path)['default']
+            depth_img = linearz_img[:,:,0:1]
+            exr.write(os.path.join(dest_dir, f'depth_{frame:04d}.exr'), depth_img, compression=exr.ZIP_COMPRESSION)
+        else:
+            print(f'WARN: {linearz_path} not found.')
+    except Exception as e:
+        print(f"Error processing frame {frame}: {str(e)}")
+
+def postprocess_centergbuf(src_dir, scene_name, frames):
+    print('\tPost-processing the centergbuf...', end=' ', flush=True)
+
+    # Process multiprocessing
+    num_workers = min(60, mp.cpu_count() - 4) # 60 is maximum for Windows
+    with mp.Pool(processes=num_workers) as pool:
+        pool.starmap(process_centergbuf_frame, [(frame, src_dir, src_dir) for frame in frames])
+    pool.close()
+
+    print('Done')
 
 def postprocess(method, scene_name, sample_idx=0):
     src_dir = f'{OUT_DIR}/'
@@ -265,6 +279,8 @@ def postprocess(method, scene_name, sample_idx=0):
         postprocess_ref(src_dir, scene_name, frames)
     elif method == 'ref_restir':
         postprocess_refrestir(src_dir, scene_name, frames, sample_idx)
+    elif method == 'centergbuf':
+        postprocess_centergbuf(src_dir, scene_name, frames)
     else:
         print(f'Post-processing for {method} is not implemented.')
 
