@@ -430,6 +430,7 @@ if __name__ == "__main__":
             elif method == 'input' or method == 'secondinput':
                 # Launch Mogwai
                 for sample_idx in range(config.SAMPLES_PER_PIXEL):
+                    update_pyvariable("main.py", "SAMPLE_INDEX", sample_idx)
                     if method == 'input':
                         update_pyvariable("main.py", "SEED_OFFSET", sample_idx)
                     else:

@@ -13,6 +13,7 @@ METHOD = "secondinput"
 REF_COUNT = 8192
 ENABLE_RESTIR = True
 SEED_OFFSET = 0
+SAMPLE_INDEX = 0
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -94,6 +95,7 @@ def add_gbuffer(g, pattern, init_seed=1):
         # sampleCount becomes a seed when used for [Uniform, UniformRandom, CRN] patterns
         # Uniform is for GBufferRaster, UniformRandom is only for GBufferRT (do not use UniformRandom for GBufferRaster)
         'sampleCount': init_seed,
+        'sampleIndex': SAMPLE_INDEX,
         'useAlphaTest': True,
     }
     GBufferRaster = createPass("GBufferRaster", dicts)  # for input and svgf

@@ -44,6 +44,7 @@ public:
         Halton,
         Stratified,
         Uniform,
+        UniformSymmetric,
         UniformRandom,
         CRN,
     };
@@ -75,6 +76,8 @@ protected:
     uint2                           mFixedOutputSize = { 512, 512 };                ///< Output size in pixels when 'Fixed' size is selected.
     SamplePattern                   mSamplePattern = SamplePattern::Center;         ///< Which camera jitter sample pattern to use.
     uint32_t                        mSampleCount = 16;                              ///< Sample count for camera jitter.
+    uint32_t                        mSampleIndex = 0;                               ///< Current sample index for camera jitter.
+    uint32_t                        mSampleSeed = 0;                                ///< Seed for camera jitter sample pattern.
     bool                            mUseAlphaTest = true;                           ///< Enable alpha test.
     bool                            mAdjustShadingNormals = true;                   ///< Adjust shading normals.
     bool                            mForceCullMode = true;                         ///< Force cull mode for all geometry, otherwise set it based on the scene.

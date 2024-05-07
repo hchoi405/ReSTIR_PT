@@ -55,6 +55,7 @@ void GBufferBase::registerBindings(pybind11::module& m)
     samplePattern.value("Halton", GBufferBase::SamplePattern::Halton);
     samplePattern.value("Stratified", GBufferBase::SamplePattern::Stratified);
     samplePattern.value("Uniform", GBufferBase::SamplePattern::Uniform);
+    samplePattern.value("UniformSymmetric", GBufferBase::SamplePattern::UniformSymmetric);
     samplePattern.value("UniformRandom", GBufferBase::SamplePattern::UniformRandom);
     samplePattern.value("CRN", GBufferBase::SamplePattern::CRN);
 }
@@ -72,6 +73,9 @@ namespace
     const char kForceCullMode[] = "forceCullMode";
     const char kCullMode[] = "cull";
 
+    const char kSampleSeed[] = "sampleSeed";
+    const char kSampleIndex[] = "sampleIndex";
+
     // UI variables.
     const Gui::DropdownList kSamplePatternList =
     {
@@ -80,6 +84,7 @@ namespace
         { (uint32_t)GBufferBase::SamplePattern::Halton, "Halton" },
         { (uint32_t)GBufferBase::SamplePattern::Stratified, "Stratified" },
         { (uint32_t)GBufferBase::SamplePattern::Uniform, "Uniform" },
+        { (uint32_t)GBufferBase::SamplePattern::UniformSymmetric, "UniformSymmetric" },
         { (uint32_t)GBufferBase::SamplePattern::UniformRandom, "UniformRandom" },
         { (uint32_t)GBufferBase::SamplePattern::CRN, "CRN" },
     };
@@ -104,6 +109,9 @@ void GBufferBase::parseDictionary(const Dictionary& dict)
         else if (key == kAdjustShadingNormals) mAdjustShadingNormals = value;
         else if (key == kForceCullMode) mForceCullMode = value;
         else if (key == kCullMode) mCullMode = value;
+        else if (key == kSampleSeed) mSampleSeed = value;
+        else if (key == kSampleIndex) mSampleIndex = value;
+
         // TODO: Check for unparsed fields, including those parsed in derived classes.
     }
 
@@ -122,6 +130,8 @@ Dictionary GBufferBase::getScriptingDictionary()
     dict[kAdjustShadingNormals] = mAdjustShadingNormals;
     dict[kForceCullMode] = mForceCullMode;
     dict[kCullMode] = mCullMode;
+    dict[kSampleSeed] = mSampleSeed;
+    dict[kSampleIndex] = mSampleIndex;
     return dict;
 }
 
@@ -208,7 +218,7 @@ void GBufferBase::setScene(RenderContext* pRenderContext, const Scene::SharedPtr
     }
 }
 
-static CPUSampleGenerator::SharedPtr createSamplePattern(GBufferBase::SamplePattern type, uint32_t sampleCount)
+static CPUSampleGenerator::SharedPtr createSamplePattern(GBufferBase::SamplePattern type, uint32_t sampleCount, uint32_t sampleIndex)
 {
     switch (type)
     {
@@ -222,6 +232,8 @@ static CPUSampleGenerator::SharedPtr createSamplePattern(GBufferBase::SamplePatt
         return StratifiedSamplePattern::create(sampleCount);
     case GBufferBase::SamplePattern::Uniform:
         return UniformSamplePattern::create(sampleCount);
+    case GBufferBase::SamplePattern::UniformSymmetric:
+        return UniformSymmetricSamplePattern::create(sampleCount, sampleIndex); // sampleCount becomes seed
     case GBufferBase::SamplePattern::UniformRandom:
     case GBufferBase::SamplePattern::CRN:
         return nullptr;
@@ -257,7 +269,7 @@ void GBufferBase::updateFrameDim(const uint2 frameDim)
 
 void GBufferBase::updateSamplePattern()
 {
-    mpSampleGenerator = createSamplePattern(mSamplePattern, mSampleCount);
+    mpSampleGenerator = createSamplePattern(mSamplePattern, mSampleCount, mSampleIndex);
     if (mpSampleGenerator) mSampleCount = mpSampleGenerator->getSampleCount();
 }
 
