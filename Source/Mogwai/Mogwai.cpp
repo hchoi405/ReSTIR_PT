@@ -689,7 +689,7 @@ int main(int argc, char** argv)
     args::ValueFlag<std::string> scriptFlag(parser, "path", "Python script file to run.", {'s', "script"});
     args::ValueFlag<std::string> sceneFlag(parser, "path", "Scene file (for example, a .pyscene file) to open.", { 'S', "scene" });
     args::ValueFlag<std::string> logfileFlag(parser, "path", "File to write log into.", {'l', "logfile"});
-    args::ValueFlag<int32_t> verbosityFlag(parser, "verbosity", "Logging verbosity (0=disabled, 1=fatal errors, 2=errors, 3=warnings, 4=infos, 5=debugging)", { 'v', "verbosity" }, 4);
+    args::ValueFlag<int32_t> verbosityFlag(parser, "verbosity", "Logging verbosity (0=disabled, 1=fatal errors, 2=errors, 3=warnings, 4=infos, 5=debugging)", { 'v', "verbosity" }, 3);
     args::Flag silentFlag(parser, "", "Starts Mogwai with a minimized window and disables mouse/keyboard input as well as error message dialogs.", {"silent"});
     args::ValueFlag<uint32_t> widthFlag(parser, "pixels", "Initial window width.", {"width"});
     args::ValueFlag<uint32_t> heightFlag(parser, "pixels", "Initial window height.", {"height"});

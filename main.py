@@ -254,7 +254,7 @@ def render_input(start, end, gbufseed=0, pathseed=0):
         f'position': f"{gbuf}.posW",
         f'emissive': f"{gbuf}.emissive",
         f'linearZ': f"{gbuf}.linearZ",
-        f'mvec': f"{gbuf}.mvec",
+        # f'mvec': f"{gbuf}.mvec", # Do not generate motion vector here, it'll be generated in centergbuf
         f'pnFwidth': f"{gbuf}.pnFwidth",
         f'specRough': f"{gbuf}.specRough",
         f'diffuseOpacity': f"{gbuf}.diffuseOpacity",

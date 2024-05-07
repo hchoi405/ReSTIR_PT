@@ -108,7 +108,7 @@ def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
             depth_img = linearz_img[:,:,0:1]
             exr.write(os.path.join(dest_dir, f'depth_{frame:04d}.exr'), depth_img, compression=exr.ZIP_COMPRESSION)
         else:
-            print(f'Error: {linearz_path} not found.')
+            print(f'WARN: {linearz_path} not found.')
 
         # # RGB to Z
         # names = ["visibility"]
@@ -119,7 +119,7 @@ def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
         #         img = img[:,:,0:1]
         #         exr.write(os.path.join(dest_dir, f'{name}_{frame:04d}.exr'), img, compression=exr.ZIP_COMPRESSION)
         #     else:
-        #         print(f'Error: {path} not found.')
+        #         print(f'WARN: {path} not found.')
 
         # specRough and diffuseOpacity to roughness and opacity
         spec_path = os.path.join(src_dir, f'specRough_{frame:04d}.exr')
@@ -130,7 +130,7 @@ def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
             exr.write(os.path.join(dest_dir, f'specularAlbedo_{frame:04d}.exr'), spec_img[:,:,0:3], compression=exr.ZIP_COMPRESSION)
             os.remove(os.path.join(src_dir, f'specRough_{frame:04d}.exr'))
         else:
-            print(f'Error: {spec_path} not found.')
+            print(f'WARN: {spec_path} not found.')
 
         diffuseOpacity_path = os.path.join(src_dir, f'diffuseOpacity_{frame:04d}.exr')
         if os.path.exists(diffuseOpacity_path):
@@ -141,7 +141,7 @@ def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
             exr.write(os.path.join(dest_dir, f'opacity_{frame:04d}.exr'), opacity_img, compression=exr.ZIP_COMPRESSION)
             os.remove(os.path.join(src_dir, f'diffuseOpacity_{frame:04d}.exr'))
         else:
-            print(f'Error: {diffuseOpacity_path} not found.')
+            print(f'WARN: {diffuseOpacity_path} not found.')
 
         ### Post-process to handle multi-samples
         # Collect files of the currently rendered frame
@@ -340,7 +340,7 @@ if __name__ == "__main__":
     parser.add_argument('--nobuild', action='store_true', default=False)
     parser.add_argument('--buildonly', action='store_true', default=False)
     parser.add_argument('--nopostprocessing', action='store_true', default=False)
-    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'ref_restir', 'secondinput'], required=False)
+    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'ref_restir', 'secondinput', 'centergbuf'], required=False)
     parser.add_argument('--nas', action='store_true', default=False)
     parser.add_argument('--interactive', action='store_true', default=False)
     parser.add_argument('--dir', default='dataset')
