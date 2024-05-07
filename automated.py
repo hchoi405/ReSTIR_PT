@@ -102,31 +102,46 @@ def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
     try:
         ### Post-process the indivisual images
         # Extract depth from LinearZ
-        linearz_img = exr.read_all(os.path.join(src_dir, f'linearZ_{frame:04d}.exr'))['default']
-        depth_img = linearz_img[:,:,0:1]
-        exr.write(os.path.join(dest_dir, f'depth_{frame:04d}.exr'), depth_img, compression=exr.ZIP_COMPRESSION)
+        linearz_path = os.path.join(src_dir, f'linearZ_{frame:04d}.exr')
+        if os.path.exists(linearz_path):
+            linearz_img = exr.read_all(linearz_path)['default']
+            depth_img = linearz_img[:,:,0:1]
+            exr.write(os.path.join(dest_dir, f'depth_{frame:04d}.exr'), depth_img, compression=exr.ZIP_COMPRESSION)
+        else:
+            print(f'Error: {linearz_path} not found.')
 
-        # RGB to Z
-        names = ["visibility"]
-        for name in names:
-            path = os.path.join(src_dir, f'{name}_{frame:04d}.exr')
-            if os.path.exists(path):
-                img = exr.read_all(path)['default']
-                img = img[:,:,0:1]
-                exr.write(os.path.join(dest_dir, f'{name}_{frame:04d}.exr'), img, compression=exr.ZIP_COMPRESSION)
+        # # RGB to Z
+        # names = ["visibility"]
+        # for name in names:
+        #     path = os.path.join(src_dir, f'{name}_{frame:04d}.exr')
+        #     if os.path.exists(path):
+        #         img = exr.read_all(path)['default']
+        #         img = img[:,:,0:1]
+        #         exr.write(os.path.join(dest_dir, f'{name}_{frame:04d}.exr'), img, compression=exr.ZIP_COMPRESSION)
+        #     else:
+        #         print(f'Error: {path} not found.')
 
         # specRough and diffuseOpacity to roughness and opacity
-        spec_img = exr.read_all(os.path.join(src_dir, f'specRough_{frame:04d}.exr'))['default']
-        rough_img = spec_img[:,:,3:4]
-        exr.write(os.path.join(dest_dir, f'roughness_{frame:04d}.exr'), rough_img, compression=exr.ZIP_COMPRESSION)
-        exr.write(os.path.join(dest_dir, f'specularAlbedo_{frame:04d}.exr'), spec_img[:,:,0:3], compression=exr.ZIP_COMPRESSION)
-        os.remove(os.path.join(src_dir, f'specRough_{frame:04d}.exr'))
-        diffuseOpacity_img = exr.read_all(os.path.join(src_dir, f'diffuseOpacity_{frame:04d}.exr'))['default']
-        diffuse_img = diffuseOpacity_img[:,:,0:3]
-        opacity_img = diffuseOpacity_img[:,:,3:4]
-        exr.write(os.path.join(dest_dir, f'diffuseAlbedo_{frame:04d}.exr'), diffuse_img, compression=exr.ZIP_COMPRESSION)
-        exr.write(os.path.join(dest_dir, f'opacity_{frame:04d}.exr'), opacity_img, compression=exr.ZIP_COMPRESSION)
-        os.remove(os.path.join(src_dir, f'diffuseOpacity_{frame:04d}.exr'))
+        spec_path = os.path.join(src_dir, f'specRough_{frame:04d}.exr')
+        if os.path.exists(spec_path):
+            spec_img = exr.read_all(spec_path)['default']
+            rough_img = spec_img[:,:,3:4]
+            exr.write(os.path.join(dest_dir, f'roughness_{frame:04d}.exr'), rough_img, compression=exr.ZIP_COMPRESSION)
+            exr.write(os.path.join(dest_dir, f'specularAlbedo_{frame:04d}.exr'), spec_img[:,:,0:3], compression=exr.ZIP_COMPRESSION)
+            os.remove(os.path.join(src_dir, f'specRough_{frame:04d}.exr'))
+        else:
+            print(f'Error: {spec_path} not found.')
+
+        diffuseOpacity_path = os.path.join(src_dir, f'diffuseOpacity_{frame:04d}.exr')
+        if os.path.exists(diffuseOpacity_path):
+            diffuseOpacity_img = exr.read_all(diffuseOpacity_path)['default']
+            diffuse_img = diffuseOpacity_img[:,:,0:3]
+            opacity_img = diffuseOpacity_img[:,:,3:4]
+            exr.write(os.path.join(dest_dir, f'diffuseAlbedo_{frame:04d}.exr'), diffuse_img, compression=exr.ZIP_COMPRESSION)
+            exr.write(os.path.join(dest_dir, f'opacity_{frame:04d}.exr'), opacity_img, compression=exr.ZIP_COMPRESSION)
+            os.remove(os.path.join(src_dir, f'diffuseOpacity_{frame:04d}.exr'))
+        else:
+            print(f'Error: {diffuseOpacity_path} not found.')
 
         ### Post-process to handle multi-samples
         # Collect files of the currently rendered frame
@@ -182,7 +197,7 @@ def postprocess_input(src_dir, scene_name, frames, sample_idx, suffix=None):
     print('\tPost-processing the input...', end=' ', flush=True)
 
     # Process multiprocessing
-    num_workers = min(60, mp.cpu_count()) # 60 is maximum for Windows
+    num_workers = min(60, mp.cpu_count() - 4) # 60 is maximum for Windows
     with mp.Pool(processes=num_workers) as pool:
         pool.starmap(process_input, [(src_dir, src_dir, frame, sample_idx, suffix) for frame in frames])
     pool.close()
@@ -228,7 +243,7 @@ def postprocess_refrestir(src_dir, scene_name, frames, idx):
         shutil.move(os.path.join(src_dir, f), os.path.join(tmp_dir, f'{f.split(".")[0]}_{idx:04d}.exr'))
 
     # Process multiprocessing
-    num_workers = min(60, mp.cpu_count()) # 60 is maximum for Windows
+    num_workers = min(60, mp.cpu_count() - 4) # 60 is maximum for Windows
     with mp.Pool(processes=num_workers) as pool:
         for name in reflist:
             pool.starmap(partial(process_restirref_frame, name), [(frame, idx, src_dir, tmp_dir) for frame in frames])

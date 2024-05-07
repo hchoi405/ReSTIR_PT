@@ -934,7 +934,7 @@ namespace Falcor
         auto pSlangRequest = createSlangCompileRequest(mDefineList);
         if (pSlangRequest == nullptr) return nullptr;
 
-        printf("Compiling shaders... Please be patient.\n");
+        // printf("Compiling shaders... Please be patient.\n");
         SlangResult slangResult = spCompile(pSlangRequest);
         log += spGetDiagnosticOutput(pSlangRequest);
         if (SLANG_FAILED(slangResult))
