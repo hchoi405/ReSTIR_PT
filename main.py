@@ -260,9 +260,9 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     }
 
     ## Save G-buffer only for input, not secondinput
-    # if METHOD == 'input':
+    if METHOD == 'input':
     ## Save G-buffer for all methods
-    if True:
+    # if True:
         pairs.update({
             ## GBufferRaster
             f'albedo': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
@@ -429,9 +429,11 @@ loadRenderPassLibrary("AccumulatePass.dll")
 
 print("ANIM = ", ANIM)
 if METHOD == 'input':
-    graph = render_input(*ANIM, sample_pattern='CenterUniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
+    graph = render_input(*ANIM, sample_pattern='Center', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
+    # graph = render_input(*ANIM, sample_pattern='CenterUniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
 elif METHOD == 'secondinput':
-    graph = render_input(*ANIM, sample_pattern='Uniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
+    graph = render_input(*ANIM, sample_pattern='Center', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
+    # graph = render_input(*ANIM, sample_pattern='Uniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
 elif METHOD == 'crn':
     graph = render_crn(*ANIM)
 elif METHOD == 'ref':
