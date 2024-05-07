@@ -177,7 +177,8 @@ def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
                 os.remove(os.path.join(dest_dir, f'{last_sample_idx:04d}_{f}'))
 
     except Exception as e:
-        print(f"Error processing frame {frame}: {str(e)}")
+        func_name = sys._getframe()
+        print(f"[{func_name}] Error processing frame {frame}: {str(e)}")
 
 def postprocess_input(src_dir, scene_name, frames, sample_idx, suffix=None):
     print('\tPost-processing the input...', end=' ', flush=True)
@@ -193,13 +194,13 @@ def postprocess_input(src_dir, scene_name, frames, sample_idx, suffix=None):
 def postprocess_ref(src_dir, scene_name, frames):
     pass
 
-def process_restirref_frame(name, frame, idx, src_dir, tmp_dir):
+def process_restirref_frame(name, frame, idx, tmp_dir):
     try:
         last_idx = max(config.REF_START_SAMPLE_INDEX, idx - 1)
 
         rendered_path = os.path.join(tmp_dir, f'{name}_{frame:04d}_{idx:04d}.exr')
-        prev_ref_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}_{last_idx:04d}.exr')
-        new_ref_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}_{idx:04d}.exr')
+        prev_ref_path = os.path.join(tmp_dir, f'ref_{name}_{frame:04d}_{last_idx:04d}.exr')
+        new_ref_path = os.path.join(tmp_dir, f'ref_{name}_{frame:04d}_{idx:04d}.exr')
 
         if idx == config.REF_START_SAMPLE_INDEX:
             shutil.move(rendered_path, new_ref_path)
@@ -211,18 +212,33 @@ def process_restirref_frame(name, frame, idx, src_dir, tmp_dir):
             exr.write(new_ref_path, new_avg, compression=exr.ZIP_COMPRESSION)
             # Remove
             os.remove(rendered_path)
-            os.remove(prev_ref_path)
+            # os.remove(prev_ref_path)
 
     except Exception as e:
-        print(f"Error processing frame {frame}: {str(e)}")
+        func_name = sys._getframe()
+        print(f"[{func_name}] Error processing frame {frame}: {str(e)}")
 
+def process_refrestir_frame_last(name, frame, idx, src_dir):
+    try:
+        tmp_dir = os.path.join(src_dir, 'tmp')
+        ref_path = os.path.join(tmp_dir, f'ref_{name}_{frame:04d}_{idx:04d}.exr')
+        if os.path.exists(ref_path):
+            path = os.path.join(tmp_dir, f'ref_{name}_{frame:04d}_{idx:04d}.exr')
+            new_path = os.path.join(src_dir, f'ref_{name}_{frame:04d}.exr')
+            shutil.move(path, new_path)
+        else:
+            print(f'ERROR: ref file not found {ref_path}')
+    except Exception as e:
+        func_name = sys._getframe()
+        print(f"[{func_name}] Error processing frame {frame}: {str(e)}")
+
+reflist = ['current', 'envLight', 'emissive']
 def postprocess_refrestir(src_dir, scene_name, frames, idx):
     # Create tmp directory
     tmp_dir = os.path.join(src_dir, 'tmp')
     os.makedirs(tmp_dir, exist_ok=True)
 
     # Move the images in src_dir to the tmp_dir with appending the index
-    reflist = ['current', 'envLight', 'emissive']
     exr_list = os.listdir(src_dir)
     exr_list = [f for f in exr_list if f.endswith('.exr')]
     exr_list = [f for f in exr_list if any([f.startswith(f'{name}_') for name in reflist])]
@@ -236,7 +252,17 @@ def postprocess_refrestir(src_dir, scene_name, frames, idx):
     num_workers = min(60, mp.cpu_count() - 4) # 60 is maximum for Windows
     with mp.Pool(processes=num_workers) as pool:
         for name in reflist:
-            pool.starmap(partial(process_restirref_frame, name), [(frame, idx, src_dir, tmp_dir) for frame in frames])
+            pool.starmap(partial(process_restirref_frame, name), [(frame, idx, tmp_dir) for frame in frames])
+
+    # Last sample processing
+    if idx == config.REF_SAMPLES_PER_PIXEL - 1:
+        with mp.Pool(processes=num_workers) as pool:
+            for name in reflist:
+                pool.starmap(partial(process_refrestir_frame_last, name), [(frame, idx, src_dir) for frame in frames])
+        # Remove tmp
+        shutil.rmtree(tmp_dir)
+
+
 def process_centergbuf_frame(frame, src_dir, dest_dir):
     # Extract depth from LinearZ
     try:
@@ -248,7 +274,8 @@ def process_centergbuf_frame(frame, src_dir, dest_dir):
         else:
             print(f'WARN: {linearz_path} not found.')
     except Exception as e:
-        print(f"Error processing frame {frame}: {str(e)}")
+        func_name = sys._getframe()
+        print(f"[{func_name}] Error processing frame {frame}: {str(e)}")
 
 def postprocess_centergbuf(src_dir, scene_name, frames):
     print('\tPost-processing the centergbuf...', end=' ', flush=True)
@@ -425,21 +452,15 @@ if __name__ == "__main__":
                     shutil.rmtree(tmp_dir)
 
                 sample_idx = config.REF_START_SAMPLE_INDEX
-                # Adjust the sample_idx if ref_current exists
-                files = os.listdir(OUT_DIR)
-                reffiles = [f for f in files if f.startswith('ref_current')]
-                if len(reffiles) > 0:
-                    last_idx = max([int(f.split('_')[-1].split('.')[0]) for f in reffiles])
-                    sample_idx = last_idx + 1
-
                 while sample_idx < config.REF_SAMPLES_PER_PIXEL:
                     update_pyvariable("main.py", "SEED_OFFSET", sample_idx)
-                    print(f'Sample idx {sample_idx}:', end=' ')
+                    print(f'Sample idx {sample_idx}:', end=' ', flush=True)
                     retcode, stdout = run()
                     if retcode != 0:
                         print('Unsucessful, retry')
                     else:
                         postprocess(method, scene_name, sample_idx)
+                        print('Done.')
                         sample_idx += 1
 
             elif method == 'input' or method == 'secondinput':
@@ -464,7 +485,7 @@ if __name__ == "__main__":
                 run()
                 print('Done.')
                 if not args.nopostprocessing:
-                    postprocess(method, scene_name, sample_idx)
+                    postprocess(method, scene_name, 0)
 
             if args.interactive:
                 exit()
@@ -481,7 +502,7 @@ if __name__ == "__main__":
             # Move to NAS asynchronously
             print('Moving to NAS...', end=' ', flush=True)
             nas_dir = f'F:/{directory}/{scene_name}'
-            p = subprocess.Popen(['robocopy', dest_dir, nas_dir, '/MOVE', '/MT:4', '/R:10', '/W:10'], shell=True)
+            p = subprocess.Popen(['robocopy', dest_dir, nas_dir, '/MOVE', '/MT:4', '/R:3', '/W:10'], shell=True)
             ps[p.pid] = p
 
     print('Done.')
