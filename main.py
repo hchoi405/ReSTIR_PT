@@ -259,9 +259,9 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
         # f'albedo': f"{path}.albedo",
     }
 
-    ## Save G-buffer only for input, not secondinput
+    ## Save G-buffer only for input, not secondinput (center)
     if METHOD == 'input':
-    ## Save G-buffer for all methods
+    ## Save G-buffer for all methods (jittered)
     # if True:
         pairs.update({
             ## GBufferRaster
