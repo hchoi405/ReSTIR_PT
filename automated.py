@@ -212,7 +212,7 @@ def process_restirref_frame(name, frame, idx, tmp_dir):
             exr.write(new_ref_path, new_avg, compression=exr.ZIP_COMPRESSION)
             # Remove
             os.remove(rendered_path)
-            # os.remove(prev_ref_path)
+            os.remove(prev_ref_path)
 
     except Exception as e:
         func_name = sys._getframe()
@@ -254,13 +254,13 @@ def postprocess_refrestir(src_dir, scene_name, frames, idx):
         for name in reflist:
             pool.starmap(partial(process_restirref_frame, name), [(frame, idx, tmp_dir) for frame in frames])
 
-    # Last sample processing
-    if idx == config.REF_SAMPLES_PER_PIXEL - 1:
-        with mp.Pool(processes=num_workers) as pool:
-            for name in reflist:
-                pool.starmap(partial(process_refrestir_frame_last, name), [(frame, idx, src_dir) for frame in frames])
-        # Remove tmp
-        shutil.rmtree(tmp_dir)
+    # # Last sample processing
+    # if idx == config.REF_SAMPLES_PER_PIXEL - 1:
+    #     with mp.Pool(processes=num_workers) as pool:
+    #         for name in reflist:
+    #             pool.starmap(partial(process_refrestir_frame_last, name), [(frame, idx, src_dir) for frame in frames])
+    #     # Remove tmp
+    #     shutil.rmtree(tmp_dir)
 
 
 def process_centergbuf_frame(frame, src_dir, dest_dir):
@@ -446,12 +446,37 @@ if __name__ == "__main__":
             update_pyvariable("main.py", "SEED_OFFSET", 0)
 
             if method == 'ref_restir':
-                # Clear tmp directory
-                tmp_dir = os.path.join(OUT_DIR, 'tmp')
-                if os.path.exists(tmp_dir):
-                    shutil.rmtree(tmp_dir)
-
                 sample_idx = config.REF_START_SAMPLE_INDEX
+
+                tmp_dir = os.path.join(OUT_DIR, 'tmp')
+                if not os.path.exists(tmp_dir):
+                    # Create tmp directory if not exist
+                    os.makedirs(tmp_dir, exist_ok=True)
+                else:
+                    # Or check the minimum sample_idx to restart with
+                    exr_list = os.listdir(tmp_dir)
+                    exr_list = [f for f in exr_list if f.endswith('.exr')]
+                    exr_list = [f for f in exr_list if f.startswith('ref_')]
+                    # Check all reflist files exist for all frames
+                    len_anim = scene.defs[scene_name]['anim'][1] - scene.defs[scene_name]['anim'][0] + 1
+                    fulllen = (len_anim + 1) * len(reflist) # +1 for the dummy frame
+                    if len(exr_list) != fulllen:
+                        print(f'No complete ref files found: (actual {len(exr_list)} != expected {fulllen}). Restarting from {config.REF_START_SAMPLE_INDEX}...')
+                    else:
+                        min_idx = min([int(f.split('_')[-1].split('.')[0]) for f in exr_list])
+                        if min_idx >= config.REF_START_SAMPLE_INDEX and min_idx < config.REF_SAMPLES_PER_PIXEL:
+                            # Force rename to min_idx
+                            def rreplace(s, old, new, occurrence):
+                                li = s.rsplit(old, occurrence)
+                                return new.join(li)
+
+                            for f in exr_list:
+                                newname = rreplace(f, f.split('.')[0].split("_")[-1], f'{min_idx:04d}', 1)
+                                os.rename(os.path.join(tmp_dir, f), os.path.join(tmp_dir, newname))
+
+                            sample_idx = min_idx + 1
+                            print(f'Restarting from {sample_idx}...')
+
                 while sample_idx < config.REF_SAMPLES_PER_PIXEL:
                     update_pyvariable("main.py", "SEED_OFFSET", sample_idx)
                     print(f'Sample idx {sample_idx}:', end=' ', flush=True)
