@@ -1,5 +1,6 @@
 import os
 import subprocess
+import queue
 import threading
 import re
 import shutil
@@ -13,6 +14,26 @@ import glob
 
 import scripts.exr as exr
 import config
+
+class RobocopyManager:
+    def __init__(self):
+        self.queue = queue.Queue()
+        self.thread = threading.Thread(target=self.process_queue)
+        self.thread.daemon = True  # Ensures the thread exits when the main program does
+        self.thread.start()
+
+    def add_copy_job(self, source, destination):
+        """Add a copy job to the queue."""
+        self.queue.put((source, destination))
+
+    def process_queue(self):
+        """Process each item in the queue one at a time."""
+        while True:
+            source, destination = self.queue.get()
+            print(f'Starting robocopy from {source} to {destination}')
+            subprocess.run(['robocopy', source, destination, '/MOVE', '/MT:4', '/R:3', '/W:10'])
+            print(f'Completed robocopy from {source} to {destination}')
+            self.queue.task_done()
 
 # Function to update the variable value
 def update_variable(match, new_value):
@@ -466,7 +487,8 @@ if __name__ == "__main__":
 
     print('automated.py for scenes', scene_names)
 
-    ps = {}
+
+    manager = RobocopyManager()
     for i in range(len(scene_names)):
         scene_name = scene_names[i]
         dest_dir = os.path.join(directory, scene_name)
@@ -560,8 +582,7 @@ if __name__ == "__main__":
             # Move to NAS asynchronously
             print('Moving to NAS...', end=' ', flush=True)
             nas_dir = f'F:/{directory}/{scene_name}'
-            p = subprocess.Popen(['robocopy', dest_dir, nas_dir, '/MOVE', '/MT:4', '/R:3', '/W:10'], shell=True)
-            ps[p.pid] = p
+            manager.add_copy_job(dest_dir, nas_dir)
 
     print('Done.')
 
