@@ -14,6 +14,7 @@ REF_COUNT = 8192
 ENABLE_RESTIR = True
 SEED_OFFSET = 0
 SAMPLE_INDEX = 0
+MULTIGBUF_COUNT = 4
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -401,6 +402,41 @@ def render_centergbuf(start, end):
 
     return g
 
+def render_multigbuf(start, end):
+    g = RenderGraph("MutlipleGraph")
+
+    gbuf = add_gbuffer(g, pattern=SamplePattern.Halton, init_seed=MULTIGBUF_COUNT)
+
+    # Connect input/output
+    pairs = {
+        'emissive_multi': f"{gbuf}.emissive",
+        'normal_multi': f"{gbuf}.normW",
+        'position_multi': f"{gbuf}.posW",
+        'albedo_multi': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
+        'specRough_multi': f"{gbuf}.specRough",
+        'diffuseOpacity_multi': f"{gbuf}.diffuseOpacity",
+        'linearZ_multi': f"{gbuf}.linearZ",
+        # 'pnFwidth': f"{gbuf}.pnFwidth",
+        # 'mvec': f"{gbuf}.mvec",
+    }
+
+    capture_pairs = {}
+    for i, (key, value) in enumerate(pairs.items()):
+        AccumulatePass = createPass("AccumulatePass", {'enabled': True})
+        g.addPass(AccumulatePass, f"AccumulatePass{i}")
+        g.addEdge(value, f"AccumulatePass{i}.input")
+
+        capture_pairs[key] = f"AccumulatePass{i}.output"
+
+    add_capture(g, capture_pairs, start, end, {'accumulate': True, 'accumulateCount': MULTIGBUF_COUNT})
+
+    # Add output
+    g.markOutput(f"{gbuf}.diffuseOpacity")
+
+    return g
+
+
+
 if 'Dining-room-dynamic-static' == NAME:
     start = -0.5
     end = -0.5
@@ -444,6 +480,8 @@ elif METHOD == 'ref_restir':
     graph = render_ref_restir(*ANIM)
 elif METHOD == 'centergbuf':
     graph = render_centergbuf(*ANIM)
+elif METHOD == 'multigbuf':
+    graph = render_multigbuf(*ANIM)
 
 m.addGraph(graph)
 # m.loadScene(FILE, buildFlags=SceneBuilderFlags.UseCache)
@@ -484,6 +522,9 @@ else:
             #     m.profiler.startCapture()
             if METHOD == 'ref':
                 for i in range(REF_COUNT):
+                    m.renderFrame()
+            elif METHOD == "multigbuf":
+                for i in range(MULTIGBUF_COUNT):
                     m.renderFrame()
             else:
                 m.renderFrame()

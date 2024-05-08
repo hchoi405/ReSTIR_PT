@@ -262,8 +262,7 @@ def postprocess_refrestir(src_dir, scene_name, frames, idx):
     #     # Remove tmp
     #     shutil.rmtree(tmp_dir)
 
-
-def process_centergbuf_frame(frame, src_dir, dest_dir):
+def process_centergbuf(frame, src_dir, dest_dir):
     # Extract depth from LinearZ
     try:
         linearz_path = os.path.join(src_dir, f'linearZ_{frame:04d}.exr')
@@ -283,10 +282,42 @@ def postprocess_centergbuf(src_dir, scene_name, frames):
     # Process multiprocessing
     num_workers = min(60, mp.cpu_count() - 4) # 60 is maximum for Windows
     with mp.Pool(processes=num_workers) as pool:
-        pool.starmap(process_centergbuf_frame, [(frame, src_dir, src_dir) for frame in frames])
+        pool.starmap(process_centergbuf, [(frame, src_dir, src_dir) for frame in frames])
     pool.close()
 
     print('Done')
+
+def process_multigbuf(src_dir, frame):
+    try:
+        # Extract depth from LinearZ
+        linearz_path = os.path.join(src_dir, f'linearZ_multi_{frame:04d}.exr')
+        if os.path.exists(linearz_path):
+            linearz_img = exr.read_all(linearz_path)['default']
+            depth_img = linearz_img[:,:,0:1]
+            exr.write(os.path.join(src_dir, f'depth_multi_{frame:04d}.exr'), depth_img, compression=exr.ZIP_COMPRESSION)
+            # remove linearZ
+            os.remove(linearz_path)
+        else:
+            print(f'WARN: {linearz_path} not found.')
+
+        # Normalize normal_multi
+        img = exr.read_all(os.path.join(src_dir, f'normal_multi_{frame:04d}.exr'))['default']
+        factor = np.linalg.norm(img, axis=2, keepdims=True)
+        factor[factor == 0] = 1
+        img /= factor
+        exr.write(os.path.join(src_dir, f'normal_multi_{frame:04d}.exr'), img, compression=exr.ZIP_COMPRESSION)
+
+    except Exception as e:
+        func_name = sys._getframe()
+        print(f"[{func_name}] Error processing frame {frame}: {str(e)}")
+
+def postprocess_multigbuf(src_dir, scene_name, frames):
+    print('\tPost-processing the multigbuf...', end=' ', flush=True)
+    # Normalize normal_multi
+    num_workers = min(60, mp.cpu_count()) # 60 is maximum for Windows
+    with mp.Pool(processes=num_workers) as pool:
+        pool.starmap(process_multigbuf, [(src_dir, frame) for frame in frames])
+    print('Done.')
 
 def postprocess(method, scene_name, sample_idx=0):
     src_dir = f'{OUT_DIR}/'
@@ -308,6 +339,8 @@ def postprocess(method, scene_name, sample_idx=0):
         postprocess_refrestir(src_dir, scene_name, frames, sample_idx)
     elif method == 'centergbuf':
         postprocess_centergbuf(src_dir, scene_name, frames)
+    elif method == 'multigbuf':
+        postprocess_multigbuf(src_dir, scene_name, frames)
     else:
         print(f'Post-processing for {method} is not implemented.')
 
@@ -382,7 +415,7 @@ if __name__ == "__main__":
     parser.add_argument('--nobuild', action='store_true', default=False)
     parser.add_argument('--buildonly', action='store_true', default=False)
     parser.add_argument('--nopostprocessing', action='store_true', default=False)
-    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'crn', 'ref', 'ref_restir', 'secondinput', 'centergbuf'], required=False)
+    parser.add_argument('--methods', nargs='+', default=[], choices=['input', 'ref', 'ref_restir', 'secondinput', 'centergbuf', 'multigbuf'], required=False)
     parser.add_argument('--nas', action='store_true', default=False)
     parser.add_argument('--interactive', action='store_true', default=False)
     parser.add_argument('--dir', default='dataset')
