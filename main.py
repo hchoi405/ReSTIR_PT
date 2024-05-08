@@ -15,6 +15,7 @@ ENABLE_RESTIR = True
 SEED_OFFSET = 0
 SAMPLE_INDEX = 0
 MULTIGBUF_COUNT = 4
+INPUT_SUFFIX = ""
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -254,10 +255,10 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     # Connect input/output
     pairs = {
         ## PathTracer
-        f'current': f"{path}.color",
-        # f'temporal': f"{path}.temporalColor",
-        f'envLight': f"{path}.envLight",
-        # f'albedo': f"{path}.albedo",
+        f'current{INPUT_SUFFIX}': f"{path}.color",
+        # f'temporal{INPUT_SUFFIX}': f"{path}.temporalColor",
+        f'envLight{INPUT_SUFFIX}': f"{path}.envLight",
+        # f'albedo{INPUT_SUFFIX}': f"{path}.albedo",
     }
 
     ## Save G-buffer only for input, not secondinput (center)
@@ -266,15 +267,15 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     # if True:
         pairs.update({
             ## GBufferRaster
-            f'albedo': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
-            f'normal': f"{gbuf}.normW",
-            f'position': f"{gbuf}.posW",
-            f'emissive': f"{gbuf}.emissive",
-            # f'linearZ': f"{gbuf}.linearZ", # Do not save linearZ, it's not used
-            # f'mvec': f"{gbuf}.mvec", # Do not generate motion vector here, it'll be generated in centergbuf
-            # f'pnFwidth': f"{gbuf}.pnFwidth",
-            f'specRough': f"{gbuf}.specRough",
-            f'diffuseOpacity': f"{gbuf}.diffuseOpacity",
+            f'albedo{INPUT_SUFFIX}': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
+            f'normal{INPUT_SUFFIX}': f"{gbuf}.normW",
+            f'position{INPUT_SUFFIX}': f"{gbuf}.posW",
+            f'emissive{INPUT_SUFFIX}': f"{gbuf}.emissive",
+            # f'linearZ{INPUT_SUFFIX}': f"{gbuf}.linearZ", # Do not save linearZ, it's not used
+            # f'mvec{INPUT_SUFFIX}': f"{gbuf}.mvec", # Do not generate motion vector here, it'll be generated in centergbuf
+            # f'pnFwidth{INPUT_SUFFIX}': f"{gbuf}.pnFwidth",
+            f'specRough{INPUT_SUFFIX}': f"{gbuf}.specRough",
+            f'diffuseOpacity{INPUT_SUFFIX}': f"{gbuf}.diffuseOpacity",
         })
 
     if ENABLE_RESTIR:

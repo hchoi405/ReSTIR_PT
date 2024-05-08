@@ -353,7 +353,8 @@ def postprocess(method, scene_name, sample_idx=0):
     if method == 'input':
         postprocess_input(src_dir, scene_name, frames, sample_idx)
     elif method == 'secondinput':
-        postprocess_input(src_dir, scene_name, frames, sample_idx, suffix='2')
+        # postprocess_input(src_dir, scene_name, frames, sample_idx, suffix='2')
+        pass
     elif method == 'ref':
         postprocess_ref(src_dir, scene_name, frames)
     elif method == 'ref_restir':
@@ -544,6 +545,9 @@ if __name__ == "__main__":
                         sample_idx += 1
 
             elif method == 'input' or method == 'secondinput':
+                if method == 'input': update_pyvariable("main.py", "INPUT_SUFFIX", '')
+                else: update_pyvariable("main.py", "INPUT_SUFFIX", '2')
+
                 # Launch Mogwai
                 for sample_idx in range(config.SAMPLES_PER_PIXEL):
                     update_pyvariable("main.py", "SAMPLE_INDEX", sample_idx)
