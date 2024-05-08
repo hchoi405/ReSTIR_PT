@@ -444,8 +444,8 @@ elif METHOD == 'centergbuf':
     graph = render_centergbuf(*ANIM)
 
 m.addGraph(graph)
-m.loadScene(FILE, buildFlags=SceneBuilderFlags.UseCache)
-# m.loadScene(FILE, buildFlags=SceneBuilderFlags.RebuildCache)
+# m.loadScene(FILE, buildFlags=SceneBuilderFlags.UseCache)
+m.loadScene(FILE, buildFlags=SceneBuilderFlags.RebuildCache)
 # Call this after scene loading
 m.scene.camera.nearPlane = 0.15 # Increase near plane to prevent Z-fighting
 
