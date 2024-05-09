@@ -212,6 +212,61 @@ def postprocess_input(src_dir, scene_name, frames, sample_idx, suffix=None):
 
     print('Done')
 
+def process_secondinput(src_dir, dest_dir, frame, sample_idx):
+    try:
+        ### Post-process to handle multi-samples
+        # Collect files of the currently rendered frame
+        rendered_files = os.listdir(dest_dir)
+        rendered_files = [f for f in rendered_files if f.endswith(f'{frame:04d}.exr')]
+        rendered_files = [f for f in rendered_files if not starts_with_number(f)]
+
+        # Re-collect files of the currently rendered frame
+        rendered_files = os.listdir(dest_dir)
+        rendered_files = [f for f in rendered_files if f.endswith(f'{frame:04d}.exr')]
+        rendered_files = [f for f in rendered_files if not starts_with_number(f)]
+
+        # Find the largest sample index from {sample_idx:04d}_*.exr
+        if sample_idx == 0:
+            # Just move
+            for f in rendered_files:
+                shutil.move(os.path.join(dest_dir, f), os.path.join(dest_dir, f'{sample_idx:04d}_{f}'))
+        else:
+            last_sample_idx = sample_idx - 1
+            # Average the images
+            for f in rendered_files:
+                if 'mvec' in f: # Do not average motion vectors
+                    continue
+                img_avg = exr.read_all(os.path.join(dest_dir, f'{last_sample_idx:04d}_{f}'))['default']
+                img = exr.read_all(os.path.join(dest_dir, f))['default']
+                new_avg = ((last_sample_idx+1) * img_avg + img) / ((last_sample_idx+1) + 1)
+                if 'normal' in f: # Normalize normals
+                    factor = np.linalg.norm(new_avg, axis=2, keepdims=True)
+                    factor[factor == 0] = 1
+                    new_avg /= factor
+                exr.write(os.path.join(dest_dir, f'{sample_idx:04d}_{f}'), new_avg, compression=exr.ZIP_COMPRESSION)
+                os.remove(os.path.join(dest_dir, f))
+                os.remove(os.path.join(dest_dir, f'{last_sample_idx:04d}_{f}'))
+
+            if sample_idx == config.SAMPLES_PER_PIXEL - 1:
+                # Rename the sample_idx from the filename
+                for f in rendered_files:
+                    shutil.move(os.path.join(dest_dir, f'{sample_idx:04d}_{f}'), os.path.join(dest_dir, f))
+
+    except Exception as e:
+        func_name = sys._getframe()
+        print(f"[{func_name}] Error processing frame {frame}: {str(e)}")
+
+def postprocess_secondinput(src_dir, scene_name, frames, sample_idx):
+    print('\tPost-processing the secondinput...', end=' ', flush=True)
+
+    # Process multiprocessing
+    num_workers = min(60, mp.cpu_count() - 4) # 60 is maximum for Windows
+    with mp.Pool(processes=num_workers) as pool:
+        pool.starmap(process_secondinput, [(src_dir, src_dir, frame, sample_idx) for frame in frames])
+    pool.close()
+
+    print('Done')
+
 def postprocess_ref(src_dir, scene_name, frames):
     pass
 
@@ -353,8 +408,7 @@ def postprocess(method, scene_name, sample_idx=0):
     if method == 'input':
         postprocess_input(src_dir, scene_name, frames, sample_idx)
     elif method == 'secondinput':
-        # postprocess_input(src_dir, scene_name, frames, sample_idx, suffix='2')
-        pass
+        postprocess_secondinput(src_dir, scene_name, frames, sample_idx)
     elif method == 'ref':
         postprocess_ref(src_dir, scene_name, frames)
     elif method == 'ref_restir':
