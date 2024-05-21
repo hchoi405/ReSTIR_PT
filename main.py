@@ -248,6 +248,8 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
         gbuf = add_gbuffer(g, pattern=SamplePattern.CenterUniform, init_seed=gbufseed)
     elif sample_pattern == 'Center':
         gbuf = add_gbuffer(g, pattern=SamplePattern.Center, init_seed=gbufseed)
+    elif sample_pattern == 'Halton':
+        gbuf = add_gbuffer(g, pattern=SamplePattern.Halton, init_seed=gbufseed)
 
     ## PathTracer
     path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False, path_seed_offset=pathseed)
@@ -466,10 +468,10 @@ loadRenderPassLibrary("AccumulatePass.dll")
 
 print("ANIM = ", ANIM)
 if METHOD == 'input':
-    graph = render_input(*ANIM, sample_pattern='Center', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
+    graph = render_input(*ANIM, sample_pattern='CenterUniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
     # graph = render_input(*ANIM, sample_pattern='CenterUniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
 elif METHOD == 'secondinput':
-    graph = render_input(*ANIM, sample_pattern='Center', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
+    graph = render_input(*ANIM, sample_pattern='CenterUniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
     # graph = render_input(*ANIM, sample_pattern='Uniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
 elif METHOD == 'crn':
     graph = render_crn(*ANIM)
