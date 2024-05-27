@@ -642,10 +642,10 @@ if __name__ == "__main__":
             nas_dir = f'F:/{directory}/{scene_name}'
             manager.add_copy_job(dest_dir, nas_dir)
 
-        # Wait 20 minutes for the copying to proceed
-        for i in range(1200):
-            print('.', end='', flush=True)
-            time.sleep(1)
+        # # Wait 20 minutes for the copying to proceed
+        # for i in range(1200):
+        #     print('.', end='', flush=True)
+        #     time.sleep(1)
 
     print('Done.')
 

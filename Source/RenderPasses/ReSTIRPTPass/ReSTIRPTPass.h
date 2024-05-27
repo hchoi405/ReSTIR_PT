@@ -67,6 +67,7 @@ private:
     void tracePass(RenderContext* pRenderContext, const RenderData& renderData, const ComputePass::SharedPtr& pass, const std::string& passName, int sampleId);
     void PathReusePass(RenderContext* pRenderContext, uint32_t restir_i, const RenderData& renderData, bool temporalReuse = false, int spatialRoundId = 0, bool isLastRound = false);
     void PathRetracePass(RenderContext* pRenderContext, uint32_t restir_i, const RenderData& renderData, bool temporalReuse = false, int spatialRoundId = 0);
+    void resolvePass(RenderContext* pRenderContext, const RenderData& renderData, uint32_t restir_i);
     Texture::SharedPtr createNeighborOffsetTexture(uint32_t sampleCount);
 
     /** Static configuration. Changing any of these options require shader recompilation.
@@ -108,7 +109,7 @@ private:
         ShiftMapping    shiftStrategy = ShiftMapping::Hybrid;
         bool            temporalUpdateForDynamicScene = false;
 
-        PathSamplingMode pathSamplingMode = PathSamplingMode::ReSTIR;
+        PathSamplingMode pathSamplingMode = PathSamplingMode::PathTracing;
 
         bool            separatePathBSDF = true;
 
@@ -146,6 +147,7 @@ private:
     bool                            mGBufferAdjustShadingNormals = false; ///< True if GBuffer/VBuffer has adjusted shading normals enabled.
     bool                            mOutputTime = false;        ///< True if time data should be generated as output.
     bool                            mOutputNRDData = false;     ///< True if NRD diffuse/specular data should be generated as outputs.
+    bool                            mOutputNRDAdditionalData = true;     ///< True if NRD additional data (delta/transmission) should be generated as outputs.
     bool                            mEnableRayStats = false;      ///< Set to true when the stats tab in the UI is open. This may negatively affect performance.
 
     uint64_t                        mAccumulatedRayCount = 0;
@@ -198,6 +200,9 @@ private:
 
     ComputePass::SharedPtr          mpGeneratePaths;                ///< Fullscreen compute pass generating paths starting at primary hits.
     ComputePass::SharedPtr          mpTracePass;                    ///< Main tracing pass.
+    ComputePass::SharedPtr          mpTraceDeltaReflectionPass;     ///< For NRD delta reflection.
+    ComputePass::SharedPtr          mpTraceDeltaTransmissionPass;   ///< For NRD delta transmission.
+    ComputePass::SharedPtr          mpResolvePass;                  ///< For resolving samples to the output buffer.
 
     ComputePass::SharedPtr          mpReflectTypes;             ///< Helper for reflecting structured buffer types.
 
@@ -223,4 +228,9 @@ private:
     Texture::SharedPtr              mpNeighborOffsets;
 
     Buffer::SharedPtr               mNRooksPatternBuffer;
+
+    Texture::SharedPtr              mNRDRadiance;
+    Texture::SharedPtr              mNRDHitDist;
+    Texture::SharedPtr              mNRDEmission;
+    Texture::SharedPtr              mNRDReflectance;
 };

@@ -26,6 +26,7 @@
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **************************************************************************/
 #include "Scene/VertexAttrib.slangh"
+#include "Utils/Math/MathConstants.slangh"
 
 import Scene.Raster;
 import Scene.HitInfo;
@@ -42,6 +43,7 @@ RasterizerOrderedTexture2D<float4> gMetallic;
 RasterizerOrderedTexture2D<float4> gFaceNormalW;
 RasterizerOrderedTexture2D<float2> gPosNormalFwidth;
 RasterizerOrderedTexture2D<float2> gLinearZAndDeriv;
+RasterizerOrderedTexture2D<float4> gNormalWRoughnessMaterialID;
 
 cbuffer PerFrameCB
 {
@@ -149,6 +151,17 @@ GBufferPSOut psMain(VSOut vsOut, uint triangleIndex : SV_PrimitiveID, float3 bar
     {
         const float linearZ = vsOut.posH.z * vsOut.posH.w;
         gLinearZAndDeriv[ipos] = float2(linearZ, max(abs(ddx(linearZ)), abs(ddy(linearZ))));
+    }
+
+    // NRD-specific buffer that packs normals and clamps roughness.
+    if (is_valid(gNormalWRoughnessMaterialID))
+    {
+        // Clamp roughness so it's representable of what is actually used in the renderer.
+        // Roughness below 0.08 is used to indicate perfectly smooth surfaces.
+        float clampedRoughness = sd.linearRoughness < ROUGHNESS_THRESHOLD ? 0.00f : sd.linearRoughness;
+        float2 octNormal = ndir_to_oct_unorm(sd.N);
+        float materialID = 0.f;
+        gNormalWRoughnessMaterialID[ipos] = float4(octNormal, clampedRoughness, materialID);
     }
 
     // Note on barycentrics:

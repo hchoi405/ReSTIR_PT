@@ -35,6 +35,10 @@ enum class PathFlags
 
     specularPrimaryHit      = 0x1000,   ///< Primary hit was sampled from the specular BSDF lobe.
 
+    deltaReflectionPrimaryHit = 0x2000,     ///< Primary hit was sampled as the delta reflection.
+    deltaTransmissionPath = 0x4000,  ///< Primary hit was sampled as the delta transmission.
+    deltaOnlyPath               = 0x8000,   ///< There was no non-delta events along the path so far.
+
     // Bits 11-15 are still unused.
 };
 
@@ -129,6 +133,9 @@ struct PathState
     bool isDiffusePrimaryHit() { return hasFlag(PathFlags::diffusePrimaryHit); }
     bool isSpecularPrimaryHit() { return hasFlag(PathFlags::specularPrimaryHit); }
     bool isFreePath() { return hasFlag(PathFlags::freePath); }
+    bool isDeltaReflectionPrimaryHit() { return hasFlag(PathFlags::deltaReflectionPrimaryHit); }
+    bool isDeltaTransmissionPath() { return hasFlag(PathFlags::deltaTransmissionPath); }
+    bool isDeltaOnlyPath() { return hasFlag(PathFlags::deltaOnlyPath); }
 
     // Check if the scatter event is samplable by the light sampling technique.
     bool isLightSamplable() { return !isDelta(); }
@@ -148,6 +155,9 @@ struct PathState
     [mutating] void setLightSampled(bool upper, bool lower) { setFlag(PathFlags::lightSampledUpper, upper); setFlag(PathFlags::lightSampledLower, lower); }
     [mutating] void setDiffusePrimaryHit(bool value = true) { setFlag(PathFlags::diffusePrimaryHit, value); }
     [mutating] void setSpecularPrimaryHit(bool value = true) { setFlag(PathFlags::specularPrimaryHit, value); }
+    [mutating] void setDeltaReflectionPrimaryHit(bool value = true) { setFlag(PathFlags::deltaReflectionPrimaryHit, value); }
+    [mutating] void setDeltaTransmissionPath(bool value = true) { setFlag(PathFlags::deltaTransmissionPath, value); }
+    [mutating] void setDeltaOnlyPath(bool value = true) { setFlag(PathFlags::deltaOnlyPath, value); }
 
     [mutating] void setFreePath(bool value = true) { setFlag(PathFlags::freePath, value); }
 

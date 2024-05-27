@@ -49,10 +49,12 @@
     <ShaderSource Include="TemporalReuse.cs.slang" />
     <ShaderSource Include="PathState.slang" />
     <ShaderSource Include="PathTracer.slang" />
+    <ShaderSource Include="PathTracerNRD.slang" />
     <ShaderSource Include="ReflectTypes.cs.slang" />
     <ShaderSource Include="Shift.slang" />
     <ShaderSource Include="StaticParams.slang" />
     <ShaderSource Include="TracePass.cs.slang" />
+    <ShaderSource Include="ResolvePass.cs.slang" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>

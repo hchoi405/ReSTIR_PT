@@ -8,6 +8,7 @@ import PathTracer;
 import PathState;
 import Params;
 import PathReservoir;
+import PathTracerNRD;
 
 ParameterBlock<PathTracer> gPathTracer;
 
@@ -28,7 +29,13 @@ void tracePath(uint pathID, inout PathReservoir giReservoir, uint sampleIdx)
     {
         if (path.isHit())
         {
+#if defined(DELTA_REFLECTION_PASS)
+            gPathTracer.handleDeltaReflectionHit(path);
+#elif defined(DELTA_TRANSMISSION_PASS)
+            gPathTracer.handleDeltaTransmissionHit(path);
+#else
             gPathTracer.handleHit(path);
+#endif
             if (path.isTerminated()) break;
             gPathTracer.nextVertex(path);
         }
@@ -38,8 +45,10 @@ void tracePath(uint pathID, inout PathReservoir giReservoir, uint sampleIdx)
         }
     }
 
+#if !defined(DELTA_REFLECTION_PASS) && !defined(DELTA_TRANSMISSION_PASS)
     gPathTracer.finalize(path);
     gPathTracer.writeOutput(path, giReservoir, sampleIdx);
+#endif
 }
 
 [numthreads(16, 16, 1)]

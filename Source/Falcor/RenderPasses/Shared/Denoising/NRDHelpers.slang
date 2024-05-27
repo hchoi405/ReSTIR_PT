@@ -29,6 +29,7 @@ import Rendering.Materials.Fresnel;
 import Rendering.Materials.Microfacet;
 import Scene.Scene;
 import Scene.ShadingData;
+import RenderPasses.Shared.Denoising.NRDConstants;
 
 /** Get material reflectance based on the metallic value.
 */
@@ -41,20 +42,22 @@ float3 getMaterialReflectanceForDeltaPaths(const MaterialType materialType, cons
 
         if (metallic == 0.f)
         {
-            return (1.f - sd.diffuseTransmission) * (1.f - sd.specularTransmission) * sd.diffuse;
+            return max(kNRDMinReflectance, (1.f - sd.diffuseTransmission) * (1.f - sd.specularTransmission) * sd.diffuse);
         }
         // Handle only non-delta specular lobes.
-        else if (metallic == 1.f && !hasDeltaLobes)
+        else if (!hasDeltaLobes)
         {
             float NdotV = saturate(dot(sd.N, sd.V));
             float ggxAlpha = sd.linearRoughness * sd.linearRoughness;
             float3 specularReflectionAlbedo = (1.f - sd.specularTransmission) * sd.specular;
-            return approxSpecularIntegralGGX(specularReflectionAlbedo, ggxAlpha, NdotV);
+            float3 specularReflection = approxSpecularIntegralGGX(specularReflectionAlbedo, ggxAlpha, NdotV);
+            float3 diffuseReflectance = (1.f - sd.diffuseTransmission) * (1.f - sd.specularTransmission) * sd.diffuse;
+            return max(kNRDMinReflectance, diffuseReflectance + specularReflection);
         }
     }
     else if (materialType == MaterialType::Hair)
     {
-        return (1.f - sd.diffuseTransmission) * (1.f - sd.specularTransmission) * sd.diffuse;
+        return max(kNRDMinReflectance, (1.f - sd.diffuseTransmission) * (1.f - sd.specularTransmission) * sd.diffuse);
     }
 
     return 1.f;

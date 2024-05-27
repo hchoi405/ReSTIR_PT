@@ -257,7 +257,7 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     # Connect input/output
     pairs = {
         ## PathTracer
-        f'current{INPUT_SUFFIX}': f"{path}.color",
+        f'color{INPUT_SUFFIX}': f"{path}.color",
         # f'temporal{INPUT_SUFFIX}': f"{path}.temporalColor",
         f'envLight{INPUT_SUFFIX}': f"{path}.envLight",
         # f'albedo{INPUT_SUFFIX}': f"{path}.albedo",
@@ -273,11 +273,36 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
             f'normal{INPUT_SUFFIX}': f"{gbuf}.normW",
             f'position{INPUT_SUFFIX}': f"{gbuf}.posW",
             f'emissive{INPUT_SUFFIX}': f"{gbuf}.emissive",
-            # f'linearZ{INPUT_SUFFIX}': f"{gbuf}.linearZ", # Do not save linearZ, it's not used
-            # f'mvec{INPUT_SUFFIX}': f"{gbuf}.mvec", # Do not generate motion vector here, it'll be generated in centergbuf
-            # f'pnFwidth{INPUT_SUFFIX}': f"{gbuf}.pnFwidth",
+            f'linearZ{INPUT_SUFFIX}': f"{gbuf}.linearZ",
+            f'mvec{INPUT_SUFFIX}': f"{gbuf}.mvec",
+            f'pnFwidth{INPUT_SUFFIX}': f"{gbuf}.pnFwidth",
             f'specRough{INPUT_SUFFIX}': f"{gbuf}.specRough",
             f'diffuseOpacity{INPUT_SUFFIX}': f"{gbuf}.diffuseOpacity",
+        })
+        # For NRD
+        pairs.update({f'normWRoughnessMaterialID{INPUT_SUFFIX}': f'{gbuf}.normWRoughnessMaterialID'})
+        # NRD
+        pairs.update({
+            f'nrdDiffuseRadianceHitDist': f'{path}.nrdDiffuseRadianceHitDist',
+            f'nrdSpecularRadianceHitDist': f'{path}.nrdSpecularRadianceHitDist',
+            f'nrdResidualRadianceHitDist': f'{path}.nrdResidualRadianceHitDist',
+            f'nrdEmission': f'{path}.nrdEmission',
+            f'nrdDiffuseReflectance': f'{path}.nrdDiffuseReflectance',
+            f'nrdSpecularReflectance': f'{path}.nrdSpecularReflectance',
+
+            f'nrdDeltaReflectionRadianceHitDist': f'{path}.nrdDeltaReflectionRadianceHitDist',
+            f'nrdDeltaReflectionReflectance': f'{path}.nrdDeltaReflectionReflectance',
+            f'nrdDeltaReflectionEmission': f'{path}.nrdDeltaReflectionEmission',
+            f'nrdDeltaReflectionHitDist': f'{path}.nrdDeltaReflectionHitDist',
+            f'nrdDeltaReflectionPathLength': f'{path}.nrdDeltaReflectionPathLength',
+            f'nrdDeltaReflectionNormWRoughMaterialID': f'{path}.nrdDeltaReflectionNormWRoughMaterialID',
+
+            f'nrdDeltaTransmissionRadianceHitDist': f'{path}.nrdDeltaTransmissionRadianceHitDist',
+            f'nrdDeltaTransmissionReflectance': f'{path}.nrdDeltaTransmissionReflectance',
+            f'nrdDeltaTransmissionEmission': f'{path}.nrdDeltaTransmissionEmission',
+            f'nrdDeltaTransmissionPosW': f'{path}.nrdDeltaTransmissionPosW',
+            f'nrdDeltaTransmissionPathLength': f'{path}.nrdDeltaTransmissionPathLength',
+            f'nrdDeltaTransmissionNormWRoughMaterialID': f'{path}.nrdDeltaTransmissionNormWRoughMaterialID',
         })
 
     if ENABLE_RESTIR:
@@ -289,7 +314,14 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
 
     opts = {
         'captureCameraMat': True if METHOD == 'input' else False,
-        'captureCameraMatOnly': False
+        'captureCameraMatOnly': False,
+        'includeAlpha': ["normWRoughnessMaterialID",
+                         "nrdDiffuseRadianceHitDist",
+                         "nrdSpecularRadianceHitDist",
+                         "nrdDeltaReflectionRadianceHitDist",
+                         "nrdDeltaTransmissionRadianceHitDist",
+                         "nrdResidualRadianceHitDist",
+                         ],
     }
 
     if not INTERACTIVE:

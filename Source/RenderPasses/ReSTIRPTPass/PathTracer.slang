@@ -49,9 +49,6 @@ struct PathTracer
     Texture2D<PackedHitInfo> vbuffer;               ///< Fullscreen V-buffer for the primary hits.
 
     NRDBuffers outputNRD;                           ///< Output NRD data.
-    RWTexture2D<float4> outputNRDDiffuseRadianceHitDist;    ///< Output resolved diffuse color in .rgb and hit distance in .a for NRD. Only valid if kOutputNRDData == true.
-    RWTexture2D<float4> outputNRDSpecularRadianceHitDist;   ///< Output resolved specular color in .rgb and hit distance in .a for NRD. Only valid if kOutputNRDData == true.
-    RWTexture2D<float4> outputNRDResidualRadianceHitDist;   ///< Output resolved residual color in .rgb and hit distance in .a for NRD. Only valid if kOutputNRDData == true.
 
     RWTexture2D<float4> outputColor;                ///< Output color buffer if kSamplesPerPixel == 1.
     RWTexture2D<float4> outputDebug;                ///< Output debug data. Valid if OUTPUT_DEBUG is nonzero.
@@ -238,9 +235,6 @@ struct PathTracer
 
         if (kOutputNRDData)
         {
-            path.hitDist = 0;
-            path.rcPrevVertexWo = 0;
-            path.sharedScatterDir = 0;
         }
 
         path.pathBuilder.init(path.sg);
@@ -327,10 +321,42 @@ struct PathTracer
         if (kSeparatePathBSDF) result.pdf = result.pdfSingle;
 
         // Ignore valid on purpose for now.
-        if (kOutputNRDData && path.length == 0)
+        if (kOutputNRDData)
         {
-            path.setDiffusePrimaryHit(result.isLobe(LobeType::Diffuse));
-            path.setSpecularPrimaryHit(result.isLobe(LobeType::Specular));
+            // HJ: copied from Falcor 7.0 for NRD data output
+            const uint lobes = getBSDFLobes(sd);
+            const bool hasDeltaTransmissionLobe = (lobes & (uint)LobeType::DeltaTransmission) != 0;
+            const bool hasNonDeltaLobes = (lobes & (uint)LobeType::NonDelta) != 0;
+
+            // Primary hit
+            if (path.length == 0)
+            {
+                path.setDiffusePrimaryHit(result.isLobe(LobeType::Diffuse));
+                path.setSpecularPrimaryHit(result.isLobe(LobeType::Specular));
+
+                if (kOutputNRDAdditionalData)
+                {
+                    // Mark path as delta-only if it followed delta lobe on the primary hit, even though there might have been non-delta lobes.
+                    path.setDeltaOnlyPath(result.isLobe(LobeType::DeltaReflection) || result.isLobe(LobeType::DeltaTransmission));
+
+                    path.setDeltaReflectionPrimaryHit(result.isLobe(LobeType::DeltaReflection));
+                    path.setDeltaTransmissionPath(result.isLobe(LobeType::DeltaTransmission));
+                }
+            }
+
+            // Secondary hit
+            if (path.length > 0)
+            {
+                if (hasNonDeltaLobes) path.setDeltaOnlyPath(false);
+
+                if (kOutputNRDAdditionalData && path.isDeltaTransmissionPath() && path.isDeltaOnlyPath() && hasDeltaTransmissionLobe)
+                {
+                    if (result.isLobe(LobeType::DeltaReflection) && !isDeltaReflectionAllowedAlongDeltaTransmissionPath(sd))
+                    {
+                        path.setDeltaTransmissionPath(false);
+                    }
+                }
+            }
         }
 
         if (valid)
@@ -1408,6 +1434,8 @@ struct PathTracer
         // Temporary keep path throughput from before the scatter event.
         float3 prevThp = path.getCurrentThp();
 
+        const bool wasDeltaOnlyPathBeforeScattering = path.isDeltaOnlyPath();
+
         if (path.length == 0)
         {
             // daqi: save current random seed, this is required to do random number replay to construct a path
@@ -1466,9 +1494,9 @@ struct PathTracer
                 setNRDPrimaryHitReflectance(outputNRD, outputAlbedo, kUseNRDDemodulation, path, pixel, isPrimaryHit, sd);
             }
 
-            setNRDSampleHitDist(path); // this will be overriden if ReSTIR is done
-            setNRDSampleEmission(kUseNRDDemodulation, path, isPrimaryHit, attenuatedEmission); // this should be the same for every sample (unless in volume rendering)
-            setNRDSampleReflectance(kUseNRDDemodulation, path, isPrimaryHit, sd); // this will be overriden in ReSTIR mode
+            setNRDSampleHitDist(outputNRD, path);
+            setNRDSampleEmission(outputNRD, kUseNRDDemodulation, path, isPrimaryHit, attenuatedEmission, wasDeltaOnlyPathBeforeScattering);
+            setNRDSampleReflectance(outputNRD, kUseNRDDemodulation, path, isPrimaryHit, sd, getBSDFLobes(sd), wasDeltaOnlyPathBeforeScattering);
         }
 
         if (!path.isActive()) return;
@@ -1508,6 +1536,8 @@ struct PathTracer
         // Disable all constributions to direct illumination if requested.
         if (kDisableDirectIllumination && path.length == 0 && isLightSamplable) computeEnv = false;
 
+        float3 emitterRadiance = 0.f;
+
         if (computeEnv)
         {
             logPathVertex();
@@ -1528,7 +1558,8 @@ struct PathTracer
             }
 
             float3 Le = envMapSampler.eval(path.dir);
-            float3 Lr = path.getCurrentThp() * Le * misWeight;
+            emitterRadiance = misWeight * Le;
+            float3 Lr = path.getCurrentThp() * emitterRadiance;
 
             // daqi: when doing random number replay, we will terminate the path when the length reaches the base path length and
             // when the path types match. In this case, if the base path is a escaped path (as opposed to an NEE path), we should terminate when we
@@ -1586,8 +1617,28 @@ struct PathTracer
 
         if (kOutputNRDData)
         {
-            setNRDSampleHitDist(path); // this will be overriden in ReSTIR mode
+            setNRDSampleHitDist(outputNRD, path); // this will be overriden in ReSTIR mode
         }
+
+#if defined(DELTA_REFLECTION_PASS)
+        if (path.isDeltaReflectionPrimaryHit())
+        {
+            writeNRDDeltaReflectionGuideBuffers(outputNRD, kUseNRDDemodulation, path.getPixel(), 0.f, path.thp * emitterRadiance, -path.dir, 0.f, kNRDInvalidPathLength, kNRDInvalidPathLength);
+        }
+        else
+        {
+            writeNRDDeltaReflectionGuideBuffers(outputNRD, kUseNRDDemodulation, path.getPixel(), 0.f, 0.f, -path.dir, 0.f, kNRDInvalidPathLength, kNRDInvalidPathLength);
+        }
+#elif defined(DELTA_TRANSMISSION_PASS)
+        if (path.isDeltaTransmissionPath())
+        {
+            writeNRDDeltaTransmissionGuideBuffers(outputNRD, kUseNRDDemodulation, path.getPixel(), 0.f, path.thp * emitterRadiance, -path.dir, 0.f, kNRDInvalidPathLength, path.origin + path.dir * kNRDInvalidPathLength);
+        }
+        else
+        {
+            writeNRDDeltaTransmissionGuideBuffers(outputNRD, kUseNRDDemodulation, path.getPixel(), 0.f, 0.f, -path.dir, 0.f, kNRDInvalidPathLength, 0.f);
+        }
+#endif
 
         path.terminate();
     }
@@ -2019,63 +2070,20 @@ struct PathTracer
             }
         }
 
-        if (kOutputNRDData && PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing)
+        if (kOutputNRDData)
         {
-            float3 diffuseRadiance = 0.f;
-            float3 specularRadiance = 0.f;
-            float3 residualRadiance = 0.f;
-            float hitDist = path.hitDist;
+            NRDRadiance data = {};
 
-            {
-                NRDPathType pathType;
-                if (path.isDiffusePrimaryHit()) pathType = NRDPathType::Diffuse;
-                else if (path.isSpecularPrimaryHit()) pathType = NRDPathType::Specular;
-                else pathType = NRDPathType::Residual;
+            if (path.isDiffusePrimaryHit()) data.setPathType(NRDPathType::Diffuse);
+            else if (path.isSpecularPrimaryHit()) data.setPathType(NRDPathType::Specular);
+            else if (path.isDeltaReflectionPrimaryHit()) data.setPathType(NRDPathType::DeltaReflection);
+            else if (path.isDeltaTransmissionPath()) data.setPathType(NRDPathType::DeltaTransmission);
+            else data.setPathType(NRDPathType::Residual);
 
-                float3 radiance = path.L + path.LDeltaDirect;
+            data.setRadiance(path.L + path.LDeltaDirect);
 
-                if (useDirectLighting)
-                {
-                    radiance += directLighting[pixel].rgb;
-                }
-
-                float3 reflectance = path.sharedScatterDir;
-                reflectance = max(0.04f, reflectance);
-                float3 emission = path.rcPrevVertexWo;
-                float3 demodulatedRadiance = max(0.f, (radiance - emission)) / reflectance;
-
-                switch (pathType)
-                {
-                case NRDPathType::Diffuse:
-                    diffuseRadiance += demodulatedRadiance;
-                    break;
-                case NRDPathType::Specular:
-                    specularRadiance += demodulatedRadiance;
-                    break;
-                default:
-                    // Do not demodulate residual.
-                    residualRadiance += radiance;
-                    break;
-                }
-            }
-
-            const uint spp = kSamplesPerPixel;
-            const float invSpp = spp > 0 ? 1.f / spp : 1.f; // Setting invSpp to 1.0 if we have no samples to avoid NaNs below.
-
-            if (sampleId == 0)
-            {
-                outputNRDDiffuseRadianceHitDist[pixel] = float4(invSpp * diffuseRadiance, invSpp * hitDist);
-                outputNRDSpecularRadianceHitDist[pixel] = float4(invSpp * specularRadiance, invSpp * hitDist);
-                outputNRDResidualRadianceHitDist[pixel] = float4(invSpp * residualRadiance, invSpp * hitDist);
-            }
-            else
-            {
-                outputNRDDiffuseRadianceHitDist[pixel] += float4(invSpp * diffuseRadiance, invSpp * hitDist);
-                outputNRDSpecularRadianceHitDist[pixel] += float4(invSpp * specularRadiance, invSpp * hitDist);
-                outputNRDResidualRadianceHitDist[pixel] += float4(invSpp * residualRadiance, invSpp * hitDist);
-            }
+            outputNRD.nrdRadiance[pixel] = PackNRDRadiance(data);
         }
-
     }
 
 };

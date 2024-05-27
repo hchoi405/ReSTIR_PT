@@ -17,6 +17,7 @@ namespace
     const std::string kSpatialPathRetraceFile = "RenderPasses/ReSTIRPTPass/SpatialPathRetrace.cs.slang";
     const std::string kTemporalPathRetraceFile = "RenderPasses/ReSTIRPTPass/TemporalPathRetrace.cs.slang";
     const std::string kComputePathReuseMISWeightsFile = "RenderPasses/ReSTIRPTPass/ComputePathReuseMISWeights.cs.slang";
+    const std::string kResolvePassFile = "RenderPasses/ReSTIRPTPass/ResolvePass.cs.slang";
 
     // Render pass inputs and outputs.
     const std::string kInputVBuffer = "vbuffer";
@@ -56,6 +57,19 @@ namespace
     const std::string kOutputNRDDiffuseReflectance = "nrdDiffuseReflectance";
     const std::string kOutputNRDSpecularReflectance = "nrdSpecularReflectance";
 
+    const std::string kOutputNRDDeltaReflectionRadianceHitDist = "nrdDeltaReflectionRadianceHitDist";
+    const std::string kOutputNRDDeltaReflectionReflectance = "nrdDeltaReflectionReflectance";
+    const std::string kOutputNRDDeltaReflectionEmission = "nrdDeltaReflectionEmission";
+    const std::string kOutputNRDDeltaReflectionNormWRoughMaterialID = "nrdDeltaReflectionNormWRoughMaterialID";
+    const std::string kOutputNRDDeltaReflectionPathLength = "nrdDeltaReflectionPathLength";
+    const std::string kOutputNRDDeltaReflectionHitDist = "nrdDeltaReflectionHitDist";
+
+    const std::string kOutputNRDDeltaTransmissionRadianceHitDist = "nrdDeltaTransmissionRadianceHitDist";
+    const std::string kOutputNRDDeltaTransmissionReflectance = "nrdDeltaTransmissionReflectance";
+    const std::string kOutputNRDDeltaTransmissionEmission = "nrdDeltaTransmissionEmission";
+    const std::string kOutputNRDDeltaTransmissionNormWRoughMaterialID = "nrdDeltaTransmissionNormWRoughMaterialID";
+    const std::string kOutputNRDDeltaTransmissionPathLength = "nrdDeltaTransmissionPathLength";
+    const std::string kOutputNRDDeltaTransmissionPosW = "nrdDeltaTransmissionPosW";
 
     const Falcor::ChannelList kOutputChannels =
     {
@@ -79,6 +93,19 @@ namespace
         { kOutputNRDEmission,                   "gOutputNRDEmission",                   "Output primary surface emission", true /* optional */, ResourceFormat::RGBA32Float },
         { kOutputNRDDiffuseReflectance,         "gOutputNRDDiffuseReflectance",         "Output primary surface diffuse reflectance", true /* optional */, ResourceFormat::RGBA16Float },
         { kOutputNRDSpecularReflectance,        "gOutputNRDSpecularReflectance",        "Output primary surface specular reflectance", true /* optional */, ResourceFormat::RGBA16Float },
+
+        { kOutputNRDDeltaReflectionRadianceHitDist,         "",     "Output demodulated delta reflection color (linear)", true /* optional */, ResourceFormat::RGBA32Float },
+        { kOutputNRDDeltaReflectionReflectance,             "",     "Output delta reflection reflectance color (linear)", true /* optional */, ResourceFormat::RGBA16Float },
+        { kOutputNRDDeltaReflectionEmission,                "",     "Output delta reflection emission color (linear)", true /* optional */, ResourceFormat::RGBA32Float },
+        { kOutputNRDDeltaReflectionNormWRoughMaterialID,    "",     "Output delta reflection world normal, roughness, and material ID", true /* optional */, ResourceFormat::RGBA32Float },
+        { kOutputNRDDeltaReflectionPathLength,              "",     "Output delta reflection path length", true /* optional */, ResourceFormat::R16Float },
+        { kOutputNRDDeltaReflectionHitDist,                 "",     "Output delta reflection hit distance", true /* optional */, ResourceFormat::R16Float },
+        { kOutputNRDDeltaTransmissionRadianceHitDist,       "",     "Output demodulated delta transmission color (linear)", true /* optional */, ResourceFormat::RGBA32Float },
+        { kOutputNRDDeltaTransmissionReflectance,           "",     "Output delta transmission reflectance color (linear)", true /* optional */, ResourceFormat::RGBA16Float },
+        { kOutputNRDDeltaTransmissionEmission,              "",     "Output delta transmission emission color (linear)", true /* optional */, ResourceFormat::RGBA32Float },
+        { kOutputNRDDeltaTransmissionNormWRoughMaterialID,  "",     "Output delta transmission world normal, roughness, and material ID", true /* optional */, ResourceFormat::RGBA32Float },
+        { kOutputNRDDeltaTransmissionPathLength,            "",     "Output delta transmission path length", true /* optional */, ResourceFormat::R16Float },
+        { kOutputNRDDeltaTransmissionPosW,                  "",     "Output delta transmission position", true /* optional */, ResourceFormat::RGBA32Float },
     };
 
     // UI variables.
@@ -343,6 +370,19 @@ ReSTIRPTPass::ReSTIRPTPass(const Dictionary& dict)
         Program::Desc desc;
         desc.addShaderLibrary(kTracePassFilename).csEntry("main").setShaderModel("6_5");
         mpTracePass = ComputePass::create(desc, defines, false);
+
+        // Create specialized trace passes.
+        if (mOutputNRDAdditionalData)
+        {
+            defines.add("DELTA_REFLECTION_PASS");
+            if (!mpTraceDeltaReflectionPass)
+                mpTraceDeltaReflectionPass = ComputePass::create(desc, defines, false);
+            defines.remove("DELTA_REFLECTION_PASS");
+            defines.add("DELTA_TRANSMISSION_PASS");
+            if (!mpTraceDeltaTransmissionPass)
+                mpTraceDeltaTransmissionPass = ComputePass::create(desc, defines, false);
+            defines.remove("DELTA_TRANSMISSION_PASS");
+        }
     }
 
     {
@@ -373,6 +413,12 @@ ReSTIRPTPass::ReSTIRPTPass(const Dictionary& dict)
         Program::Desc desc;
         desc.addShaderLibrary(kComputePathReuseMISWeightsFile).csEntry("main").setShaderModel("6_5");
         mpComputePathReuseMISWeightsPass = ComputePass::create(desc, defines, false);
+    }
+
+    {
+        Program::Desc desc;
+        desc.addShaderLibrary(kResolvePassFile).csEntry("main").setShaderModel("6_5");
+        mpResolvePass = ComputePass::create(desc, defines, false);
     }
 
     // Allocate resources that don't change in size.
@@ -664,6 +710,11 @@ void ReSTIRPTPass::setScene(RenderContext* pRenderContext, const Scene::SharedPt
 
         mpGeneratePaths->getProgram()->addDefines(defines);
         mpTracePass->getProgram()->addDefines(defines);
+        if (mOutputNRDAdditionalData)
+        {
+            mpTraceDeltaReflectionPass->getProgram()->addDefines(defines);
+            mpTraceDeltaTransmissionPass->getProgram()->addDefines(defines);
+        }
         mpReflectTypes->getProgram()->addDefines(defines);
 
         mpSpatialPathRetracePass->getProgram()->addDefines(defines);
@@ -672,6 +723,7 @@ void ReSTIRPTPass::setScene(RenderContext* pRenderContext, const Scene::SharedPt
         mpSpatialReusePass->getProgram()->addDefines(defines);
         mpTemporalReusePass->getProgram()->addDefines(defines);
         mpComputePathReuseMISWeightsPass->getProgram()->addDefines(defines);
+        mpResolvePass->getProgram()->addDefines(defines);
 
         validateOptions();
 
@@ -756,6 +808,12 @@ void ReSTIRPTPass::execute(RenderContext* pRenderContext, const RenderData& rend
 
                 // Launch main trace pass.
                 tracePass(pRenderContext, renderData, mpTracePass, "tracePass", 0);
+
+                if (mOutputNRDAdditionalData)
+                {
+                    tracePass(pRenderContext, renderData, mpTraceDeltaReflectionPass, "traceDeltaReflectionPass", 0);
+                    tracePass(pRenderContext, renderData, mpTraceDeltaTransmissionPass, "traceDeltaTransmissionPass", 0);
+                }
             }
         }
 
@@ -803,6 +861,9 @@ void ReSTIRPTPass::execute(RenderContext* pRenderContext, const RenderData& rend
                     pRenderContext->copyResource(mpTemporalVBuffer.get(), renderData[kInputVBuffer].get());
             }
         }
+
+        resolvePass(pRenderContext, renderData, restir_i);
+
         mParams.seed++;
     }
 
@@ -1214,23 +1275,35 @@ void ReSTIRPTPass::updatePrograms()
     // Update program specialization. This is done through defines in lieu of specialization constants.
     mpGeneratePaths->getProgram()->addDefines(defines);
     mpTracePass->getProgram()->addDefines(defines);
+    if (mOutputNRDAdditionalData)
+    {
+        mpTraceDeltaReflectionPass->getProgram()->addDefines(defines);
+        mpTraceDeltaTransmissionPass->getProgram()->addDefines(defines);
+    }
     mpReflectTypes->getProgram()->addDefines(defines);
     mpSpatialPathRetracePass->getProgram()->addDefines(defines);
     mpTemporalPathRetracePass->getProgram()->addDefines(defines);
     mpSpatialReusePass->getProgram()->addDefines(defines);
     mpTemporalReusePass->getProgram()->addDefines(defines);
     mpComputePathReuseMISWeightsPass->getProgram()->addDefines(defines);
+    mpResolvePass->getProgram()->addDefines(defines);
 
     // Recreate program vars. This may trigger recompilation if needed.
     // Note that program versions are cached, so switching to a previously used specialization is faster.
     mpGeneratePaths->setVars(nullptr);
     mpTracePass->setVars(nullptr);
+    if (mOutputNRDAdditionalData)
+    {
+        mpTraceDeltaReflectionPass->setVars(nullptr);
+        mpTraceDeltaTransmissionPass->setVars(nullptr);
+    }
     mpReflectTypes->setVars(nullptr);
     mpSpatialPathRetracePass->setVars(nullptr);
     mpTemporalPathRetracePass->setVars(nullptr);
     mpSpatialReusePass->setVars(nullptr);
     mpTemporalReusePass->setVars(nullptr);
     mpComputePathReuseMISWeightsPass->setVars(nullptr);
+    mpResolvePass->setVars(nullptr);
 
     mVarsChanged = true;
     mRecompile = false;
@@ -1330,14 +1403,48 @@ void ReSTIRPTPass::prepareResources(RenderContext* pRenderContext, const RenderD
     {
         mpTemporalVBuffer = Texture::create2D(mParams.frameDim.x, mParams.frameDim.y, mpScene->getHitInfo().getFormat(), 1, 1);
     }
+
+    if (!mNRDHitDist || mNRDHitDist->getWidth() != mParams.frameDim.x || mNRDHitDist->getHeight() != mParams.frameDim.y)
+    {
+        mNRDHitDist = Texture::create2D(mParams.frameDim.x, mParams.frameDim.y, ResourceFormat::R32Float, 1, 1, nullptr, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
+    }
+    if (!mNRDEmission || mNRDEmission->getWidth() != mParams.frameDim.x || mNRDEmission->getHeight() != mParams.frameDim.y)
+    {
+        mNRDEmission = Texture::create2D(mParams.frameDim.x, mParams.frameDim.y, ResourceFormat::RGBA32Float, 1, 1, nullptr, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
+    }
+    if (!mNRDReflectance || mNRDReflectance->getWidth() != mParams.frameDim.x || mNRDReflectance->getHeight() != mParams.frameDim.y)
+    {
+        mNRDReflectance = Texture::create2D(mParams.frameDim.x, mParams.frameDim.y, ResourceFormat::RGBA32Float, 1, 1, nullptr, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
+    }
+    if (!mNRDRadiance || mNRDRadiance->getWidth() != mParams.frameDim.x || mNRDRadiance->getHeight() != mParams.frameDim.y)
+    {
+        mNRDRadiance = Texture::create2D(mParams.frameDim.x, mParams.frameDim.y, ResourceFormat::RGBA32Float, 1, 1, nullptr, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess);
+    }
 }
 
 
 void ReSTIRPTPass::setNRDData(const ShaderVar& var, const RenderData& renderData) const
 {
+    var["nrdHitDist"] = mNRDHitDist;
+    var["nrdEmission"] = mNRDEmission;
+    var["nrdReflectance"] = mNRDReflectance;
+    var["nrdRadiance"] = mNRDRadiance;
+
     var["primaryHitEmission"] = renderData[kOutputNRDEmission]->asTexture();
     var["primaryHitDiffuseReflectance"] = renderData[kOutputNRDDiffuseReflectance]->asTexture();
     var["primaryHitSpecularReflectance"] = renderData[kOutputNRDSpecularReflectance]->asTexture();
+
+    var["deltaReflectionReflectance"] = renderData[kOutputNRDDeltaReflectionReflectance]->asTexture();
+    var["deltaReflectionEmission"] = renderData[kOutputNRDDeltaReflectionEmission]->asTexture();
+    var["deltaReflectionNormWRoughMaterialID"] = renderData[kOutputNRDDeltaReflectionNormWRoughMaterialID]->asTexture();
+    var["deltaReflectionPathLength"] = renderData[kOutputNRDDeltaReflectionPathLength]->asTexture();
+    var["deltaReflectionHitDist"] = renderData[kOutputNRDDeltaReflectionHitDist]->asTexture();
+
+    var["deltaTransmissionReflectance"] = renderData[kOutputNRDDeltaTransmissionReflectance]->asTexture();
+    var["deltaTransmissionEmission"] = renderData[kOutputNRDDeltaTransmissionEmission]->asTexture();
+    var["deltaTransmissionNormWRoughMaterialID"] = renderData[kOutputNRDDeltaTransmissionNormWRoughMaterialID]->asTexture();
+    var["deltaTransmissionPathLength"] = renderData[kOutputNRDDeltaTransmissionPathLength]->asTexture();
+    var["deltaTransmissionPosW"] = renderData[kOutputNRDDeltaTransmissionPosW]->asTexture();
 }
 
 void ReSTIRPTPass::preparePathTracer(const RenderData& renderData)
@@ -1481,11 +1588,17 @@ bool ReSTIRPTPass::prepareLighting(RenderContext* pRenderContext)
         lightingChanged |= mpEmissiveSampler->update(pRenderContext);
         auto defines = mpEmissiveSampler->getDefines();
         if (mpTracePass->getProgram()->addDefines(defines)) mRecompile = true;
+        if (mOutputNRDAdditionalData)
+        {
+            if (mpTraceDeltaReflectionPass->getProgram()->addDefines(defines)) mRecompile = true;
+            if (mpTraceDeltaTransmissionPass->getProgram()->addDefines(defines)) mRecompile = true;
+        }
         if (mpSpatialPathRetracePass->getProgram()->addDefines(defines)) mRecompile = true;
         if (mpTemporalPathRetracePass->getProgram()->addDefines(defines)) mRecompile = true;
         if (mpSpatialReusePass->getProgram()->addDefines(defines)) mRecompile = true;
         if (mpTemporalReusePass->getProgram()->addDefines(defines)) mRecompile = true;
         if (mpComputePathReuseMISWeightsPass->getProgram()->addDefines(defines)) mRecompile = true;
+        if (mpResolvePass->getProgram()->addDefines(defines)) mRecompile = true;
     }
 
     return lightingChanged;
@@ -1511,9 +1624,6 @@ void ReSTIRPTPass::setShaderData(const ShaderVar& var, const RenderData& renderD
     if (mOutputNRDData && isPathTracer)
     {
         setNRDData(var["outputNRD"], renderData);
-        var["outputNRDDiffuseRadianceHitDist"] = renderData[kOutputNRDDiffuseRadianceHitDist]->asTexture();    ///< Output resolved diffuse color in .rgb and hit distance in .a for NRD. Only valid if kOutputNRDData == true.
-        var["outputNRDSpecularRadianceHitDist"] = renderData[kOutputNRDSpecularRadianceHitDist]->asTexture();  ///< Output resolved specular color in .rgb and hit distance in .a for NRD. Only valid if kOutputNRDData == true.
-        var["outputNRDResidualRadianceHitDist"] = renderData[kOutputNRDResidualRadianceHitDist]->asTexture();///< Output resolved residual color in .rgb and hit distance in .a for NRD. Only valid if kOutputNRDData == true.
     }
 
     if (isPathTracer)
@@ -1529,6 +1639,11 @@ void ReSTIRPTPass::setShaderData(const ShaderVar& var, const RenderData& renderD
     {
         var["kUseEnvBackground"] = mpScene->useEnvBackground();
         var["outputEnvLight"] = renderData[kOutputEnvLight]->asTexture();
+
+        if (mOutputNRDData && mOutputNRDAdditionalData)
+        {
+            setNRDData(var["outputNRD"], renderData);
+        }
     }
 
     if (auto outputDebug = var.findMember("outputDebug"); outputDebug.isValid())
@@ -1691,6 +1806,7 @@ void ReSTIRPTPass::generatePaths(RenderContext* pRenderContext, const RenderData
     // Additional specialization. This shouldn't change resource declarations.
     mpGeneratePaths->addDefine("OUTPUT_TIME", mOutputTime ? "1" : "0");
     mpGeneratePaths->addDefine("OUTPUT_NRD_DATA", mOutputNRDData ? "1" : "0");
+    mpGeneratePaths->addDefine("OUTPUT_NRD_ADDITIONAL_DATA", mOutputNRDAdditionalData ? "1" : "0");
 
     // Bind resources.
     auto var = mpGeneratePaths->getRootVar()["CB"]["gPathGenerator"];
@@ -1713,6 +1829,7 @@ void ReSTIRPTPass::tracePass(RenderContext* pRenderContext, const RenderData& re
     pass->addDefine("OUTPUT_TIME", mOutputTime ? "1" : "0");
     pass->addDefine("OUTPUT_DEBUG", outputDebug ? "1" : "0");
     pass->addDefine("OUTPUT_NRD_DATA", mOutputNRDData ? "1" : "0");
+    pass->addDefine("OUTPUT_NRD_ADDITIONAL_DATA", mOutputNRDAdditionalData ? "1" : "0");
 
     // Bind global resources.
     auto var = pass->getRootVar();
@@ -1758,6 +1875,7 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
     pass->addDefine("OUTPUT_TIME", mOutputTime ? "1" : "0");
     pass->addDefine("TEMPORAL_REUSE", isTemporalReuse ? "1" : "0");
     pass->addDefine("OUTPUT_NRD_DATA", mOutputNRDData ? "1" : "0");
+    pass->addDefine("OUTPUT_NRD_ADDITIONAL_DATA", mOutputNRDAdditionalData ? "1" : "0");
 
     // Bind resources.
     auto var = pass->getRootVar()["CB"]["gPathReusePass"];
@@ -1933,6 +2051,44 @@ void ReSTIRPTPass::PathRetracePass(RenderContext* pRenderContext, uint32_t resti
         // Launch one thread per pixel.
         // The dimensions are padded to whole tiles to allow re-indexing the threads in the shader.
         pass->execute(pRenderContext, { mParams.screenTiles.x * kScreenTileDim.x, mParams.screenTiles.y * kScreenTileDim.y, 1u });
+    }
+}
+
+void ReSTIRPTPass::resolvePass(RenderContext* pRenderContext, const RenderData& renderData, uint32_t restir_i)
+{
+    PROFILE("resolvePass");
+
+    // Check shader assumptions.
+    // We launch one thread group per screen tile, with threads linearly indexed.
+    const uint32_t tileSize = kScreenTileDim.x * kScreenTileDim.y;
+    assert(kScreenTileDim.x == 16 && kScreenTileDim.y == 16); // TODO: Remove this temporary limitation when Slang bug has been fixed, see comments in shader.
+    assert(kScreenTileBits.x <= 4 && kScreenTileBits.y <= 4); // Since we use 8-bit deinterleave.
+    assert(mpResolvePass->getThreadGroupSize().x == 16);
+    assert(mpResolvePass->getThreadGroupSize().y == 16 && mpResolvePass->getThreadGroupSize().z == 1);
+    // Additional specialization. This shouldn't change resource declarations.
+    mpResolvePass->addDefine("OUTPUT_TIME", mOutputTime ? "1" : "0");
+    mpResolvePass->addDefine("OUTPUT_NRD_DATA", mOutputNRDData ? "1" : "0");
+    mpResolvePass->addDefine("OUTPUT_NRD_ADDITIONAL_DATA", mOutputNRDAdditionalData ? "1" : "0");
+
+    // Bind resources.
+    auto var = mpResolvePass->getRootVar()["CB"]["gResolvePass"];
+    var["params"].setBlob(mParams);
+    var["gSppId"] = restir_i;
+    var["useDirectLighting"] = mUseDirectLighting;
+    var["directLighting"] = renderData[kInputDirectLighting]->asTexture();
+
+    setNRDData(var["outputNRD"], renderData);
+
+    var["outputNRDDiffuseRadianceHitDist"] = renderData[kOutputNRDDiffuseRadianceHitDist]->asTexture();
+    var["outputNRDSpecularRadianceHitDist"] = renderData[kOutputNRDSpecularRadianceHitDist]->asTexture();
+    var["outputNRDResidualRadianceHitDist"] = renderData[kOutputNRDResidualRadianceHitDist]->asTexture();
+    var["outputNRDDeltaReflectionRadianceHitDist"] = renderData[kOutputNRDDeltaReflectionRadianceHitDist]->asTexture();
+    var["outputNRDDeltaTransmissionRadianceHitDist"] = renderData[kOutputNRDDeltaTransmissionRadianceHitDist]->asTexture();
+
+    {
+        // Launch one thread per pixel.
+        // The dimensions are padded to whole tiles to allow re-indexing the threads in the shader.
+        mpResolvePass->execute(pRenderContext, { mParams.screenTiles.x * kScreenTileDim.x, mParams.screenTiles.y * kScreenTileDim.y, 1u });
     }
 }
 

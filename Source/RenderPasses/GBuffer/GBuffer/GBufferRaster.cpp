@@ -49,6 +49,7 @@ namespace
         { "faceNormalW",      "gFaceNormalW",        "Face normal in world space",       true /* optional */, ResourceFormat::RGBA32Float },
         { "pnFwidth",         "gPosNormalFwidth",    "position and normal filter width", true /* optional */, ResourceFormat::RG32Float   },
         { "linearZ",          "gLinearZAndDeriv",    "linear z (and derivative)",        true /* optional */, ResourceFormat::RG32Float   },
+        { "normWRoughnessMaterialID", "gNormalWRoughnessMaterialID", "Normal in world space, roughness, and material ID", true /* optional */, ResourceFormat::RGBA32Float     },
     };
 
     const std::string kDepthName = "depth";

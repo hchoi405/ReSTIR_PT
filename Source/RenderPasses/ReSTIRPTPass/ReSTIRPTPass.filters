@@ -18,6 +18,7 @@
     <ShaderSource Include="ReflectTypes.cs.slang" />
     <ShaderSource Include="GeneratePaths.cs.slang" />
     <ShaderSource Include="PathTracer.slang" />
+    <ShaderSource Include="PathTracerNRD.slang" />
     <ShaderSource Include="WorkQueues.slang" />
     <ShaderSource Include="PathRestir.slang" />
     <ShaderSource Include="Path.slang" />

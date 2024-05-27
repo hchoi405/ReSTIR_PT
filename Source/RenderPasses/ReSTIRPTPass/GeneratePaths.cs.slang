@@ -37,6 +37,9 @@ import PathTracer;
 import PathState;
 import Params;
 import PathReservoir;
+import RenderPasses.Shared.Denoising.NRDBuffers;
+import RenderPasses.Shared.Denoising.NRDConstants;
+import NRDHelpers;
 
 // Shared memory variables.
 // TODO: Can we declare these inside PathGenerator?
@@ -88,6 +91,7 @@ struct PathGenerator
     RWTexture2D<float4> outputEnvLight;
     RWTexture2D<float4> outputColor2; ///< Output color buffer if kSamplesPerPixel == 1.
 
+    NRDBuffers outputNRD; ///< Output NRD data.
 
     int gSampleId;
 
@@ -171,6 +175,20 @@ struct PathGenerator
             outputColor2[pixel] = float4(0, 0, 0, 1.f);
             outputEnvLight[pixel] = float4(envLight, 1.f);
             outputIndirect[pixel] = float4(0, 0, 0, 1.f);
+        }
+
+        if (kOutputNRDData)
+        {
+            outputNRD.nrdRadiance[pixel] = {};
+            outputNRD.nrdHitDist[pixel] = kNRDInvalidPathLength;
+            outputNRD.nrdEmission[pixel] = 0.f;
+            outputNRD.nrdReflectance[pixel] = 1.f;
+        }
+
+        if (kOutputNRDAdditionalData)
+        {
+            writeNRDDeltaReflectionGuideBuffers(outputNRD, kUseNRDDemodulation, pixel, 0.f, 0.f, -dir, 0.f, kNRDInvalidPathLength, kNRDInvalidPathLength);
+            writeNRDDeltaTransmissionGuideBuffers(outputNRD, kUseNRDDemodulation, pixel, 0.f, 0.f, -dir, 0.f, kNRDInvalidPathLength, 0.f);
         }
     }
 };

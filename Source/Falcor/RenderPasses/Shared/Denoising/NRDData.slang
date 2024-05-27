@@ -59,3 +59,19 @@ struct NRDRadiance
         radiance = color;
     }
 };
+
+float4 PackNRDRadiance(NRDRadiance data)
+{
+    // Convert pathType to a float for storage in float4
+    float packedPathType = asfloat(data.pathType);
+    return float4(packedPathType, data.radiance);
+}
+
+NRDRadiance UnpackNRDRadiance(float4 packedData)
+{
+    NRDRadiance data;
+    // Convert the packed float back to a uint for pathType
+    data.pathType = asuint(packedData.x);
+    data.radiance = packedData.yzw;
+    return data;
+}
