@@ -589,10 +589,6 @@ namespace Falcor
         {
             mSceneBB |= pGridVolume->getBounds();
         }
-
-        printf("scene radius: %f \n", sqrt(dot(mSceneBB.extent(), mSceneBB.extent())));
-        printf("scene smallest extent: %f \n",
-            std::min(std::min(mSceneBB.extent().x, mSceneBB.extent().y), mSceneBB.extent().z));
     }
 
     void Scene::updateMeshInstances(bool forceUpdate)
