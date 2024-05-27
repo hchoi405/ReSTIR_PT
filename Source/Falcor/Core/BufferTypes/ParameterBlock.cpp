@@ -1467,12 +1467,13 @@ namespace Falcor
 
     bool ParameterBlock::updateSpecialization() const
     {
-        auto pSlangTypeLayout = getElementType()->getSlangTypeLayout();
+            auto pSlangTypeLayout = getElementType()->getSlangTypeLayout();
 
         // If the element type has no unspecialized existential/interface types
         // in it, then there is nothing to be done.
         //
-        if( pSlangTypeLayout && pSlangTypeLayout->getSize(slang::ParameterCategory::ExistentialTypeParam) == 0 )
+
+        if (pSlangTypeLayout && pSlangTypeLayout->getSize(SlangParameterCategory(slang::ParameterCategory::ExistentialTypeParam)) == 0)
         {
             mpSpecializedReflector = mpReflector;
             return false;

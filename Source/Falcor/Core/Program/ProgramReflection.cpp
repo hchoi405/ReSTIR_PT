@@ -645,8 +645,8 @@ namespace Falcor
             case slang::ParameterCategory::ConstantBuffer:
             {
                 ParameterBlockReflection::DefaultConstantBufferBindingInfo defaultConstantBufferInfo;
-                defaultConstantBufferInfo.regIndex = (uint32_t)getRegisterIndexFromPath(containerPath.pPrimary, containerCategory);
-                defaultConstantBufferInfo.regSpace = getRegisterSpaceFromPath(containerPath.pPrimary, containerCategory);
+                defaultConstantBufferInfo.regIndex = (uint32_t)getRegisterIndexFromPath(containerPath.pPrimary, SlangParameterCategory(containerCategory));
+                defaultConstantBufferInfo.regSpace = getRegisterSpaceFromPath(containerPath.pPrimary, SlangParameterCategory(containerCategory));
                 defaultConstantBufferInfo.useRootConstants = shouldUseRootConstants;
                 pBlock->setDefaultConstantBufferBindingInfo(defaultConstantBufferInfo);
             }
@@ -715,8 +715,8 @@ namespace Falcor
 
         ParameterCategory category = getParameterCategory(pSlangType);
         ParameterBlockReflection::ResourceRangeBindingInfo bindingInfo;
-        bindingInfo.regIndex = (uint32_t)getRegisterIndexFromPath(pPath->pPrimary, category);
-        bindingInfo.regSpace = getRegisterSpaceFromPath(pPath->pPrimary, category);
+        bindingInfo.regIndex = (uint32_t)getRegisterIndexFromPath(pPath->pPrimary, SlangParameterCategory(category));
+        bindingInfo.regSpace = getRegisterSpaceFromPath(pPath->pPrimary, SlangParameterCategory(category));
         bindingInfo.dimension = dims;
 
         if (isRootDescriptor) bindingInfo.flavor = ParameterBlockReflection::ResourceRangeBindingInfo::Flavor::RootDescriptor;
@@ -868,8 +868,8 @@ namespace Falcor
 
         ParameterCategory category = getParameterCategory(pSlangType);
         ParameterBlockReflection::ResourceRangeBindingInfo bindingInfo;
-        bindingInfo.regIndex = (uint32_t)getRegisterIndexFromPath(pPath->pPrimary, category);
-        bindingInfo.regSpace = getRegisterSpaceFromPath(pPath->pPrimary, category);
+        bindingInfo.regIndex = (uint32_t)getRegisterIndexFromPath(pPath->pPrimary, SlangParameterCategory(category));
+        bindingInfo.regSpace = getRegisterSpaceFromPath(pPath->pPrimary, SlangParameterCategory(category));
 
         bindingInfo.flavor = ParameterBlockReflection::ResourceRangeBindingInfo::Flavor::Interface;
 
@@ -896,8 +896,8 @@ namespace Falcor
             bindingInfo.pSubObjectReflector = pPendingBlock;
 
             category = slang::ParameterCategory::Uniform;
-            bindingInfo.regIndex = (uint32_t) getRegisterIndexFromPath(pPath->pDeferred, category);
-            bindingInfo.regSpace = getRegisterSpaceFromPath(pPath->pPrimary, category);
+            bindingInfo.regIndex = (uint32_t) getRegisterIndexFromPath(pPath->pDeferred, SlangParameterCategory(category));
+            bindingInfo.regSpace = getRegisterSpaceFromPath(pPath->pPrimary, SlangParameterCategory(category));
         }
 
         if(pBlock)
@@ -1427,7 +1427,7 @@ namespace Falcor
         // Once we have the Slang type layout for the `struct` of global parameters,
         // we can easily query its size in bytes.
         //
-        size_t slangGlobalParamsSize = pSlangGlobalParamsTypeLayout->getSize(slang::ParameterCategory::Uniform);
+        size_t slangGlobalParamsSize = pSlangGlobalParamsTypeLayout->getSize(SlangParameterCategory(slang::ParameterCategory::Uniform));
 
         ReflectionStructType::SharedPtr pGlobalStruct = ReflectionStructType::create(slangGlobalParamsSize, "", nullptr);
         ParameterBlockReflection::SharedPtr pDefaultBlock = ParameterBlockReflection::createEmpty(pProgramVersion);
