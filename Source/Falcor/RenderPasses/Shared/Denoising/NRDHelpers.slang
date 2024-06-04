@@ -50,9 +50,9 @@ float3 getMaterialReflectanceForDeltaPaths(const MaterialType materialType, cons
             float NdotV = saturate(dot(sd.N, sd.V));
             float ggxAlpha = sd.linearRoughness * sd.linearRoughness;
             float3 specularReflectionAlbedo = (1.f - sd.specularTransmission) * sd.specular;
-            float3 specularReflection = approxSpecularIntegralGGX(specularReflectionAlbedo, ggxAlpha, NdotV);
-            float3 diffuseReflectance = (1.f - sd.diffuseTransmission) * (1.f - sd.specularTransmission) * sd.diffuse;
-            return max(kNRDMinReflectance, diffuseReflectance + specularReflection);
+            float3 specularReflectance = approxSpecularIntegralGGX(specularReflectionAlbedo, ggxAlpha, NdotV);
+            specularReflectance = max(kNRDMinReflectance, specularReflectance);
+            return specularReflectance;
         }
     }
     else if (materialType == MaterialType::Hair)
