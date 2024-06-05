@@ -6,9 +6,7 @@ import RenderPasses.Shared.Denoising.NRDData;
 struct ResolvePass
 {
     uint gSppId;
-    bool useDirectLighting;
     RestirPathTracerParams params; ///< Runtime parameters.
-    Texture2D<float4> directLighting;
 
     NRDBuffers outputNRD;             ///< Output NRD data.
 
@@ -37,9 +35,6 @@ struct ResolvePass
                 const NRDRadiance radianceData = UnpackNRDRadiance(outputNRD.nrdRadiance[pixel]);
                 const NRDPathType pathType = radianceData.getPathType();
                 float3 radiance = radianceData.getRadiance();
-
-                if (useDirectLighting)
-                    radiance += directLighting[pixel].rgb;
 
                 float3 reflectance = outputNRD.nrdReflectance[pixel].rgb;
                 float3 emission = outputNRD.nrdEmission[pixel].rgb;

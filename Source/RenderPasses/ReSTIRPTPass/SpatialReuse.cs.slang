@@ -32,6 +32,8 @@ struct PathReusePass
 
     ByteAddressBuffer nRooksPattern;
 
+    NRDBuffers outputNRD;                                 ///< Output NRD data.
+
     RWTexture2D<float4> outputColor;                      ///< Output resolved color.
     RWTexture2D<float4> outputColor2;                      ///< Output resolved color.
     RWTexture2D<float4> outputIndirect;                      ///< Output resolved color.
@@ -217,113 +219,20 @@ struct PathReusePass
 
             outputColor[pixel] += float4(color / kSamplesPerPixel, 1.f);
 
-            // Output Denoiser Data (developed for NRD v2.12, doesn't guarantee to work with the latest version)
+            // HJ: Devleoped for NRD 3.1.0 from Falcor 7
             if (kOutputNRDData && PathSamplingMode(kPathSamplingMode) == PathSamplingMode::ReSTIR)
             {
-                float3 diffuseRadiance = 0.f;
-                float3 specularRadiance = 0.f;
-                float3 residualRadiance = 0.f;
-                float hitDist = 0.f;
-                float3 reflectance = 0.f;
-                float3 radiance = 0.f;
-                NRDPathType pathType = NRDPathType::Residual;
+                float3 radiance = dstReservoir.F * dstReservoir.weight;
 
-                //
-                if (ShiftMapping(kShiftStrategy) == ShiftMapping::Reconnection ||
-                    ShiftMapping(kShiftStrategy) == ShiftMapping::Hybrid && dstReservoir.pathFlags.rcVertexLength() == 1) // rcVertexHit must exists
-                {
-                    if (dstReservoir.rcVertexHit.instanceID == 0xffffffff)
-                    {
-                        hitDist = kNRDInvalidPathLength;
-                    }
-                    else
-                    {
-                        bool isDiffusePrimaryHit = !dstReservoir.pathFlags.decodeIsSpecularBounce(true);
-                        bool isSpecularPrimaryHit = dstReservoir.pathFlags.decodeIsSpecularBounce(true) && !dstReservoir.pathFlags.decodeIsDeltaEvent(true);
+                //// Direct lighting should be denosied separately in NRD
+                // if (useDirectLighting)
+                //     radiance += directLighting[pixel].rgb;
 
-                        reflectance = computeSampleReflectance(kUseNRDDemodulation, isDiffusePrimaryHit, isSpecularPrimaryHit, centralPrimarySd);
-
-                        ShadingData RcVertexSd = loadShadingDataWithPrevVertexPosition(dstReservoir.rcVertexHit.getHitInfo(), centralPrimarySd.posW, false);
-                        hitDist = length(RcVertexSd.posW - centralPrimarySd.posW);
-
-                        pathType = NRDPathType::Residual;
-                        if (isDiffusePrimaryHit) pathType = NRDPathType::Diffuse;
-                        else if (isSpecularPrimaryHit) pathType = NRDPathType::Specular;
-
-                        radiance = dstReservoir.F * dstReservoir.weight;
-                    }
-                }
-                else
-                {
-                    HitInfo centralPrimaryHit; centralPrimaryHit.unpack(centralPrimaryHitPacked);
-                    Ray ray = Ray(gScene.camera.getPosition(), -centralPrimarySd.V, 0, kRayTMax);
-
-                    traceDenoiserData(params, centralPrimaryHitPacked, centralPrimarySd,
-                                      dstReservoir.pathFlags, dstReservoir.initRandomSeed, hitDist, pathType, reflectance);
-
-                    radiance = dstReservoir.F * dstReservoir.weight;
-                }
-
-                if (useDirectLighting)
-                    radiance += directLighting[pixel].rgb;
-
-                reflectance = max(0.04f, reflectance);
-                float3 emission = primaryHitEmission[pixel].rgb;
-                float3 demodulatedRadiance = max(0.f, (radiance - emission)) / reflectance;
-
-                switch (pathType)
-                {
-                case NRDPathType::Diffuse:
-                    diffuseRadiance += demodulatedRadiance;
-                    break;
-                case NRDPathType::Specular:
-                    specularRadiance += demodulatedRadiance;
-                    break;
-                default:
-                    // Do not demodulate residual.
-                    residualRadiance += radiance;
-                    break;
-                }
-
-                float invSpp = 1.f / kSamplesPerPixel;
-
-                if (gSppId == 0)
-                {
-                    outputNRDDiffuseRadianceHitDist[pixel] = float4(invSpp * diffuseRadiance, invSpp * hitDist);
-                    outputNRDSpecularRadianceHitDist[pixel] = float4(invSpp * specularRadiance, invSpp * hitDist);
-                    outputNRDResidualRadianceHitDist[pixel] = float4(invSpp * residualRadiance, invSpp * hitDist);
-                }
-                else
-                {
-                    outputNRDDiffuseRadianceHitDist[pixel] += float4(invSpp * diffuseRadiance, invSpp * hitDist);
-                    outputNRDSpecularRadianceHitDist[pixel] += float4(invSpp * specularRadiance, invSpp * hitDist);
-                    outputNRDResidualRadianceHitDist[pixel] += float4(invSpp * residualRadiance, invSpp * hitDist);
-                }
+                // HJ: We set the radiance only. Others (e.g., primary path type) are to be set by PathTracer.slang
+                NRDRadiance data = UnpackNRDRadiance(outputNRD.nrdRadiance[pixel]);
+                data.setRadiance(radiance);
+                outputNRD.nrdRadiance[pixel] = PackNRDRadiance(data);
             }
-        }
-
-        ////
-        // Reuse the path
-        var sg2 = TinyUniformSampleGenerator(spatialSeed2, temporalSeedOffset + temporalSeed2 + 1000000);
-        PathReservoir centerReservoir2 = outputReservoirs2[centralOffset];
-        var dstReservoir2 = reusePath(1, centerReservoir2, pixel, centralOffset, sg2, centralPrimaryHitPacked, centralPrimarySd);
-
-        // Store the resulting reservoir for the next frame
-        if (PathSamplingMode(kPathSamplingMode) != PathSamplingMode::PathReuse)
-            temporalReservoirs2[centralOffset] = dstReservoir2;
-
-        if (gIsLastRound)
-        {
-            float3 color2 = dstReservoir2.F * dstReservoir2.weight;
-            if (any(isnan(color2) || isinf(color2) || color2 < 0.f)) color2 = 0.f;
-
-            if (useDirectLighting)
-            {
-                color2 += directLighting2[pixel].rgb;
-                if (any(isnan(color2) || isinf(color2))) color2 = 0.f;
-            }
-
-            outputColor2[pixel] += float4(color2 / kSamplesPerPixel, 1.f);
         }
     }
 

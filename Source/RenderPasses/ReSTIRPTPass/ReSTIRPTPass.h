@@ -109,7 +109,7 @@ private:
         ShiftMapping    shiftStrategy = ShiftMapping::Hybrid;
         bool            temporalUpdateForDynamicScene = false;
 
-        PathSamplingMode pathSamplingMode = PathSamplingMode::PathTracing;
+        PathSamplingMode pathSamplingMode = PathSamplingMode::ReSTIR;
 
         bool            separatePathBSDF = true;
 

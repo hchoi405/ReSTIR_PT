@@ -1886,9 +1886,9 @@ struct PathTracer
 
         static const uint itersPerShaderPass = PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing ? kSamplesPerPixel : kCandidateSamples;
 
+        float3 L = 0.f;
         if (itersPerShaderPass == 1)
         {
-            float3 L = 0.f;
             // This store the path traced sample (1 spp) w/o reused
             float3 Ldebug = 0.f;
 
@@ -1954,7 +1954,6 @@ struct PathTracer
         {
             if (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing)
             {
-                float3 L = 0.f;
                 if (sampleId == 0)
                 {
                     L = path.L / kSamplesPerPixel;
@@ -1997,7 +1996,6 @@ struct PathTracer
 
                 if (sampleId == kCandidateSamples - 1) // last sample
                 {
-                    float3 L = 0.f;
                     if (useDirectLighting) L += path.LDeltaDirect;
 
                     giReservoir.finalizeRIS();
@@ -2037,7 +2035,11 @@ struct PathTracer
             else if (path.isDeltaTransmissionPath()) data.setPathType(NRDPathType::DeltaTransmission);
             else data.setPathType(NRDPathType::Residual);
 
-            data.setRadiance(path.L + path.LDeltaDirect);
+            // HJ: Only for PathTracing mode here. For ReSTIR, refer to SpatialReuse.cs.slang
+            if (PathSamplingMode(kPathSamplingMode) == PathSamplingMode::PathTracing)
+            {
+                data.setRadiance(L);
+            }
 
             outputNRD.nrdRadiance[pixel] = PackNRDRadiance(data);
         }

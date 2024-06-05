@@ -85,8 +85,6 @@ def add_path(g, gbuf, enable_restir=True, crn=False, path_seed_offset=0):
         g.addEdge(f"{gbuf}.vbuffer", f"{screenReSTIR}.vbuffer")
         g.addEdge(f"{gbuf}.mvec", f"{screenReSTIR}.motionVectors")
         g.addEdge(f"{screenReSTIR}.color", f"{path}.directLighting")
-        g.addEdge(f"{screenReSTIR}.color2", f"{path}.directLighting2")
-        g.addEdge(f"{screenReSTIR}.temporalColor", f"{path}.directTemporal")
 
     return path, screenReSTIR
 
@@ -261,6 +259,10 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
         # f'temporal{INPUT_SUFFIX}': f"{path}.temporalColor",
         f'envLight{INPUT_SUFFIX}': f"{path}.envLight",
         # f'albedo{INPUT_SUFFIX}': f"{path}.albedo",
+        f'directDiffuseIllumination{INPUT_SUFFIX}': f'{ss_restir}.diffuseIllumination',
+        f'directDiffuseReflectance{INPUT_SUFFIX}': f'{ss_restir}.diffuseReflectance',
+        f'directSpecularIllumination{INPUT_SUFFIX}': f'{ss_restir}.specularIllumination',
+        f'directSpecularReflectance{INPUT_SUFFIX}': f'{ss_restir}.specularReflectance',
     }
 
     ## Save G-buffer only for input, not secondinput (center)
@@ -283,31 +285,31 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
         pairs.update({f'normWRoughnessMaterialID{INPUT_SUFFIX}': f'{gbuf}.normWRoughnessMaterialID'})
         # NRD
         pairs.update({
-            f'nrdDiffuseRadianceHitDist': f'{path}.nrdDiffuseRadianceHitDist',
-            f'nrdSpecularRadianceHitDist': f'{path}.nrdSpecularRadianceHitDist',
-            f'nrdResidualRadianceHitDist': f'{path}.nrdResidualRadianceHitDist',
-            f'nrdEmission': f'{path}.nrdEmission',
-            f'nrdDiffuseReflectance': f'{path}.nrdDiffuseReflectance',
-            f'nrdSpecularReflectance': f'{path}.nrdSpecularReflectance',
+            f'nrdDiffuseRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdDiffuseRadianceHitDist',
+            f'nrdSpecularRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdSpecularRadianceHitDist',
+            f'nrdResidualRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdResidualRadianceHitDist',
+            f'nrdEmission{INPUT_SUFFIX}': f'{path}.nrdEmission',
+            f'nrdDiffuseReflectance{INPUT_SUFFIX}': f'{path}.nrdDiffuseReflectance',
+            f'nrdSpecularReflectance{INPUT_SUFFIX}': f'{path}.nrdSpecularReflectance',
 
-            f'nrdDeltaReflectionRadianceHitDist': f'{path}.nrdDeltaReflectionRadianceHitDist',
-            f'nrdDeltaReflectionReflectance': f'{path}.nrdDeltaReflectionReflectance',
-            f'nrdDeltaReflectionEmission': f'{path}.nrdDeltaReflectionEmission',
-            f'nrdDeltaReflectionHitDist': f'{path}.nrdDeltaReflectionHitDist',
-            f'nrdDeltaReflectionPathLength': f'{path}.nrdDeltaReflectionPathLength',
-            f'nrdDeltaReflectionNormWRoughMaterialID': f'{path}.nrdDeltaReflectionNormWRoughMaterialID',
+            f'nrdDeltaReflectionRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionRadianceHitDist',
+            f'nrdDeltaReflectionReflectance{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionReflectance',
+            f'nrdDeltaReflectionEmission{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionEmission',
+            f'nrdDeltaReflectionHitDist{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionHitDist',
+            f'nrdDeltaReflectionPathLength{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionPathLength',
+            f'nrdDeltaReflectionNormWRoughMaterialID{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionNormWRoughMaterialID',
 
-            f'nrdDeltaTransmissionRadianceHitDist': f'{path}.nrdDeltaTransmissionRadianceHitDist',
-            f'nrdDeltaTransmissionReflectance': f'{path}.nrdDeltaTransmissionReflectance',
-            f'nrdDeltaTransmissionEmission': f'{path}.nrdDeltaTransmissionEmission',
-            f'nrdDeltaTransmissionPosW': f'{path}.nrdDeltaTransmissionPosW',
-            f'nrdDeltaTransmissionPathLength': f'{path}.nrdDeltaTransmissionPathLength',
-            f'nrdDeltaTransmissionNormWRoughMaterialID': f'{path}.nrdDeltaTransmissionNormWRoughMaterialID',
+            f'nrdDeltaTransmissionRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionRadianceHitDist',
+            f'nrdDeltaTransmissionReflectance{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionReflectance',
+            f'nrdDeltaTransmissionEmission{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionEmission',
+            f'nrdDeltaTransmissionPosW{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionPosW',
+            f'nrdDeltaTransmissionPathLength{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionPathLength',
+            f'nrdDeltaTransmissionNormWRoughMaterialID{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionNormWRoughMaterialID',
         })
 
     if ENABLE_RESTIR:
         pairs.update({
-            'direct': f"{ss_restir}.color",
+            f'direct{INPUT_SUFFIX}': f"{ss_restir}.color",
             # 'directTemporal': f"{ss_restir}.temporalColor",
         })
         pass
@@ -315,13 +317,15 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     opts = {
         'captureCameraMat': True if METHOD == 'input' else False,
         'captureCameraMatOnly': False,
-        'includeAlpha': ["normWRoughnessMaterialID",
-                         "nrdDiffuseRadianceHitDist",
-                         "nrdSpecularRadianceHitDist",
-                         "nrdDeltaReflectionRadianceHitDist",
-                         "nrdDeltaTransmissionRadianceHitDist",
-                         "nrdResidualRadianceHitDist",
-                         ],
+        'includeAlpha': [
+            "specRough", "diffuseOpacity", "specRough2", "diffuseOpacity2",
+            "normWRoughnessMaterialID",
+            "nrdDiffuseRadianceHitDist",
+            "nrdSpecularRadianceHitDist",
+            "nrdDeltaReflectionRadianceHitDist",
+            "nrdDeltaTransmissionRadianceHitDist",
+            "nrdResidualRadianceHitDist",
+        ],
     }
 
     if not INTERACTIVE:

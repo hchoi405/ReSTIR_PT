@@ -1936,6 +1936,8 @@ void ReSTIRPTPass::PathReusePass(RenderContext* pRenderContext, uint32_t restir_
             var["outputNRDResidualRadianceHitDist"] = renderData[kOutputNRDResidualRadianceHitDist]->asTexture();
             var["primaryHitEmission"] = renderData[kOutputNRDEmission]->asTexture();
             var["gSppId"] = restir_i;
+
+            setNRDData(var["outputNRD"], renderData);
         }
 
         var["outputIndirect"] = renderData[kOutputIndirect]->asTexture();
@@ -2074,8 +2076,6 @@ void ReSTIRPTPass::resolvePass(RenderContext* pRenderContext, const RenderData& 
     auto var = mpResolvePass->getRootVar()["CB"]["gResolvePass"];
     var["params"].setBlob(mParams);
     var["gSppId"] = restir_i;
-    var["useDirectLighting"] = mUseDirectLighting;
-    var["directLighting"] = renderData[kInputDirectLighting]->asTexture();
 
     setNRDData(var["outputNRD"], renderData);
 
