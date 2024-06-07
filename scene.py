@@ -1,4 +1,4 @@
-HOME_DIR = "C:/Users/hchoi/repositories"
+HOME_DIR = ""
 FALCOR_DIR = f"{HOME_DIR}/ReSTIR_PT"
 
 MEDIA_DIR = f"{FALCOR_DIR}/media/"
