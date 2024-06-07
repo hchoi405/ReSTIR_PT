@@ -266,9 +266,9 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     }
 
     ## Save G-buffer only for input, not secondinput (center)
-    if METHOD == 'input':
+    # if METHOD == 'input':
     ## Save G-buffer for all methods (jittered)
-    # if True:
+    if True:
         pairs.update({
             ## GBufferRaster
             f'albedo{INPUT_SUFFIX}': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
@@ -319,12 +319,12 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
         'captureCameraMatOnly': False,
         'includeAlpha': [
             "specRough", "diffuseOpacity", "specRough2", "diffuseOpacity2",
-            "normWRoughnessMaterialID",
-            "nrdDiffuseRadianceHitDist",
-            "nrdSpecularRadianceHitDist",
-            "nrdDeltaReflectionRadianceHitDist",
-            "nrdDeltaTransmissionRadianceHitDist",
-            "nrdResidualRadianceHitDist",
+            "normWRoughnessMaterialID", "normWRoughnessMaterialID2",
+            "nrdDiffuseRadianceHitDist", "nrdDiffuseRadianceHitDist2",
+            "nrdSpecularRadianceHitDist", "nrdSpecularRadianceHitDist2",
+            "nrdDeltaReflectionRadianceHitDist", "nrdDeltaReflectionRadianceHitDist2",
+            "nrdDeltaTransmissionRadianceHitDist", "nrdDeltaTransmissionRadianceHitDist2",
+            "nrdResidualRadianceHitDist", "nrdResidualRadianceHitDist2",
         ],
     }
 

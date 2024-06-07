@@ -119,7 +119,7 @@ def starts_with_number(filename):
         return True
     return False
 
-def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
+def process_input(src_dir, dest_dir, frame, sample_idx, suffix=''):
     try:
         ### Post-process the indivisual images
         # # RGB to Z
@@ -134,30 +134,30 @@ def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
         #         print(f'WARN: {path} not found.')
 
         # specRough and diffuseOpacity to roughness and opacity
-        spec_path = os.path.join(src_dir, f'specRough_{frame:04d}.exr')
+        spec_path = os.path.join(src_dir, f'specRough{suffix}_{frame:04d}.exr')
         if os.path.exists(spec_path):
             spec_img = exr.read_all(spec_path)['default']
             if spec_img.shape[-1] == 4:
                 rough_img = spec_img[:,:,3:4]
-                exr.write(os.path.join(dest_dir, f'roughness_{frame:04d}.exr'), rough_img, compression=exr.ZIP_COMPRESSION)
-                exr.write(os.path.join(dest_dir, f'specularAlbedo_{frame:04d}.exr'), spec_img[:,:,0:3], compression=exr.ZIP_COMPRESSION)
-                os.remove(os.path.join(src_dir, f'specRough_{frame:04d}.exr'))
+                exr.write(os.path.join(dest_dir, f'roughness{suffix}_{frame:04d}.exr'), rough_img, compression=exr.ZIP_COMPRESSION)
+                exr.write(os.path.join(dest_dir, f'specularAlbedo{suffix}_{frame:04d}.exr'), spec_img[:,:,0:3], compression=exr.ZIP_COMPRESSION)
+                os.remove(os.path.join(src_dir, f'specRough{suffix}_{frame:04d}.exr'))
             else:
-                print("WARN: specRough has no alpha channel.")
+                print(f"WARN: {spec_path} has no alpha channel.")
         else:
             print(f'WARN: {spec_path} not found.')
 
-        diffuseOpacity_path = os.path.join(src_dir, f'diffuseOpacity_{frame:04d}.exr')
+        diffuseOpacity_path = os.path.join(src_dir, f'diffuseOpacity{suffix}_{frame:04d}.exr')
         if os.path.exists(diffuseOpacity_path):
             diffuseOpacity_img = exr.read_all(diffuseOpacity_path)['default']
             if diffuseOpacity_img.shape[-1] == 4:
                 diffuse_img = diffuseOpacity_img[:,:,0:3]
                 opacity_img = diffuseOpacity_img[:,:,3:4]
-                exr.write(os.path.join(dest_dir, f'diffuseAlbedo_{frame:04d}.exr'), diffuse_img, compression=exr.ZIP_COMPRESSION)
-                exr.write(os.path.join(dest_dir, f'opacity_{frame:04d}.exr'), opacity_img, compression=exr.ZIP_COMPRESSION)
-                os.remove(os.path.join(src_dir, f'diffuseOpacity_{frame:04d}.exr'))
+                exr.write(os.path.join(dest_dir, f'diffuseAlbedo{suffix}_{frame:04d}.exr'), diffuse_img, compression=exr.ZIP_COMPRESSION)
+                exr.write(os.path.join(dest_dir, f'opacity{suffix}_{frame:04d}.exr'), opacity_img, compression=exr.ZIP_COMPRESSION)
+                os.remove(os.path.join(src_dir, f'diffuseOpacity{suffix}_{frame:04d}.exr'))
             else:
-                print("WARN: diffuseOpacity has no alpha channel.")
+                print(f"WARN: {diffuseOpacity_path} has no alpha channel.")
         else:
             print(f'WARN: {diffuseOpacity_path} not found.')
 
@@ -166,15 +166,6 @@ def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
         rendered_files = os.listdir(dest_dir)
         rendered_files = [f for f in rendered_files if f.endswith(f'{frame:04d}.exr')]
         rendered_files = [f for f in rendered_files if not starts_with_number(f)]
-
-        # Handle suffix
-        if suffix is None:
-            pass
-        else:
-            for f in rendered_files:
-                basename = f.split('_')[0]
-                newname = f'{basename}{suffix}_{frame:04d}.exr'
-                shutil.move(os.path.join(dest_dir, f), os.path.join(dest_dir, newname))
 
         # Re-collect files of the currently rendered frame
         rendered_files = os.listdir(dest_dir)
@@ -206,75 +197,19 @@ def process_input(src_dir, dest_dir, frame, sample_idx, suffix=None):
             # Rename the sample_idx from the filename
             for f in rendered_files:
                 shutil.move(os.path.join(dest_dir, f'{sample_idx:04d}_{f}'), os.path.join(dest_dir, f))
-                print(f'Renaming {sample_idx:04d}_{f} to {f}')
 
     except Exception as e:
         func_name = sys._getframe()
         line_number = sys.exc_info()[-1].tb_lineno
         print(f"[{func_name}, line {line_number}] Error processing frame {frame}: {str(e)}")
 
-def postprocess_input(src_dir, scene_name, frames, sample_idx, suffix=None):
-    print('\tPost-processing the input...', end=' ', flush=True)
+def postprocess_input(src_dir, scene_name, frames, sample_idx, suffix=''):
+    print('\tPost-processing the input or secondinput...', end=' ', flush=True)
 
     # Process multiprocessing
     num_workers = min(60, mp.cpu_count() - 4) # 60 is maximum for Windows
     with mp.Pool(processes=num_workers) as pool:
         pool.starmap(process_input, [(src_dir, src_dir, frame, sample_idx, suffix) for frame in frames])
-    pool.close()
-
-    print('Done')
-
-def process_secondinput(src_dir, dest_dir, frame, sample_idx):
-    try:
-        ### Post-process to handle multi-samples
-        # Collect files of the currently rendered frame
-        rendered_files = os.listdir(dest_dir)
-        rendered_files = [f for f in rendered_files if f.endswith(f'{frame:04d}.exr')]
-        rendered_files = [f for f in rendered_files if not starts_with_number(f)]
-
-        # Re-collect files of the currently rendered frame
-        rendered_files = os.listdir(dest_dir)
-        rendered_files = [f for f in rendered_files if f.endswith(f'{frame:04d}.exr')]
-        rendered_files = [f for f in rendered_files if not starts_with_number(f)]
-
-        # Find the largest sample index from {sample_idx:04d}_*.exr
-        if sample_idx == 0:
-            # Just move
-            for f in rendered_files:
-                shutil.move(os.path.join(dest_dir, f), os.path.join(dest_dir, f'{sample_idx:04d}_{f}'))
-        else:
-            last_sample_idx = sample_idx - 1
-            # Average the images
-            for f in rendered_files:
-                if 'mvec' in f: # Do not average motion vectors
-                    continue
-                img_avg = exr.read_all(os.path.join(dest_dir, f'{last_sample_idx:04d}_{f}'))['default']
-                img = exr.read_all(os.path.join(dest_dir, f))['default']
-                new_avg = ((last_sample_idx+1) * img_avg + img) / ((last_sample_idx+1) + 1)
-                if 'normal' in f: # Normalize normals
-                    factor = np.linalg.norm(new_avg, axis=2, keepdims=True)
-                    factor[factor == 0] = 1
-                    new_avg /= factor
-                exr.write(os.path.join(dest_dir, f'{sample_idx:04d}_{f}'), new_avg, compression=exr.ZIP_COMPRESSION)
-                os.remove(os.path.join(dest_dir, f))
-                os.remove(os.path.join(dest_dir, f'{last_sample_idx:04d}_{f}'))
-
-            if sample_idx == config.SAMPLES_PER_PIXEL - 1:
-                # Rename the sample_idx from the filename
-                for f in rendered_files:
-                    shutil.move(os.path.join(dest_dir, f'{sample_idx:04d}_{f}'), os.path.join(dest_dir, f))
-
-    except Exception as e:
-        func_name = sys._getframe()
-        print(f"[{func_name}] Error processing frame {frame}: {str(e)}")
-
-def postprocess_secondinput(src_dir, scene_name, frames, sample_idx):
-    print('\tPost-processing the secondinput...', end=' ', flush=True)
-
-    # Process multiprocessing
-    num_workers = min(60, mp.cpu_count() - 4) # 60 is maximum for Windows
-    with mp.Pool(processes=num_workers) as pool:
-        pool.starmap(process_secondinput, [(src_dir, src_dir, frame, sample_idx) for frame in frames])
     pool.close()
 
     print('Done')
@@ -420,7 +355,7 @@ def postprocess(method, scene_name, sample_idx=0):
     if method == 'input':
         postprocess_input(src_dir, scene_name, frames, sample_idx)
     elif method == 'secondinput':
-        postprocess_secondinput(src_dir, scene_name, frames, sample_idx)
+        postprocess_input(src_dir, scene_name, frames, sample_idx, '2')
     elif method == 'ref':
         postprocess_ref(src_dir, scene_name, frames)
     elif method == 'ref_restir':
@@ -612,14 +547,14 @@ if __name__ == "__main__":
 
             elif method == 'input' or method == 'secondinput':
                 if method == 'input': update_pyvariable("main.py", "INPUT_SUFFIX", '')
-                else: update_pyvariable("main.py", "INPUT_SUFFIX", '2')
+                elif method == 'secondinput': update_pyvariable("main.py", "INPUT_SUFFIX", '2')
 
                 # Launch Mogwai
                 for sample_idx in range(config.SAMPLES_PER_PIXEL):
                     update_pyvariable("main.py", "SAMPLE_INDEX", sample_idx)
                     if method == 'input':
                         update_pyvariable("main.py", "SEED_OFFSET", sample_idx)
-                    else:
+                    elif method == 'secondinput':
                         update_pyvariable("main.py", "SEED_OFFSET", sample_idx + 1000000)
                         # update_pyvariable("main.py", "SEED_OFFSET", sample_idx)
                     print(f'Rendering Sample idx {sample_idx}...', end='', flush=True)
