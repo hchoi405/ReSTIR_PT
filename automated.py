@@ -375,7 +375,7 @@ def postprocess(method, scene_name, sample_idx=0):
 
 def build(args):
     print('Building..', end=' ')
-    if not args.nobuild or args.buildonly:
+    if (not args.nobuild or args.buildonly) and not args.dummy_falcor:
         sys.stdout.flush()
         bin_2019 = 'C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe'
         bin_2022 = 'C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe'
@@ -417,20 +417,28 @@ def monitor_log_file(log_file, stop_signal):
         except KeyboardInterrupt:
             print("\nStopped monitoring the log file.")
 
-def run(noscript=False):
+def run(noscript=False, dummy=False):
     # Call Mogwai
-    binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
-    if noscript:
-        binary_args = []
+    if dummy:
+        ret = subprocess.run(['python', 'main.py'], capture_output=True, text=True)
+        if ret.returncode != 0:
+            print(ret.stderr)
+        print(ret.stdout)
+        return 0, ''
     else:
-        binary_args = ["--script=main.py"]
-    script_dir = os.path.abspath(os.path.dirname(__file__))
-    binary_abs_path = os.path.join(script_dir, binary_path)
-    ret = subprocess.run([binary_abs_path] + binary_args, capture_output=True, text=True)
-    # ret = subprocess.run([binary_abs_path] + binary_args)
-    if ret.returncode != 0:
-        return -1, ret.stdout
-    return 0, ret.stdout
+        binary_path = os.path.join("Bin", "x64", "Release", "Mogwai.exe")
+        if noscript:
+            binary_args = []
+        else:
+            binary_args = ["--script=main.py"]
+        script_dir = os.path.abspath(os.path.dirname(__file__))
+        binary_abs_path = os.path.join(script_dir, binary_path)
+        ret = subprocess.run([binary_abs_path] + binary_args, capture_output=True, text=True)
+        # ret = subprocess.run([binary_abs_path] + binary_args)
+        if ret.returncode != 0:
+            return -1, ret.stderr
+        print(ret.stdout)
+        return 0, ret.stdout
 
 
 if __name__ == "__main__":
@@ -443,7 +451,10 @@ if __name__ == "__main__":
     parser.add_argument('--interactive', action='store_true', default=False)
     parser.add_argument('--dir', default='dataset')
     parser.add_argument('--mogwai', action='store_true', default=False)
+    parser.add_argument('--dummy_falcor', action='store_true', default=False)
     args = parser.parse_args()
+
+    update_pyvariable("main.py", "DUMMY_RUN", args.dummy_falcor)
 
     if args.mogwai:
         run(noscript=True)
@@ -558,7 +569,7 @@ if __name__ == "__main__":
                         update_pyvariable("main.py", "SEED_OFFSET", sample_idx + 1000000)
                         # update_pyvariable("main.py", "SEED_OFFSET", sample_idx)
                     print(f'Rendering Sample idx {sample_idx}...', end='', flush=True)
-                    retcode, stdout = run()
+                    retcode, stdout = run(dummy=args.dummy_falcor)
                     if retcode != 0:
                         print(stdout)
                     print('Done.')

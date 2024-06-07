@@ -1,5 +1,4 @@
-from falcor import *
-
+# type: ignore
 import random
 
 OUT_DIR = "C:/Users/hchoi/repositories/ReSTIR_PT/output"
@@ -16,6 +15,7 @@ SEED_OFFSET = 0
 SAMPLE_INDEX = 0
 MULTIGBUF_COUNT = 4
 INPUT_SUFFIX = ""
+DUMMY_RUN = False
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -40,6 +40,12 @@ def frange(start, stop=None, step=None):
 
 
 def add_path(g, gbuf, enable_restir=True, crn=False, path_seed_offset=0):
+    if DUMMY_RUN:
+        return "dummy", "dummy"
+
+    loadRenderPassLibrary("ReSTIRPTPass.dll")
+    loadRenderPassLibrary("ScreenSpaceReSTIRPass.dll")
+
     # Toggle between ReSTIRPT and MegakernelPathTracer
     if enable_restir:
         PathTracer = createPass("ReSTIRPTPass", {
@@ -90,21 +96,44 @@ def add_path(g, gbuf, enable_restir=True, crn=False, path_seed_offset=0):
 
 
 def add_gbuffer(g, pattern, init_seed=1):
+    if DUMMY_RUN:
+        return "dummy"
+
+    loadRenderPassLibrary("GBuffer.dll")
+
+    sample_pattern = SamplePattern.Center
+    if pattern == 'Uniform':
+        sample_pattern = SamplePattern.Uniform
+    elif pattern == 'CenterUniform':
+        sample_pattern = SamplePattern.CenterUniform
+    elif pattern == 'Center':
+        sample_pattern = SamplePattern.Center
+    elif pattern == 'Halton':
+        sample_pattern = SamplePattern.Halton
+    else:
+        print("ERROR: Invalid sample pattern.")
+        exit()
+
     dicts = {
-        'samplePattern': pattern,
+        'samplePattern': sample_pattern,
         # sampleCount becomes a seed when used for [Uniform, UniformRandom, CRN] patterns
         # Uniform is for GBufferRaster, UniformRandom is only for GBufferRT (do not use UniformRandom for GBufferRaster)
         'sampleCount': init_seed,
         'sampleIndex': SAMPLE_INDEX,
         'useAlphaTest': True,
     }
-    GBufferRaster = createPass("GBufferRaster", dicts)  # for input and svgf
+    GBufferRaster = createPass("GBufferRaster", dicts)
     gbuf = "GBufferRaster"
     g.addPass(GBufferRaster, gbuf)
     return gbuf
 
 
 def add_fileload(g):
+    if DUMMY_RUN:
+        return "dummy"
+
+    loadRenderPassLibrary("FileloadPass.dll")
+
     # key:value = filename:channelName
     channels = {
         'current': 'color',
@@ -138,38 +167,20 @@ def add_fileload(g):
     return gbuffile, pathfile
 
 
-def add_optix(g, gbuffer, path):
-    OptixDenoiser = createPass("OptixDenoiser")
-    optix = "OptixDenoiser"
-    g.addPass(OptixDenoiser, optix)
-
-    g.addEdge(f"{path}.color", f"{optix}.color")
-    g.addEdge(f"{path}.albedo", f"{optix}.albedo")
-    g.addEdge(f"{gbuffer}.normW", f"{optix}.normal")
-    g.addEdge(f"{gbuffer}.mvec", f"{optix}.mvec")
-
-    return optix
-
-
-def add_svgf(g, gbuffer, path):
-    SVGFPass = createPass("SVGFPass", {'Enabled': True, 'Iterations': 4, 'FeedbackTap': 1,
-                          'VarianceEpsilon': 1.0e-4, 'PhiColor': 10.0, 'PhiNormal': 128.0, 'Alpha': 0.2, 'MomentsAlpha': 0.2})
-    svgf = "SVGFPass"
-    g.addPass(SVGFPass, svgf)
-
-    g.addEdge(f"{gbuffer}.emissive", f"{svgf}.Emission")
-    g.addEdge(f"{gbuffer}.posW", f"{svgf}.WorldPosition")
-    g.addEdge(f"{gbuffer}.normW", f"{svgf}.WorldNormal")
-    g.addEdge(f"{gbuffer}.pnFwidth", f"{svgf}.PositionNormalFwidth")
-    g.addEdge(f"{gbuffer}.linearZ", f"{svgf}.LinearZ")
-    g.addEdge(f"{gbuffer}.mvec", f"{svgf}.MotionVec")
-    g.addEdge(f"{path}.color", f"{svgf}.Color")
-    g.addEdge(f"{path}.albedo", f"{svgf}.Albedo")
-
-    return svgf
-
-
 def add_capture(g, pairs, start, end, opts=None):
+    if DUMMY_RUN:
+        import scripts.exr as exr
+        import numpy as np
+        import shutil
+        for frame in range(start, end+1):
+            key_first = list(pairs.keys())[0]
+            exr.write(f"{OUT_DIR}/{key_first}_{frame:04d}.exr", np.ones((1080, 1920, 4), dtype=np.float32) * (SAMPLE_INDEX+1))
+            for key in list(pairs.keys())[1:]:
+                print('Generating dummy exr:', f"{OUT_DIR}/{key}_{frame:04d}.exr")
+                shutil.copyfile(f"{OUT_DIR}/{key_first}_{frame:04d}.exr", f"{OUT_DIR}/{key}_{frame:04d}.exr")
+        return "dummy_capture"
+
+    loadRenderPassLibrary("CapturePass.dll")
 
     channels = list(pairs.keys())
     inputs = list(pairs.values())
@@ -202,23 +213,31 @@ def add_capture(g, pairs, start, end, opts=None):
 
 
 def render_ref(start, end):
-    g = RenderGraph("PathGraph")
+    g = None
+
+    if not DUMMY_RUN:
+        loadRenderPassLibrary("AccumulatePass.dll")
+
+        g = RenderGraph("PathGraph")
 
     gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform)
     path, _ = add_path(g, gbuf, False)
 
-    AccumulatePass1 = createPass("AccumulatePass", {'enabled': True})
-    AccumulatePass2 = createPass("AccumulatePass", {'enabled': True})
-    AccumulatePass3 = createPass("AccumulatePass", {'enabled': True})
+    if not DUMMY_RUN:
+        AccumulatePass1 = createPass("AccumulatePass", {'enabled': True})
+        AccumulatePass2 = createPass("AccumulatePass", {'enabled': True})
+        AccumulatePass3 = createPass("AccumulatePass", {'enabled': True})
 
-    # Add pass
-    g.addPass(AccumulatePass1, "AccumulatePass1")
-    g.addPass(AccumulatePass2, "AccumulatePass2")
-    g.addPass(AccumulatePass3, "AccumulatePass3")
+        # Add pass
+        g.addPass(AccumulatePass1, "AccumulatePass1")
+        g.addPass(AccumulatePass2, "AccumulatePass2")
+        g.addPass(AccumulatePass3, "AccumulatePass3")
 
-    g.addEdge(f"{path}.color", "AccumulatePass1.input")
-    g.addEdge(f"{path}.envLight", "AccumulatePass2.input")
-    g.addEdge(f"{gbuf}.emissive", "AccumulatePass3.input")
+        g.addEdge(f"{path}.color", "AccumulatePass1.input")
+        g.addEdge(f"{path}.envLight", "AccumulatePass2.input")
+        g.addEdge(f"{gbuf}.emissive", "AccumulatePass3.input")
+
+        g.markOutput(f"{path}.color")
 
     pairs = {
         'ref': f'AccumulatePass1.output',
@@ -231,26 +250,24 @@ def render_ref(start, end):
     }
 
     add_capture(g, pairs, start, end, opts)
-    g.markOutput(f"{path}.color")
 
     return g
 
 
 def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
-    g = RenderGraph("MutlipleGraph")
+    g = None
+    if not DUMMY_RUN:
+        g = RenderGraph("MutlipleGraph")
 
     ## GBufferRaster
-    if sample_pattern == 'Uniform':
-        gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=gbufseed)
-    elif sample_pattern == 'CenterUniform':
-        gbuf = add_gbuffer(g, pattern=SamplePattern.CenterUniform, init_seed=gbufseed)
-    elif sample_pattern == 'Center':
-        gbuf = add_gbuffer(g, pattern=SamplePattern.Center, init_seed=gbufseed)
-    elif sample_pattern == 'Halton':
-        gbuf = add_gbuffer(g, pattern=SamplePattern.Halton, init_seed=gbufseed)
+    gbuf = add_gbuffer(g, pattern=sample_pattern, init_seed=gbufseed)
 
     ## PathTracer
     path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False, path_seed_offset=pathseed)
+
+    # Add output
+    if not DUMMY_RUN:
+        g.markOutput(f"{path}.color")
 
     # Connect input/output
     pairs = {
@@ -265,6 +282,12 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
         f'directSpecularReflectance{INPUT_SUFFIX}': f'{ss_restir}.specularReflectance',
     }
 
+    # Store motion vector only for center (first sample)
+    if METHOD == 'input' and SAMPLE_INDEX == 0:
+        pairs.update({
+            f'mvec{INPUT_SUFFIX}': f"{gbuf}.mvec"
+        })
+
     ## Save G-buffer only for input, not secondinput (center)
     # if METHOD == 'input':
     ## Save G-buffer for all methods (jittered)
@@ -276,7 +299,6 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
             f'position{INPUT_SUFFIX}': f"{gbuf}.posW",
             f'emissive{INPUT_SUFFIX}': f"{gbuf}.emissive",
             f'linearZ{INPUT_SUFFIX}': f"{gbuf}.linearZ",
-            f'mvec{INPUT_SUFFIX}': f"{gbuf}.mvec",
             f'pnFwidth{INPUT_SUFFIX}': f"{gbuf}.pnFwidth",
             f'specRough{INPUT_SUFFIX}': f"{gbuf}.specRough",
             f'diffuseOpacity{INPUT_SUFFIX}': f"{gbuf}.diffuseOpacity",
@@ -331,75 +353,20 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     if not INTERACTIVE:
         add_capture(g, pairs, start, end, opts)
 
-    # Add output
-    g.markOutput(f"{path}.color")
-
-    return g
-
-
-def render_crn(start, end):
-    g = RenderGraph("MutlipleGraph")
-
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Center, init_seed=1000000)
-    path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=True)
-
-    # Connect input/output
-    pairs = {
-        #
-        'crn': f"{path}.color",
-        # 'albedo2': f"{path}.albedo",
-        # #
-        # 'emissive2': f"{gbuf}.emissive",
-        # 'normal2': f"{gbuf}.normW",
-        # 'depth2': f"{gbuf}.linearZ",
-        # 'position2': f"{gbuf}.posW",
-        # 'mvec2': f"{gbuf}.mvec",
-        # 'specRough2': f"{gbuf}.specRough",
-        # 'diffuseOpacity2': f"{gbuf}.diffuseOpacity",
-    }
-    opts = {'captureCameraMat': False}
-    if not INTERACTIVE:
-        add_capture(g, pairs, start, end, opts)
-
-    # Add output
-    g.markOutput(f"{path}.color")
-
-    return g
-
-
-def render_svgf_optix(start, end):
-    g = RenderGraph("MutlipleGraph")
-    # Load libraries
-
-    gbuffile, pathfile = add_fileload(g)
-
-    svgf = add_svgf(g, gbuffile, pathfile)
-    optix = add_optix(g, gbuffile, pathfile)
-
-    # Connect input/output
-    pairs = {
-        # SVGF
-        'svgf': f"{svgf}.Filtered image",
-        # OptiX
-        'optix': f"{optix}.output"
-    }
-    opts = {
-        'captureCameraMat': False
-    }
-    add_capture(g, pairs, start, end, opts)
-
-    # # Add output
-    # g.markOutput(f"{optix}.output")
-    # g.markOutput(f"{svgf}.Filtered image")
-
     return g
 
 
 def render_ref_restir(start, end):
-    g = RenderGraph("MutlipleGraph")
+    g = None
+    if not DUMMY_RUN:
+        g = RenderGraph("MutlipleGraph")
 
     gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=SEED_OFFSET)
     path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False, path_seed_offset=SEED_OFFSET)
+
+    if not DUMMY_RUN:
+        # Add output
+        g.markOutput(f"{path}.color")
 
     # Connect input/output
     pairs = {
@@ -416,15 +383,18 @@ def render_ref_restir(start, end):
     if not INTERACTIVE:
         add_capture(g, pairs, start, end, opts)
 
-    # Add output
-    g.markOutput(f"{path}.color")
-
     return g
 
 def render_centergbuf(start, end):
-    g = RenderGraph("MutlipleGraph")
+    g = None
+    if not DUMMY_RUN:
+        g = RenderGraph("MutlipleGraph")
 
     gbuf = add_gbuffer(g, pattern=SamplePattern.Center)
+
+    if not DUMMY_RUN:
+        # Add output
+        g.markOutput(f"{gbuf}.linearZ")
 
     # Connect input/output
     pairs = {
@@ -436,15 +406,20 @@ def render_centergbuf(start, end):
     if not INTERACTIVE:
         add_capture(g, pairs, start, end, {'captureCameraMat': False})
 
-    # Add output
-    g.markOutput(f"{gbuf}.linearZ")
-
     return g
 
 def render_multigbuf(start, end):
-    g = RenderGraph("MutlipleGraph")
+    g = None
+    if not DUMMY_RUN:
+        loadRenderPassLibrary("AccumulatePass.dll")
+
+        g = RenderGraph("MutlipleGraph")
 
     gbuf = add_gbuffer(g, pattern=SamplePattern.Halton, init_seed=MULTIGBUF_COUNT)
+
+    if not DUMMY_RUN:
+        # Add output
+        g.markOutput(f"{gbuf}.diffuseOpacity")
 
     # Connect input/output
     pairs = {
@@ -469,9 +444,6 @@ def render_multigbuf(start, end):
 
     add_capture(g, capture_pairs, start, end, {'accumulate': True, 'accumulateCount': MULTIGBUF_COUNT})
 
-    # Add output
-    g.markOutput(f"{gbuf}.diffuseOpacity")
-
     return g
 
 
@@ -493,14 +465,6 @@ elif 'Dining-room-dynamic' in NAME:
     ANIM = [0, num_frames]
     dir_list = frange(start, end, step)
 
-loadRenderPassLibrary("ReSTIRPTPass.dll")
-loadRenderPassLibrary("ScreenSpaceReSTIRPass.dll")
-loadRenderPassLibrary("GBuffer.dll")
-loadRenderPassLibrary("FileloadPass.dll")
-loadRenderPassLibrary("OptixDenoiser.dll")
-loadRenderPassLibrary("SVGFPass.dll")
-loadRenderPassLibrary("CapturePass.dll")
-loadRenderPassLibrary("AccumulatePass.dll")
 
 print("ANIM = ", ANIM)
 if METHOD == 'input':
@@ -509,12 +473,8 @@ if METHOD == 'input':
 elif METHOD == 'secondinput':
     graph = render_input(*ANIM, sample_pattern='CenterUniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
     # graph = render_input(*ANIM, sample_pattern='Uniform', gbufseed=SEED_OFFSET, pathseed=SEED_OFFSET)
-elif METHOD == 'crn':
-    graph = render_crn(*ANIM)
 elif METHOD == 'ref':
     graph = render_ref(*ANIM)
-elif METHOD == 'svgf_optix':
-    graph = render_svgf_optix(*ANIM)
 elif METHOD == 'ref_restir':
     graph = render_ref_restir(*ANIM)
 elif METHOD == 'centergbuf':
@@ -522,54 +482,55 @@ elif METHOD == 'centergbuf':
 elif METHOD == 'multigbuf':
     graph = render_multigbuf(*ANIM)
 
-m.addGraph(graph)
-# m.loadScene(FILE, buildFlags=SceneBuilderFlags.UseCache)
-m.loadScene(FILE, buildFlags=SceneBuilderFlags.RebuildCache)
-# Call this after scene loading
-m.scene.camera.nearPlane = 0.15 # Increase near plane to prevent Z-fighting
+if not DUMMY_RUN:
+    m.addGraph(graph)
+    m.loadScene(FILE, buildFlags=SceneBuilderFlags.UseCache)
+    # m.loadScene(FILE, buildFlags=SceneBuilderFlags.RebuildCache)
+    # Call this after scene loading
+    m.scene.camera.nearPlane = 0.15 # Increase near plane to prevent Z-fighting
 
-m.clock.framerate = 60
-m.clock.time = 0
-if INTERACTIVE:
-    m.clock.pause()
-    m.clock.frame = ANIM[0]
-else:
-    m.clock.pause()
-
-    # m.profiler.enabled = True
-    if 'Dining-room-dynamic' in NAME:
-        frame = 0
-        for y in dir_list:
-            m.clock.frame = frame
-            print('Rendering frame:', m.clock.frame)
-            m.scene.lights[0].direction.y = y
-            if METHOD == 'ref':
-                for _ in range(REF_COUNT):
-                    m.renderFrame()
-            else:
-                m.renderFrame()
-            frame += 1
-            if frame == ANIM[1] + 1: break
+    m.clock.framerate = 60
+    m.clock.time = 0
+    if INTERACTIVE:
+        m.clock.pause()
+        m.clock.frame = ANIM[0]
     else:
-        num_frames = ANIM[1] - ANIM[0] + 1
+        m.clock.pause()
 
-        # Start frame
-        for frame in range(num_frames):
-            m.clock.frame = ANIM[0] + frame
-            print('Rendering frame:', m.clock.frame)
-            # if frame == ANIM[0] + 10:
-            #     m.profiler.startCapture()
-            if METHOD == 'ref':
-                for i in range(REF_COUNT):
+        # m.profiler.enabled = True
+        if 'Dining-room-dynamic' in NAME:
+            frame = 0
+            for y in dir_list:
+                m.clock.frame = frame
+                print('Rendering frame:', m.clock.frame)
+                m.scene.lights[0].direction.y = y
+                if METHOD == 'ref':
+                    for _ in range(REF_COUNT):
+                        m.renderFrame()
+                else:
                     m.renderFrame()
-            elif METHOD == "multigbuf":
-                for i in range(MULTIGBUF_COUNT):
-                    m.renderFrame()
-            else:
-                m.renderFrame()
+                frame += 1
+                if frame == ANIM[1] + 1: break
+        else:
+            num_frames = ANIM[1] - ANIM[0] + 1
 
-    # capture = m.profiler.endCapture()
-    # m.profiler.enabled = False
-    # print(capture)
-    # with open('event.txt', 'w') as f: f.write(f'{capture}\n')
-    exit()
+            # Start frame
+            for frame in range(num_frames):
+                m.clock.frame = ANIM[0] + frame
+                print('Rendering frame:', m.clock.frame)
+                # if frame == ANIM[0] + 10:
+                #     m.profiler.startCapture()
+                if METHOD == 'ref':
+                    for i in range(REF_COUNT):
+                        m.renderFrame()
+                elif METHOD == "multigbuf":
+                    for i in range(MULTIGBUF_COUNT):
+                        m.renderFrame()
+                else:
+                    m.renderFrame()
+
+        # capture = m.profiler.endCapture()
+        # m.profiler.enabled = False
+        # print(capture)
+        # with open('event.txt', 'w') as f: f.write(f'{capture}\n')
+        exit()
