@@ -219,10 +219,11 @@ struct PathReusePass
 
             outputColor[pixel] += float4(color / kSamplesPerPixel, 1.f);
 
-            // HJ: Devleoped for NRD 3.1.0 from Falcor 7
+            // HJ: Developed for NRD 3.1.0 from Falcor 7
             if (kOutputNRDData && PathSamplingMode(kPathSamplingMode) == PathSamplingMode::ReSTIR)
             {
                 float3 radiance = dstReservoir.F * dstReservoir.weight;
+                if (any(isnan(radiance) || isinf(radiance) || radiance < 0.f)) radiance = 0.f;
 
                 //// Direct lighting should be denosied separately in NRD
                 // if (useDirectLighting)

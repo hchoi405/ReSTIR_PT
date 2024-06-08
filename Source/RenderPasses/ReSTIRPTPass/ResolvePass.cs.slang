@@ -38,7 +38,9 @@ struct ResolvePass
 
                 float3 reflectance = outputNRD.nrdReflectance[pixel].rgb;
                 float3 emission = outputNRD.nrdEmission[pixel].rgb;
-                float3 demodulatedRadiance = max(0.f, (radiance - emission)) / reflectance;
+                // HJ: Here, we do not subtract the emission, because the emission is already extractred into direct lighting.
+                // float3 demodulatedRadiance = max(0.f, (radiance - emission)) / reflectance;
+                float3 demodulatedRadiance = max(0.f, (radiance)) / reflectance;
 
                 switch (pathType)
                 {

@@ -183,6 +183,10 @@ struct PathGenerator
             outputNRD.nrdHitDist[pixel] = kNRDInvalidPathLength;
             outputNRD.nrdEmission[pixel] = 0.f;
             outputNRD.nrdReflectance[pixel] = 1.f;
+
+            outputNRD.primaryHitEmission[pixel] = float4(color, 1.f);
+            outputNRD.primaryHitDiffuseReflectance[pixel] = 0.f;
+            outputNRD.primaryHitSpecularReflectance[pixel] = 0.f;
         }
 
         if (kOutputNRDAdditionalData)
