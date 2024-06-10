@@ -196,6 +196,77 @@ void CapturePass::storeTexture(RenderContext *pRenderContext, const uint64_t fra
     }
 }
 
+void writeCameraInfoToJson(const std::string &mDirectory, Scene::SharedPtr mpScene, uint64_t frameIndex)
+{
+    glm::mat4 viewProjMatrix = mpScene->getCamera()->getViewProjMatrixNoJitter();
+    glm::mat4 projMatrix = mpScene->getCamera()->getProjMatrix();
+    float3 position = mpScene->getCamera()->getPosition();
+    float3 target = mpScene->getCamera()->getTarget();
+    float3 upVector = mpScene->getCamera()->getUpVector();
+
+    char filename[100];
+    sprintf(filename, "%s/camera_info.json", mDirectory.c_str());
+
+    std::ifstream fileCheck(filename);
+    bool isEmptyFile = fileCheck.peek() == std::ifstream::traits_type::eof();
+    fileCheck.close();
+
+    std::ofstream file;
+    if (isEmptyFile) {
+        file.open(filename);
+        file << "[\n";
+    } else {
+        file.open(filename, std::ios::in | std::ios::out);
+        file.seekp(-1, std::ios_base::end);
+        file << ",\n";
+    }
+
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to open file: " << filename << std::endl;
+        return;
+    }
+
+    std::stringstream ss;
+    ss << "{\n";
+    ss << "  \"frameIndex\": " << frameIndex << ",\n";
+    ss << "  \"viewProjMatrix\": [";
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            ss << viewProjMatrix[i][j];
+            if (i < 3 || j < 3)
+                ss << ", ";
+        }
+    }
+    ss << "],\n";
+    ss << "  \"projMatrix\": [";
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            ss << projMatrix[i][j];
+            if (i < 3 || j < 3)
+                ss << ", ";
+        }
+    }
+    ss << "],\n";
+    ss << "  \"position\": [" << position.x << ", " << position.y << ", " << position.z << "],\n";
+    ss << "  \"target\": [" << target.x << ", " << target.y << ", " << target.z << "],\n";
+    ss << "  \"upVector\": [" << upVector.x << ", " << upVector.y << ", " << upVector.z << "]\n";
+    ss << "}";
+
+    if (isEmptyFile) {
+        ss << "\n]";
+    } else {
+        ss << "\n]";
+    }
+
+    file << ss.str();
+    file.close();
+}
+
 void CapturePass::execute(RenderContext *pRenderContext, const RenderData &renderData)
 {
     const auto frameCount = gpFramework->getGlobalClock().getFrame();
@@ -252,7 +323,7 @@ void CapturePass::execute(RenderContext *pRenderContext, const RenderData &rende
         }
     }
 
-    // Capture camera matrix
+    // Capture camera matrix for BMFR
     if (mCaptureCameraMat)
     {
         mCameraMatrices.push_back(mpScene->getCamera()->getViewProjMatrixNoJitter());
@@ -301,6 +372,9 @@ void CapturePass::execute(RenderContext *pRenderContext, const RenderData &rende
         outMat << fmt::format(mCameraMatTemplate, numFrames, matStr, numFrames, offsetStr);
         outMat.close();
     }
+
+    // Capture camera info for NPPD
+    writeCameraInfoToJson(mDirectory, mpScene, frameCount);
 
     // Control
     if (mStart)

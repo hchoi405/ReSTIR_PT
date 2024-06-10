@@ -81,5 +81,10 @@ private:
     bool mCaptureCameraMat = false;
     bool mCaptureCameraMatOnly = false;
     std::vector<glm::mat4> mCameraMatrices;
+    std::vector<glm::mat4> mViewProjMatrices;
+    std::vector<glm::mat4> mProjMatrices;
+    std::vector<float3> mCameraPosition;
+    std::vector<float3> mCameraTarget;
+    std::vector<float3> mCameraUp;
     std::string mCameraMatTemplate;
 };
