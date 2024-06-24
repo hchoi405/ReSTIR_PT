@@ -6,11 +6,10 @@ ORCA_PATH = f"{HOME_DIR}/ORCA/"
 FBX_PATH = f"{FALCOR_DIR}/fbxscenes/"
 
 defs = {
-    "BistroExterior2": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[1500, 1501]},
-    # "BistroExteriorDynamic": {'file': ORCA_PATH + "BistroExterior_dynamic_camera_flipped/BistroExterior_dynamic.pyscene", 'anim':[0, 600]},
-    # "classroom" : {'file': FBX_PATH + "classroom/classroom.pyscene", 'anim':[0, 600]},
-    # "EmeraldSquare2" : {'file': ORCA_PATH + "EmeraldSquare/EmeraldSquare_Day.pyscene", 'anim':[1700, 2300]},
-    # "staircase" : {'file': FBX_PATH + "staircase/staircase.pyscene", 'anim':[0, 600]},
+    "BistroExterior2": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[1400, 1700]},
+    "BistroExteriorDynamic": {'file': ORCA_PATH + "BistroExterior_dynamic_camera_flipped/BistroExterior_dynamic.pyscene", 'anim':[0, 300]},
+    # "EmeraldSquare2" : {'file': ORCA_PATH + "EmeraldSquare/EmeraldSquare_Day.pyscene", 'anim':[1700, 2000]},
+    # "staircase" : {'file': FBX_PATH + "staircase/staircase.pyscene", 'anim':[0, 300]},
 }
 
 considered = {

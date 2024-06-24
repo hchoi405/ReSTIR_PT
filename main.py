@@ -361,7 +361,7 @@ def render_ref_restir(start, end):
     if not DUMMY_RUN:
         g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform, init_seed=SEED_OFFSET)
+    gbuf = add_gbuffer(g, pattern="Uniform", init_seed=SEED_OFFSET)
     path, ss_restir = add_path(g, gbuf, enable_restir=ENABLE_RESTIR, crn=False, path_seed_offset=SEED_OFFSET)
 
     if not DUMMY_RUN:

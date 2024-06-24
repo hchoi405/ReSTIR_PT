@@ -267,13 +267,13 @@ def postprocess_refrestir(src_dir, scene_name, frames, idx):
         for name in reflist:
             pool.starmap(partial(process_restirref_frame, name), [(frame, idx, tmp_dir) for frame in frames])
 
-    # # Last sample processing
-    # if idx == config.REF_SAMPLES_PER_PIXEL - 1:
-    #     with mp.Pool(processes=num_workers) as pool:
-    #         for name in reflist:
-    #             pool.starmap(partial(process_refrestir_frame_last, name), [(frame, idx, src_dir) for frame in frames])
-    #     # Remove tmp
-    #     shutil.rmtree(tmp_dir)
+    # Last sample processing
+    if idx == config.REF_SAMPLES_PER_PIXEL - 1:
+        with mp.Pool(processes=num_workers) as pool:
+            for name in reflist:
+                pool.starmap(partial(process_refrestir_frame_last, name), [(frame, idx, src_dir) for frame in frames])
+        # Remove tmp
+        shutil.rmtree(tmp_dir)
 
 def process_centergbuf(frame, src_dir, dest_dir):
     # Extract depth from LinearZ
@@ -426,8 +426,8 @@ def run(noscript=False, dummy=False):
         ret = subprocess.run([binary_abs_path] + binary_args, capture_output=True, text=True)
         # ret = subprocess.run([binary_abs_path] + binary_args)
         if ret.returncode != 0:
+            print(ret.stdout)
             return -1, ret.stderr
-        print(ret.stdout)
         return 0, ret.stdout
 
 
