@@ -224,8 +224,8 @@ def render_ref(start, end):
 
         g = RenderGraph("PathGraph")
 
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Uniform)
-    path, _ = add_path(g, gbuf, False)
+    gbuf = add_gbuffer(g, pattern="Uniform")
+    path, _ = add_path(g, gbuf, enable_restir=False)
 
     if not DUMMY_RUN:
         AccumulatePass1 = createPass("AccumulatePass", {'enabled': True})
