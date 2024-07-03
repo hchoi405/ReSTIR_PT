@@ -69,11 +69,15 @@ def add_path(g, gbuf, enable_restir=True, crn=False, path_seed_offset=0):
             exit()
         PathTracer = createPass("ReSTIRPTPass", {
             'samplesPerPixel': 1,
-            'pathSamplingMode': PathSamplingMode.PathTracing
+            'pathSamplingMode': PathSamplingMode.PathTracing,
+            'temporalSeedOffset': path_seed_offset,
         })
         path = "ReSTIRPT"
         ScreenSpaceReSTIRPass = createPass("ScreenSpaceReSTIRPass", {
-            'options':ScreenSpaceReSTIROptions(useTemporalResampling=False, useSpatialResampling=False)
+            'options':ScreenSpaceReSTIROptions(
+                useTemporalResampling=False, useSpatialResampling=False,
+                temporalSeedOffset=path_seed_offset
+            )
         })
         screenReSTIR = "ScreenSpaceReSTIR"
 
