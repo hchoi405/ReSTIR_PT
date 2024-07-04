@@ -36,6 +36,7 @@ import Utils.Math.MathHelpers;
 import Utils.Sampling.SampleGenerator;
 import Rendering.Materials.TexLODTypes;
 import Rendering.Materials.TexLODHelpers;
+import Rendering.Materials.Microfacet;
 import GBufferHelpers;
 
 // GBuffer channels
@@ -150,12 +151,13 @@ struct GBufferRT
     float2 invFrameDim;
     uint frameCount;
     float screenSpacePixelSpreadAngle;
+    uint temporalSeedOffset;
 
     Ray generateRay(uint2 pixel)
     {
         if (kUseDepthOfField)
         {
-            SampleGenerator sg = SampleGenerator(pixel, frameCount);
+            SampleGenerator sg = SampleGenerator(pixel, frameCount + temporalSeedOffset);
             return gScene.camera.computeRayThinlens(pixel, frameDim, sampleNext2D(sg));
         }
         else
@@ -255,12 +257,25 @@ struct GBufferRT
         // Write the outputs.
         GBuffer gbuf = storeGBufferOutput(sd, v);
 
+        // Albedo calculation
+        float3 diffuseReflectionAlbedo = (1.f - sd.diffuseTransmission) * (1.f - sd.specularTransmission) * sd.diffuse;
+        const float NdotV = saturate(dot(sd.N, sd.V));
+        const float ggxAlpha = sd.linearRoughness * sd.linearRoughness;
+        float3 specularReflectionAlbedo = (1.f - sd.specularTransmission) * sd.specular;
+        const float3 specularReflectance = approxSpecularIntegralGGX(specularReflectionAlbedo, ggxAlpha, NdotV);
+        float3 albedo = diffuseReflectionAlbedo + specularReflectance;
+        // Detect perfect glass material (roughness=0, diffuse=1)
+        if (sd.linearRoughness == 0.f && all(sd.diffuse == float3(1.f)))
+        {
+            albedo = float3(1.f);
+        }
+
         if (hit.getType() == HitType::Curve) gbuf.posW.w = curveRadius;
 
         gPosW[pixel]            = gbuf.posW;
         gNormW[pixel]           = gbuf.normW;
         gTangentW[pixel]        = gbuf.tangentW;
-        gTexC[pixel]            = gbuf.texC;
+        gTexC[pixel]            = float4(albedo, 1.f);
         gDiffuseOpacity[pixel]  = gbuf.diffuseOpacity;
         gSpecRough[pixel]       = gbuf.specRough;
         gEmissive[pixel]        = gbuf.emissive;

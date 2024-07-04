@@ -65,7 +65,7 @@ private:
     SampleGenerator::SharedPtr mpSampleGenerator;
 
     // UI variables
-    TexLODMode mLODMode = TexLODMode::Mip0;
+    TexLODMode mLODMode = TexLODMode::RayDiffs;
     bool mUseTraceRayInline = false;
 
     // Ray tracing resources

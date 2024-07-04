@@ -302,6 +302,7 @@ void GBufferRT::setShaderData(const ShaderVar& var, const RenderData& renderData
     var["gGBufferRT"]["invFrameDim"] = mInvFrameDim;
     var["gGBufferRT"]["frameCount"] = mFrameCount;
     var["gGBufferRT"]["screenSpacePixelSpreadAngle"] = mpScene->getCamera()->computeScreenSpacePixelSpreadAngle(mFrameDim.y);
+    var["gGBufferRT"]["temporalSeedOffset"] = mTemporalSeedOffset;
 
     // Bind output channels as UAV buffers.
     auto bind = [&](const ChannelDesc& channel)

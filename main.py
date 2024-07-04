@@ -121,13 +121,14 @@ def add_gbuffer(g, pattern, init_seed=1):
     dicts = {
         'samplePattern': sample_pattern,
         # sampleCount becomes a seed when used for [Uniform, UniformRandom, CRN] patterns
-        # Uniform is for GBufferRaster, UniformRandom is only for GBufferRT (do not use UniformRandom for GBufferRaster)
+        # Uniform is for GBufferRaster and UniformRandom is only for GBufferRT (do not use UniformRandom for GBufferRaster)
         'sampleCount': init_seed,
         'sampleIndex': SAMPLE_INDEX,
         'useAlphaTest': True,
+        'temporalSeedOffset': init_seed, # Only for GBufferRT with DoF
     }
-    GBufferRaster = createPass("GBufferRaster", dicts)
-    gbuf = "GBufferRaster"
+    GBufferRaster = createPass("GBufferRT", dicts)
+    gbuf = "GBufferRT"
     g.addPass(GBufferRaster, gbuf)
     return gbuf
 
@@ -280,14 +281,18 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
         # f'temporal{INPUT_SUFFIX}': f"{path}.temporalColor",
         f'envLight{INPUT_SUFFIX}': f"{path}.envLight",
         # f'albedo{INPUT_SUFFIX}': f"{path}.albedo",
-        f'directDiffuseIllumination{INPUT_SUFFIX}': f'{ss_restir}.diffuseIllumination',
-        f'directDiffuseReflectance{INPUT_SUFFIX}': f'{ss_restir}.diffuseReflectance',
-        f'directSpecularIllumination{INPUT_SUFFIX}': f'{ss_restir}.specularIllumination',
-        f'directSpecularReflectance{INPUT_SUFFIX}': f'{ss_restir}.specularReflectance',
     }
 
+    # pairs.update({
+    #     f'directDiffuseIllumination{INPUT_SUFFIX}': f'{ss_restir}.diffuseIllumination',
+    #     f'directDiffuseReflectance{INPUT_SUFFIX}': f'{ss_restir}.diffuseReflectance',
+    #     f'directSpecularIllumination{INPUT_SUFFIX}': f'{ss_restir}.specularIllumination',
+    #     f'directSpecularReflectance{INPUT_SUFFIX}': f'{ss_restir}.specularReflectance',
+    # })
+
     # Store motion vector only for center (first sample)
-    if METHOD == 'input' and SAMPLE_INDEX == 0:
+    # if METHOD == 'input' and SAMPLE_INDEX == 0:
+    if True:
         pairs.update({
             f'mvec{INPUT_SUFFIX}': f"{gbuf}.mvec"
         })
@@ -296,42 +301,43 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     # if METHOD == 'input':
     ## Save G-buffer for all methods (jittered)
     if True:
+    # if False:
         pairs.update({
             ## GBufferRaster
-            f'albedo{INPUT_SUFFIX}': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang
+            f'albedo{INPUT_SUFFIX}': f"{gbuf}.texC", # modified in GBufferRaster.3d.slang and GBufferRT.slang
             f'normal{INPUT_SUFFIX}': f"{gbuf}.normW",
             f'position{INPUT_SUFFIX}': f"{gbuf}.posW",
             f'emissive{INPUT_SUFFIX}': f"{gbuf}.emissive",
             f'linearZ{INPUT_SUFFIX}': f"{gbuf}.linearZ",
-            f'pnFwidth{INPUT_SUFFIX}': f"{gbuf}.pnFwidth",
+            # f'pnFwidth{INPUT_SUFFIX}': f"{gbuf}.pnFwidth",
             f'specRough{INPUT_SUFFIX}': f"{gbuf}.specRough",
             f'diffuseOpacity{INPUT_SUFFIX}': f"{gbuf}.diffuseOpacity",
         })
-        # For NRD
-        pairs.update({f'normWRoughnessMaterialID{INPUT_SUFFIX}': f'{gbuf}.normWRoughnessMaterialID'})
-        # NRD
-        pairs.update({
-            f'nrdDiffuseRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdDiffuseRadianceHitDist',
-            f'nrdSpecularRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdSpecularRadianceHitDist',
-            f'nrdResidualRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdResidualRadianceHitDist',
-            f'nrdEmission{INPUT_SUFFIX}': f'{path}.nrdEmission',
-            f'nrdDiffuseReflectance{INPUT_SUFFIX}': f'{path}.nrdDiffuseReflectance',
-            f'nrdSpecularReflectance{INPUT_SUFFIX}': f'{path}.nrdSpecularReflectance',
+        # # For NRD
+        # pairs.update({f'normWRoughnessMaterialID{INPUT_SUFFIX}': f'{gbuf}.normWRoughnessMaterialID'})
+        # # NRD
+        # pairs.update({
+        #     f'nrdDiffuseRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdDiffuseRadianceHitDist',
+        #     f'nrdSpecularRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdSpecularRadianceHitDist',
+        #     f'nrdResidualRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdResidualRadianceHitDist',
+        #     f'nrdEmission{INPUT_SUFFIX}': f'{path}.nrdEmission',
+        #     f'nrdDiffuseReflectance{INPUT_SUFFIX}': f'{path}.nrdDiffuseReflectance',
+        #     f'nrdSpecularReflectance{INPUT_SUFFIX}': f'{path}.nrdSpecularReflectance',
 
-            f'nrdDeltaReflectionRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionRadianceHitDist',
-            f'nrdDeltaReflectionReflectance{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionReflectance',
-            f'nrdDeltaReflectionEmission{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionEmission',
-            f'nrdDeltaReflectionHitDist{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionHitDist',
-            f'nrdDeltaReflectionPathLength{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionPathLength',
-            f'nrdDeltaReflectionNormWRoughMaterialID{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionNormWRoughMaterialID',
+        #     f'nrdDeltaReflectionRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionRadianceHitDist',
+        #     f'nrdDeltaReflectionReflectance{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionReflectance',
+        #     f'nrdDeltaReflectionEmission{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionEmission',
+        #     f'nrdDeltaReflectionHitDist{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionHitDist',
+        #     f'nrdDeltaReflectionPathLength{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionPathLength',
+        #     f'nrdDeltaReflectionNormWRoughMaterialID{INPUT_SUFFIX}': f'{path}.nrdDeltaReflectionNormWRoughMaterialID',
 
-            f'nrdDeltaTransmissionRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionRadianceHitDist',
-            f'nrdDeltaTransmissionReflectance{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionReflectance',
-            f'nrdDeltaTransmissionEmission{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionEmission',
-            f'nrdDeltaTransmissionPosW{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionPosW',
-            f'nrdDeltaTransmissionPathLength{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionPathLength',
-            f'nrdDeltaTransmissionNormWRoughMaterialID{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionNormWRoughMaterialID',
-        })
+        #     f'nrdDeltaTransmissionRadianceHitDist{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionRadianceHitDist',
+        #     f'nrdDeltaTransmissionReflectance{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionReflectance',
+        #     f'nrdDeltaTransmissionEmission{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionEmission',
+        #     f'nrdDeltaTransmissionPosW{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionPosW',
+        #     f'nrdDeltaTransmissionPathLength{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionPathLength',
+        #     f'nrdDeltaTransmissionNormWRoughMaterialID{INPUT_SUFFIX}': f'{path}.nrdDeltaTransmissionNormWRoughMaterialID',
+        # })
 
     if ENABLE_RESTIR:
         pairs.update({

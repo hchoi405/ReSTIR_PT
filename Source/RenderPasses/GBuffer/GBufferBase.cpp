@@ -75,6 +75,7 @@ namespace
 
     const char kSampleSeed[] = "sampleSeed";
     const char kSampleIndex[] = "sampleIndex";
+    const char kTemporalSeedOffset[] = "temporalSeedOffset";
 
     // UI variables.
     const Gui::DropdownList kSamplePatternList =
@@ -111,6 +112,8 @@ void GBufferBase::parseDictionary(const Dictionary& dict)
         else if (key == kCullMode) mCullMode = value;
         else if (key == kSampleSeed) mSampleSeed = value;
         else if (key == kSampleIndex) mSampleIndex = value;
+        else if (key == kTemporalSeedOffset) mTemporalSeedOffset = value;
+        else logWarning("Unknown field '" + key + "' in a GBufferBase dictionary");
 
         // TODO: Check for unparsed fields, including those parsed in derived classes.
     }
@@ -132,6 +135,7 @@ Dictionary GBufferBase::getScriptingDictionary()
     dict[kCullMode] = mCullMode;
     dict[kSampleSeed] = mSampleSeed;
     dict[kSampleIndex] = mSampleIndex;
+    dict[kTemporalSeedOffset] = mTemporalSeedOffset;
     return dict;
 }
 

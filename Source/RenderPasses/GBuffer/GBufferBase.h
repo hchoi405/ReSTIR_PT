@@ -70,6 +70,7 @@ protected:
     uint2                           mFrameDim = {};                                 ///< Current frame dimension in pixels. Note this may be different from the window size.
     float2                          mInvFrameDim = {};
     ResourceFormat                  mVBufferFormat = HitInfo::kDefaultFormat;
+    uint32_t                        mTemporalSeedOffset = 0;
 
     // UI variables
     RenderPassHelpers::IOSize       mOutputSizeSelection = RenderPassHelpers::IOSize::Default; ///< Selected output size.
