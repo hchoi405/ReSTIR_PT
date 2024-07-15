@@ -434,7 +434,7 @@ def render_multigbuf(start, end):
 
         g = RenderGraph("MutlipleGraph")
 
-    gbuf = add_gbuffer(g, pattern=SamplePattern.Halton, init_seed=MULTIGBUF_COUNT)
+    gbuf = add_gbuffer(g, pattern="Halton", init_seed=MULTIGBUF_COUNT)
 
     if not DUMMY_RUN:
         # Add output

@@ -309,7 +309,7 @@ def process_multigbuf(src_dir, frame):
             depth_img = linearz_img[:,:,0:1]
             exr.write(os.path.join(src_dir, f'depth_multi_{frame:04d}.exr'), depth_img, compression=exr.ZIP_COMPRESSION)
             # remove linearZ
-            os.remove(linearz_path)
+            # os.remove(linearz_path)
         else:
             print(f'WARN: {linearz_path} not found.')
 
