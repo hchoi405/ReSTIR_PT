@@ -16,6 +16,7 @@ SAMPLE_INDEX = 0
 MULTIGBUF_COUNT = 4
 INPUT_SUFFIX = ""
 DUMMY_RUN = False
+USE_GBUFFER_RT = False
 
 def frange(start, stop=None, step=None):
     # if set start=0.0 and step = 1.0 if not specified
@@ -125,11 +126,17 @@ def add_gbuffer(g, pattern, init_seed=1):
         'sampleCount': init_seed,
         'sampleIndex': SAMPLE_INDEX,
         'useAlphaTest': True,
-        'temporalSeedOffset': init_seed, # Only for GBufferRT with DoF
     }
-    GBufferRaster = createPass("GBufferRT", dicts)
-    gbuf = "GBufferRT"
-    g.addPass(GBufferRaster, gbuf)
+
+    if USE_GBUFFER_RT:
+        GBuffer = createPass("GBufferRT", dicts)
+        gbuf = "GBufferRT"
+        dicts['temporalSeedOffset'] = init_seed # Only for GBufferRT with DoF
+    else:
+        GBuffer = createPass("GBufferRaster", dicts)
+        gbuf = "GBufferRaster"
+
+    g.addPass(GBuffer, gbuf)
     return gbuf
 
 
@@ -291,11 +298,14 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     # })
 
     # Store motion vector only for center (first sample)
-    # if METHOD == 'input' and SAMPLE_INDEX == 0:
-    if True:
+    if METHOD == 'input' and SAMPLE_INDEX == 0 and not USE_GBUFFER_RT:
         pairs.update({
             f'mvec{INPUT_SUFFIX}': f"{gbuf}.mvec"
         })
+
+    # pnFwidth is only available for GBufferRaster
+    if not USE_GBUFFER_RT:
+        pairs[f'pnFwidth{INPUT_SUFFIX}'] = f"{gbuf}.pnFwidth"
 
     ## Save G-buffer only for input, not secondinput (center)
     # if METHOD == 'input':
@@ -309,7 +319,6 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
             f'position{INPUT_SUFFIX}': f"{gbuf}.posW",
             f'emissive{INPUT_SUFFIX}': f"{gbuf}.emissive",
             f'linearZ{INPUT_SUFFIX}': f"{gbuf}.linearZ",
-            # f'pnFwidth{INPUT_SUFFIX}': f"{gbuf}.pnFwidth",
             f'specRough{INPUT_SUFFIX}': f"{gbuf}.specRough",
             f'diffuseOpacity{INPUT_SUFFIX}': f"{gbuf}.diffuseOpacity",
         })
