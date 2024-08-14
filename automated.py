@@ -560,8 +560,15 @@ if __name__ == "__main__":
                         # update_pyvariable("main.py", "SEED_OFFSET", sample_idx)
                     print(f'Rendering Sample idx {sample_idx}...', end='', flush=True)
                     retcode, stdout = run(dummy=args.dummy_falcor)
+                    tries = 0
+                    while retcode != 0 and tries < 3:
+                        print('Unsucessful, retry')
+                        retcode, stdout = run(dummy=args.dummy_falcor)
+                        tries += 1
+
                     if retcode != 0:
                         print(stdout)
+
                     print('Done.')
 
                     if not args.nopostprocessing:

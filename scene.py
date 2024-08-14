@@ -1,16 +1,24 @@
-HOME_DIR = ""
+HOME_DIR = "C:/Users/hchoi/repositories"
 FALCOR_DIR = f"{HOME_DIR}/ReSTIR_PT"
+NAS_DIR = f"F:"
 
 MEDIA_DIR = f"{FALCOR_DIR}/media/"
 ORCA_PATH = f"{HOME_DIR}/ORCA/"
 FBX_PATH = f"{FALCOR_DIR}/fbxscenes/"
+FBX_REMOTE_PATH = f"{NAS_DIR}/fbxscenes/"
 
 defs = {
     # "BistroExteriorDoF": {'file': ORCA_PATH + "Bistro/BistroExteriorDoF.pyscene", 'anim':[1400, 1500]},
-    "BistroExterior2": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[1400, 1410]},
+    # "BistroExterior2": {'file': ORCA_PATH + "Bistro/BistroExterior.pyscene", 'anim':[1400, 1700]},
     # "BistroExteriorDynamic": {'file': ORCA_PATH + "BistroExterior_dynamic_camera_flipped/BistroExterior_dynamic.pyscene", 'anim':[0, 300]},
     # "staircase" : {'file': FBX_PATH + "staircase/staircase.pyscene", 'anim':[0, 300]},
     # "EmeraldSquare2" : {'file': ORCA_PATH + "EmeraldSquare/EmeraldSquare_Day.pyscene", 'anim':[1700, 2000]},
+
+    # "spaceship" : {'file': FBX_REMOTE_PATH + "spaceship/spaceship.pyscene", 'anim':[0, 300]},
+    # "modernhall" : {'file': FBX_REMOTE_PATH + "modernhall/modernhall.pyscene", 'anim':[100, 101]},
+    # "kitchenware" : {'file': FBX_REMOTE_PATH + "kitchenware/kitchenware.pyscene", 'anim':[0, 300]},
+    # "terrazzo-kitchen" : {'file': FBX_REMOTE_PATH + "terrazzo-kitchen/terrazzo-kitchen.pyscene", 'anim':[0, 300]},
+    "kitchen5" : {'file': FBX_REMOTE_PATH + "kitchen5/kitchen5.pyscene", 'anim':[0, 300]},
 }
 
 considered = {

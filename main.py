@@ -284,7 +284,7 @@ def render_input(start, end, sample_pattern='Uniform', gbufseed=0, pathseed=0):
     # Connect input/output
     pairs = {
         ## PathTracer
-        f'color{INPUT_SUFFIX}': f"{path}.color",
+        f'current{INPUT_SUFFIX}': f"{path}.color",
         # f'temporal{INPUT_SUFFIX}': f"{path}.temporalColor",
         f'envLight{INPUT_SUFFIX}': f"{path}.envLight",
         # f'albedo{INPUT_SUFFIX}': f"{path}.albedo",
@@ -503,8 +503,8 @@ elif METHOD == 'multigbuf':
 
 if not DUMMY_RUN:
     m.addGraph(graph)
-    m.loadScene(FILE, buildFlags=SceneBuilderFlags.UseCache)
-    # m.loadScene(FILE, buildFlags=SceneBuilderFlags.RebuildCache)
+    # m.loadScene(FILE, buildFlags=SceneBuilderFlags.UseCache)
+    m.loadScene(FILE, buildFlags=SceneBuilderFlags.RebuildCache | SceneBuilderFlags.DontMergeMaterials)
     # Call this after scene loading
     m.scene.camera.nearPlane = 0.15 # Increase near plane to prevent Z-fighting
 
