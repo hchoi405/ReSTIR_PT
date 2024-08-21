@@ -370,9 +370,9 @@ def build(args):
         bin_2019 = 'C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe'
         bin_2022 = 'C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe'
         if not os.path.exists(bin_2022):
-            ret = subprocess.run([bin_2019, "Falcor.sln", "/p:Configuration=ReleaseD3D12", "/m:24", "/v:m"], capture_output=True, text=True)
+            ret = subprocess.run([bin_2019, "Falcor.sln", "/p:Configuration=ReleaseD3D12", "/m:24", "/v:m"], capture_output=True, text=True, encoding='utf-8')
         else:
-            ret = subprocess.run([bin_2022, "Falcor.sln", "/p:Configuration=ReleaseD3D12", "/m:24", "/v:m"], capture_output=True, text=True)
+            ret = subprocess.run([bin_2022, "Falcor.sln", "/p:Configuration=ReleaseD3D12", "/m:24", "/v:m"], capture_output=True, text=True, encoding='utf-8')
         if ret.returncode != 0:
             print(ret.stdout)
             sys.exit(-1)
