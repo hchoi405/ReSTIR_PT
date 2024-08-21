@@ -268,7 +268,7 @@ def postprocess_refrestir(src_dir, scene_name, frames, idx):
             pool.starmap(partial(process_restirref_frame, name), [(frame, idx, tmp_dir) for frame in frames])
 
     # Last sample processing
-    if idx == config.REF_SAMPLES_PER_PIXEL - 1:
+    if idx == config.REF_END_SAMPLE_PIXEL - 1:
         with mp.Pool(processes=num_workers) as pool:
             for name in reflist:
                 pool.starmap(partial(process_refrestir_frame_last, name), [(frame, idx, src_dir) for frame in frames])
@@ -522,7 +522,7 @@ if __name__ == "__main__":
                         print(f'No complete ref files found: (actual {len(exr_list)} != expected {fulllen}). Restarting from {config.REF_START_SAMPLE_INDEX}...')
                     else:
                         min_idx = min([int(f.split('_')[-1].split('.')[0]) for f in exr_list])
-                        if min_idx >= config.REF_START_SAMPLE_INDEX and min_idx < config.REF_SAMPLES_PER_PIXEL:
+                        if min_idx >= config.REF_START_SAMPLE_INDEX and min_idx < config.REF_END_SAMPLE_PIXEL:
                             # Force rename to min_idx
                             def rreplace(s, old, new, occurrence):
                                 li = s.rsplit(old, occurrence)
@@ -535,7 +535,7 @@ if __name__ == "__main__":
                             sample_idx = min_idx + 1
                             print(f'Restarting from {sample_idx}...')
 
-                while sample_idx < config.REF_SAMPLES_PER_PIXEL:
+                while sample_idx < config.REF_END_SAMPLE_PIXEL:
                     update_pyvariable("main.py", "SEED_OFFSET", sample_idx)
                     print(f'Sample idx {sample_idx}:', end=' ', flush=True)
                     retcode, stdout = run()
@@ -575,7 +575,16 @@ if __name__ == "__main__":
                         postprocess(method, scene_name, sample_idx)
             else:
                 print(f'Rendering...', end='', flush=True)
-                run()
+                retcode, stdout = run()
+                tries = 0
+                while retcode != 0 and tries < 3:
+                    print('Unsucessful, retry')
+                    retcode, stdout = run()
+                    tries += 1
+
+                if retcode != 0:
+                    print(stdout)
+
                 print('Done.')
                 if not args.nopostprocessing:
                     postprocess(method, scene_name, 0)

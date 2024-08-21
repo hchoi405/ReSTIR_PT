@@ -249,7 +249,7 @@ def render_ref(start, end):
         g.addEdge(f"{path}.envLight", "AccumulatePass2.input")
         g.addEdge(f"{gbuf}.emissive", "AccumulatePass3.input")
 
-        g.markOutput(f"{path}.color")
+        # g.markOutput(f"{path}.color")
 
     pairs = {
         'ref': f'AccumulatePass1.output',
@@ -461,7 +461,7 @@ def render_multigbuf(start, end):
 
         capture_pairs[key] = f"AccumulatePass{i}.output"
 
-    add_capture(g, capture_pairs, start, end, {'accumulate': True, 'accumulateCount': MULTIGBUF_COUNT})
+    add_capture(g, capture_pairs, start, end, {'accumulate': True, 'accumulateCount': MULTIGBUF_COUNT, 'captureCameraMat': False})
 
     return g
 
