@@ -474,7 +474,7 @@ if __name__ == "__main__":
     else:
         update_pyvariable("main.py", "INTERACTIVE", False)
         update_pyvariable("main.py", "OUT_DIR", OUT_DIR)
-        update_pyvariable("main.py", "REF_COUNT", 8192)
+        update_pyvariable("main.py", "REF_COUNT", config.REF_SAMPLES_PER_PIXEL)
         # update_pyvariable("main.py", "SAMPLES_PER_PIXEL", 2)
         # Create output directory
         os.makedirs(OUT_DIR, exist_ok=True)

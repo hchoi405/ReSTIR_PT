@@ -5,3 +5,6 @@ SAMPLES_PER_PIXEL = 1
 # For ref_restir method
 REF_START_SAMPLE_INDEX = 0
 REF_END_SAMPLE_PIXEL = 2048
+
+# For ref (path tracing)
+REF_SAMPLES_PER_PIXEL = 8192
