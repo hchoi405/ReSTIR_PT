@@ -371,10 +371,10 @@ void CapturePass::execute(RenderContext *pRenderContext, const RenderData &rende
         std::ofstream outMat(filename, std::ios_base::out);
         outMat << fmt::format(mCameraMatTemplate, numFrames, matStr, numFrames, offsetStr);
         outMat.close();
-    }
 
-    // Capture camera info for NPPD
-    writeCameraInfoToJson(mDirectory, mpScene, frameCount);
+        // Capture camera info for NPPD
+        writeCameraInfoToJson(mDirectory, mpScene, frameCount);
+    }
 
     // Control
     if (mStart)
