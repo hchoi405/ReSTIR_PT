@@ -236,9 +236,9 @@ def render_ref(start, end):
     path, _ = add_path(g, gbuf, enable_restir=False)
 
     if not DUMMY_RUN:
-        AccumulatePass1 = createPass("AccumulatePass", {'enabled': True})
-        AccumulatePass2 = createPass("AccumulatePass", {'enabled': True})
-        AccumulatePass3 = createPass("AccumulatePass", {'enabled': True})
+        AccumulatePass1 = createPass("AccumulatePass", {'enabled': True, 'subFrameCount': REF_COUNT})
+        AccumulatePass2 = createPass("AccumulatePass", {'enabled': True, 'subFrameCount': REF_COUNT})
+        AccumulatePass3 = createPass("AccumulatePass", {'enabled': True, 'subFrameCount': REF_COUNT})
 
         # Add pass
         g.addPass(AccumulatePass1, "AccumulatePass1")
@@ -259,6 +259,7 @@ def render_ref(start, end):
     opts = {
         'accumulate': True,
         'accumulateCount': REF_COUNT,
+        'captureCameraMat': False,
     }
 
     add_capture(g, pairs, start, end, opts)
@@ -455,7 +456,7 @@ def render_multigbuf(start, end):
 
     capture_pairs = {}
     for i, (key, value) in enumerate(pairs.items()):
-        AccumulatePass = createPass("AccumulatePass", {'enabled': True})
+        AccumulatePass = createPass("AccumulatePass", {'enabled': True, 'subFrameCount': MULTIGBUF_COUNT})
         g.addPass(AccumulatePass, f"AccumulatePass{i}")
         g.addEdge(value, f"AccumulatePass{i}.input")
 
